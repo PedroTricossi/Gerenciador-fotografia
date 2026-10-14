@@ -1,3 +1,4 @@
+import re
 from typing import Annotated
 from uuid import UUID
 
@@ -8,18 +9,22 @@ from pydantic import ValidationError
 from gerenciador.api.deps import Contracts, Ctx, Documents, Limit
 from gerenciador.api.v1.schemas import ContractCreate, ContractOut, ContractPatch, PageOut
 from gerenciador.services.contract_service import ContractView
-from gerenciador.services.exceptions import ConflictError, StaleVersionError
+from gerenciador.services.exceptions import StaleVersionError
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
 
+_STRONG_VERSION = re.compile(r'"([0-9]{1,18})"')
+
+
 def _expected_version(if_match: str | None) -> int:
+    """Read a strong `"<n>"` validator. Anything else cannot match any version."""
     if if_match is None:
         raise HTTPException(status_code=428, detail="If-Match header is required")
-    candidate = if_match.strip().removeprefix("W/").strip('"')
-    if not candidate.isdecimal():
+    match = _STRONG_VERSION.fullmatch(if_match.strip())
+    if match is None:
         raise StaleVersionError
-    return int(candidate)
+    return int(match.group(1))
 
 
 def _respond(view: ContractView, response: Response) -> ContractOut:
@@ -65,14 +70,12 @@ def update_contract(
     if_match: Annotated[str | None, Header()] = None,
 ) -> ContractOut:
     expected_version = _expected_version(if_match)
-    current = service.get(str(contract_id))
-    if current.deleted_at is not None:
-        raise ConflictError("contract is deleted; restore it before editing")
     try:
-        desired = body.apply_to(current)
+        view = service.patch(
+            ctx, str(contract_id), expected_version, lambda view: body.apply_to(view).to_input()
+        )
     except ValidationError as exc:
         raise RequestValidationError(exc.errors()) from exc
-    view = service.update(ctx, str(contract_id), expected_version, desired.to_input())
     return _respond(view, response)
 
 

@@ -10,7 +10,9 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from sqlalchemy import select
 
+from gerenciador.api.v1.contracts import _expected_version
 from gerenciador.db.models import AuditEvent
+from gerenciador.services.exceptions import StaleVersionError
 
 URL = "/api/v1/contracts"
 PROBLEM = "application/problem+json"
@@ -218,7 +220,9 @@ def test_patch_merges_nested_fields_and_bumps_the_version(
     assert body["payment"] == created["payment"]
 
 
-@pytest.mark.parametrize("if_match", ['"1"', "abc", '"0"', "*"])
+@pytest.mark.parametrize(
+    "if_match", ['"1"', "abc", '"0"', "*", 'W/"2"', "2", '"' + "9" * 5000 + '"']
+)
 def test_patch_with_a_stale_or_unreadable_version_is_refused(
     api: TestClient, payload: Payload, if_match: str
 ) -> None:
@@ -319,3 +323,35 @@ def test_pdf_download(api: TestClient, payload: Payload) -> None:
     )
     assert "JoãodaSilvaeMariaSouza" in text
     assert "R$2.000,00(doismilreais)" in text
+
+
+def test_stale_version_wins_over_an_invalid_body(api: TestClient, payload: Payload) -> None:
+    created = _create(api, payload)
+    url = f"{URL}/{created['id']}"
+    api.patch(url, json={"event": {"venue_name": "Catedral"}}, headers={"If-Match": '"1"'})
+    response = api.patch(url, json={"couple_address": None}, headers={"If-Match": '"1"'})
+    assert response.status_code == 412
+
+
+def test_deleted_wins_over_a_stale_version(api: TestClient, payload: Payload) -> None:
+    created = _create(api, payload)
+    url = f"{URL}/{created['id']}"
+    api.delete(url)
+    response = api.patch(url, json={"event": {"venue_name": "X"}}, headers={"If-Match": '"9"'})
+    assert response.status_code == 409
+
+
+def test_weak_validator_is_refused(api: TestClient, payload: Payload) -> None:
+    created = _create(api, payload)
+    response = api.patch(
+        f"{URL}/{created['id']}",
+        json={"event": {"venue_name": "Catedral"}},
+        headers={"If-Match": 'W/"1"'},
+    )
+    assert response.status_code == 412
+
+
+@pytest.mark.parametrize("value", ['"٢"', '"²"', '"-1"', '""', "1", 'W/"1"', "*"])
+def test_unreadable_validators_are_stale(value: str) -> None:
+    with pytest.raises(StaleVersionError):
+        _expected_version(value)

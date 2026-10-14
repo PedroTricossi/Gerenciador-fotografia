@@ -13,6 +13,7 @@ from gerenciador.services.context import RequestContext
 from gerenciador.services.contract_service import (
     ContractInput,
     ContractService,
+    ContractView,
     ItemInput,
     PersonInput,
 )
@@ -286,3 +287,70 @@ def test_update_reports_client_and_contract_fields_in_order(
         "fields": ["groom", "couple_address", "venue_name"],
         "version": 2,
     }
+
+
+def test_patch_applies_the_callable_result_and_bumps_the_version(
+    contracts: ContractService, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    seen: list[str] = []
+
+    def apply(view: ContractView) -> ContractInput:
+        seen.append(view.id)
+        return make_input(venue_name="Catedral")
+
+    patched = contracts.patch(ctx, created.id, 1, apply)
+    assert seen == [created.id]
+    assert patched.version == 2
+    assert patched.venue_name == "Catedral"
+
+
+def test_patch_with_a_stale_version_never_calls_apply(
+    contracts: ContractService, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    called: list[bool] = []
+
+    def apply(view: ContractView) -> ContractInput:
+        called.append(True)
+        return make_input()
+
+    with pytest.raises(StaleVersionError):
+        contracts.patch(ctx, created.id, 7, apply)
+    assert called == []
+
+
+def test_patch_of_a_deleted_contract_never_calls_apply(
+    contracts: ContractService, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    contracts.delete(ctx, created.id)
+    called: list[bool] = []
+
+    def apply(view: ContractView) -> ContractInput:
+        called.append(True)
+        return make_input()
+
+    with pytest.raises(ConflictError):
+        contracts.patch(ctx, created.id, 99, apply)
+    assert called == []
+
+
+def test_patch_of_a_missing_contract(
+    contracts: ContractService, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    with pytest.raises(NotFoundError):
+        contracts.patch(ctx, "missing", 1, lambda view: make_input())
+
+
+def test_patch_propagates_apply_errors_and_stores_nothing(
+    contracts: ContractService, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+
+    def apply(view: ContractView) -> ContractInput:
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError):
+        contracts.patch(ctx, created.id, 1, apply)
+    assert contracts.get(created.id).version == 1

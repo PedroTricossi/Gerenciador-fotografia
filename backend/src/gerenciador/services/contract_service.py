@@ -1,6 +1,7 @@
 """Contracts: create, read, edit, soft delete and restore."""
 
 import datetime as dt
+from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import uuid4
 
@@ -160,11 +161,35 @@ class ContractService:
     def update(
         self, ctx: RequestContext, contract_id: str, expected_version: int, data: ContractInput
     ) -> ContractView:
+        contract = self._editable(contract_id, expected_version)
+        return self._apply_update(ctx, contract, data)
+
+    def patch(
+        self,
+        ctx: RequestContext,
+        contract_id: str,
+        expected_version: int,
+        apply: Callable[[ContractView], ContractInput],
+    ) -> ContractView:
+        """Edit a contract from a function of its current state.
+
+        Checks run in order: not found, deleted, stale version. Only then is `apply` called;
+        whatever it raises propagates and nothing is stored.
+        """
+        contract = self._editable(contract_id, expected_version)
+        return self._apply_update(ctx, contract, apply(self._to_view(contract)))
+
+    def _editable(self, contract_id: str, expected_version: int) -> Contract:
         contract = self._require(contract_id)
         if contract.deleted_at is not None:
             raise ConflictError("contract is deleted; restore it before editing")
         if contract.version != expected_version:
             raise StaleVersionError
+        return contract
+
+    def _apply_update(
+        self, ctx: RequestContext, contract: Contract, data: ContractInput
+    ) -> ContractView:
         _check_rules(data)
         current = self._to_view(contract)
         groom = self._upsert(ctx, data.groom, data.couple_address)
