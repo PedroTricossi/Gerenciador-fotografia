@@ -31,8 +31,9 @@ make run
 ```
 
 Open <http://127.0.0.1:8000>. `make run` builds the interface first when its
-sources have changed. The API is at <http://127.0.0.1:8000/api/v1>. The server refuses to start on
-any address other than `127.0.0.1` or `localhost`, because it has no login.
+sources have changed. The API is at <http://127.0.0.1:8000/api/v1>. The server
+refuses to start on any address other than `127.0.0.1` or `localhost`, because
+it has no login.
 
 The app serves no documentation page and no schema. To get the OpenAPI schema
 as a file (the frontend needs it), run:
@@ -60,11 +61,17 @@ Vite reloads the page as you edit and forwards `/api` to the backend.
 After changing the backend's routes or models, run `make api-types` and commit
 `frontend/src/api/schema.d.ts`. `make check` fails while it is out of date.
 
+`frontend/package.json` overrides `tinypool` to a newer release. That clears a
+critical advisory in a dev-only dependency of Vitest 3; remove the override when
+you upgrade Vitest.
+
 ## Using the API from the terminal
 
-Exporting a person's data, anonymising a person and reading the audit trail
-have no screen yet. Until they do, use `curl` while the server is running.
-Replace `CLIENT_ID` with an `id` from the first command.
+Reading the audit trail and correcting a client's details
+(`PATCH /api/v1/clients/{id}`) have no screen, so use `curl` while the server
+is running. Exporting and anonymising a person are on the **Clientes** screen;
+the commands below do the same from the terminal. Replace `CLIENT_ID` with an
+`id` from the first command.
 
 ```bash
 # List clients (CPFs are masked in lists)
@@ -88,7 +95,8 @@ make check
 ```
 
 Runs formatting, lint, types, tests with coverage gates, and a dependency audit.
-`make e2e` builds the interface and runs the browser tests against the real backend on a temporary database.
+`make e2e` builds the interface and runs the browser tests against the real
+backend on a temporary database.
 
 ## Backups
 
@@ -106,8 +114,11 @@ folder's permissions to the owner.
 
 ## Personal data
 
-Client name, CPF and address live only in the `clients` table. On the **Clientes** screen you can export everything held about a person or anonymise them. Corrections go through the contract form, or through the API (see "Using the API from the terminal"). Anonymising is permanent and is
-refused while the person has a contract that is not deleted.
+Client name, CPF and address live only in the `clients` table. On the
+**Clientes** screen you can export everything held about a person or anonymise
+them. Corrections go through the contract form, or through the API (see "Using
+the API from the terminal"). Anonymising is permanent and is refused while the
+person has a contract that is not deleted.
 
 How long to keep a finished contract before anonymising is a legal decision.
 This software provides the technical measures, not legal advice.
