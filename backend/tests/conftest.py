@@ -5,12 +5,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from gerenciador.config import Settings, generate_key
 from gerenciador.db.migrate import init_database
 from gerenciador.db.session import create_session_factory
+from gerenciador.main import create_app
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
@@ -115,3 +117,13 @@ def documents(
 ) -> ContractDocumentService:
     renderer = ContractRenderer(settings.template_path, settings)
     return ContractDocumentService(session, contracts, audit, renderer, WeasyPrintRenderer())
+
+
+BASE_URL = "http://127.0.0.1:8000"
+
+
+@pytest.fixture
+def api(settings: Settings) -> Iterator[TestClient]:
+    with TestClient(create_app(settings), base_url=BASE_URL) as client:
+        client.headers["Origin"] = BASE_URL
+        yield client
