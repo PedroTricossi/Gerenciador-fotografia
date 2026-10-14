@@ -1,12 +1,15 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ApiError, type ContractOut } from "../../api/client";
 import {
+  contractKeys,
   useContracts,
   useDeleteContract,
   useDownloadPdf,
   useRestoreContract,
 } from "../../api/contracts";
+import { describeUnexpected, isUnexpected } from "../../api/errors";
 import { formatIsoDate } from "../../domain/dates";
 import { formatBrl } from "../../domain/money";
 import {
@@ -20,12 +23,13 @@ import {
   useToast,
 } from "../../ui";
 import styles from "./ContractListPage.module.css";
-import { NOT_FOUND_IN_LIST, RESTORE_CONFLICT } from "./messages";
+import { DELETE_CONFLICT, NOT_FOUND_IN_LIST, PDF_DELETED, RESTORE_CONFLICT } from "./messages";
 import { coupleLabel } from "./names";
 
 export function ContractListPage() {
   const navigate = useNavigate();
   const notify = useToast();
+  const client = useQueryClient();
   const [showDeleted, setShowDeleted] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ContractOut | null>(null);
   const contracts = useContracts(showDeleted);
@@ -35,17 +39,26 @@ export function ContractListPage() {
 
   const rows = contracts.data?.pages.flatMap((result) => result.items) ?? [];
 
-  const handleKnownError = (error: unknown) => {
+  const failureHandler = (messages: { 404: string; 409: string }) => (error: unknown) => {
     if (!(error instanceof ApiError)) return;
-    if (error.status === 409) notify(RESTORE_CONFLICT, { tone: "error" });
-    if (error.status === 404) notify(NOT_FOUND_IN_LIST, { tone: "error" });
+    if (error.status === 404 || error.status === 409) {
+      notify(messages[error.status], { tone: "error" });
+      void client.invalidateQueries({ queryKey: contractKeys.all });
+    } else if (!isUnexpected(error)) {
+      // Unexpected errors are already toasted globally.
+      notify(describeUnexpected(error), { tone: "error" });
+    }
   };
+  const onDeleteError = failureHandler({ 404: NOT_FOUND_IN_LIST, 409: DELETE_CONFLICT });
+  const onRestoreError = failureHandler({ 404: NOT_FOUND_IN_LIST, 409: RESTORE_CONFLICT });
+  const onPdfError = failureHandler({ 404: NOT_FOUND_IN_LIST, 409: PDF_DELETED });
 
+  // Promise form: the feedback must survive this page unmounting (the Desfazer toast outlives it).
   const restoreContract = (id: string) =>
-    restore.mutate(id, {
-      onSuccess: () => notify("Contrato restaurado"),
-      onError: handleKnownError,
-    });
+    restore
+      .mutateAsync(id)
+      .then(() => notify("Contrato restaurado"))
+      .catch(onRestoreError);
 
   const confirmDelete = () => {
     const target = pendingDelete;
@@ -53,9 +66,9 @@ export function ContractListPage() {
     remove.mutate(target.id, {
       onSuccess: () =>
         notify("Contrato excluído", {
-          action: { label: "Desfazer", onClick: () => restoreContract(target.id) },
+          action: { label: "Desfazer", onClick: () => void restoreContract(target.id) },
         }),
-      onError: handleKnownError,
+      onError: onDeleteError,
       onSettled: () => setPendingDelete(null),
     });
   };
@@ -85,7 +98,7 @@ export function ContractListPage() {
       cell: (contract) =>
         contract.deleted_at ? (
           <Button
-            onClick={() => restoreContract(contract.id)}
+            onClick={() => void restoreContract(contract.id)}
             busy={restore.isPending && restore.variables === contract.id}
           >
             Restaurar
@@ -94,7 +107,7 @@ export function ContractListPage() {
           <span className={styles.actions}>
             <Button onClick={() => navigate(`/contratos/${contract.id}`)}>Editar</Button>
             <Button
-              onClick={() => pdf.mutate(contract.id)}
+              onClick={() => pdf.mutate(contract.id, { onError: onPdfError })}
               busy={pdf.isPending && pdf.variables === contract.id}
             >
               Baixar PDF

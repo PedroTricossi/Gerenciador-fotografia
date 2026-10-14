@@ -163,3 +163,96 @@ test("a failed load says so and offers a retry", async () => {
   await user.click(screen.getByRole("button", { name: "Tentar de novo" }));
   expect(await screen.findByRole("row", { name: /Bruno & Ana/ })).toBeInTheDocument();
 });
+
+test("a 409 on Excluir says the contract is already deleted and refetches the list", async () => {
+  let lists = 0;
+  server.use(
+    http.get("/api/v1/contracts", () => {
+      lists += 1;
+      return HttpResponse.json(page([makeContract()]));
+    }),
+    http.delete("/api/v1/contracts/:id", () => problem(409, "already deleted")),
+  );
+  const { user } = renderApp("/contratos");
+  await screen.findByRole("row", { name: /Bruno & Ana/ });
+  await user.click(within(row(/Bruno & Ana/)).getByRole("button", { name: "Excluir" }));
+  const dialog = screen.getByRole("dialog", { name: "Excluir contrato" });
+  await user.click(within(dialog).getByRole("button", { name: "Excluir" }));
+  expect(
+    await screen.findByText("Este contrato já foi excluído. A lista foi atualizada."),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/Não é possível restaurar/)).not.toBeInTheDocument();
+  await waitFor(() => expect(lists).toBe(2));
+});
+
+test("a 422 on Excluir is explained instead of swallowed", async () => {
+  server.use(
+    http.get("/api/v1/contracts", () => HttpResponse.json(page([makeContract()]))),
+    http.delete("/api/v1/contracts/:id", () => problem(422, "nope")),
+  );
+  const { user } = renderApp("/contratos");
+  await screen.findByRole("row", { name: /Bruno & Ana/ });
+  await user.click(within(row(/Bruno & Ana/)).getByRole("button", { name: "Excluir" }));
+  const dialog = screen.getByRole("dialog", { name: "Excluir contrato" });
+  await user.click(within(dialog).getByRole("button", { name: "Excluir" }));
+  expect(
+    await screen.findByText("O servidor recusou o pedido. Código: req-422"),
+  ).toBeInTheDocument();
+});
+
+test("a 409 on Baixar PDF says the contract was deleted", async () => {
+  server.use(
+    http.get("/api/v1/contracts", () => HttpResponse.json(page([makeContract()]))),
+    http.get("/api/v1/contracts/:id/pdf", () => problem(409, "deleted")),
+  );
+  const { user } = renderApp("/contratos");
+  await screen.findByRole("row", { name: /Bruno & Ana/ });
+  await user.click(within(row(/Bruno & Ana/)).getByRole("button", { name: "Baixar PDF" }));
+  expect(
+    await screen.findByText("Este contrato foi excluído. Restaure-o para baixar o PDF."),
+  ).toBeInTheDocument();
+});
+
+test("a 404 on Baixar PDF says the contract is gone and refetches the list", async () => {
+  let lists = 0;
+  server.use(
+    http.get("/api/v1/contracts", () => {
+      lists += 1;
+      return HttpResponse.json(page([makeContract()]));
+    }),
+    http.get("/api/v1/contracts/:id/pdf", () => problem(404, "missing")),
+  );
+  const { user } = renderApp("/contratos");
+  await screen.findByRole("row", { name: /Bruno & Ana/ });
+  await user.click(within(row(/Bruno & Ana/)).getByRole("button", { name: "Baixar PDF" }));
+  expect(
+    await screen.findByText("Este contrato não existe mais. A lista foi atualizada."),
+  ).toBeInTheDocument();
+  await waitFor(() => expect(lists).toBe(2));
+});
+
+test("Desfazer still reports a refused restore after leaving the page", async () => {
+  let deleted = false;
+  server.use(
+    http.get("/api/v1/contracts", () => HttpResponse.json(page(deleted ? [] : [makeContract()]))),
+    http.delete("/api/v1/contracts/:id", () => {
+      deleted = true;
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post("/api/v1/contracts/:id/restore", () => problem(409, "anonymised")),
+    http.get("/api/v1/clients", () => HttpResponse.json(page([]))),
+  );
+  const { user } = renderApp("/contratos");
+  await screen.findByRole("row", { name: /Bruno & Ana/ });
+  await user.click(within(row(/Bruno & Ana/)).getByRole("button", { name: "Excluir" }));
+  const dialog = screen.getByRole("dialog", { name: "Excluir contrato" });
+  await user.click(within(dialog).getByRole("button", { name: "Excluir" }));
+  await screen.findByText("Contrato excluído");
+  await user.click(screen.getByRole("link", { name: "Clientes" }));
+  await user.click(screen.getByRole("button", { name: "Desfazer" }));
+  expect(
+    await screen.findByText(
+      "Não é possível restaurar: um dos clientes deste contrato foi anonimizado.",
+    ),
+  ).toBeInTheDocument();
+});
