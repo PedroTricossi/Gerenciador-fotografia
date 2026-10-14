@@ -17,6 +17,19 @@ HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
 URL.createObjectURL = vi.fn(() => "blob:test");
 URL.revokeObjectURL = vi.fn();
 
+// jsdom's AbortSignal is not the one Node's native Request accepts, and React Router
+// passes one on every navigation. Dropping it only loses request cancellation in tests.
+const NativeRequest = globalThis.Request;
+globalThis.Request = class extends NativeRequest {
+  constructor(input: RequestInfo | URL, init?: RequestInit) {
+    if (init?.signal) {
+      super(input, { ...init, signal: undefined });
+    } else {
+      super(input, init);
+    }
+  }
+};
+
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   cleanup();

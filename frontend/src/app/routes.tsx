@@ -1,0 +1,39 @@
+import { Navigate, Outlet, type RouteObject, useParams } from "react-router";
+import { ClientListPage } from "../features/clients/ClientListPage";
+import { ContractFormPage } from "../features/contracts/ContractFormPage";
+import { ContractListPage } from "../features/contracts/ContractListPage";
+import { Nav } from "../ui";
+import { NotFoundPage } from "./NotFoundPage";
+
+const LINKS = [
+  { to: "/contratos", label: "Contratos" },
+  { to: "/clientes", label: "Clientes" },
+];
+
+function AppShell() {
+  return (
+    <>
+      <Nav links={LINKS} />
+      <Outlet />
+    </>
+  );
+}
+
+function ContractFormRoute() {
+  const { id } = useParams();
+  return <ContractFormPage key={id ?? "novo"} id={id} />;
+}
+
+export const routes: RouteObject[] = [
+  {
+    element: <AppShell />,
+    children: [
+      { index: true, element: <Navigate to="/contratos" replace /> },
+      { path: "contratos", element: <ContractListPage /> },
+      { path: "contratos/novo", element: <ContractFormRoute /> },
+      { path: "contratos/:id", element: <ContractFormRoute /> },
+      { path: "clientes", element: <ClientListPage /> },
+      { path: "*", element: <NotFoundPage /> },
+    ],
+  },
+];
