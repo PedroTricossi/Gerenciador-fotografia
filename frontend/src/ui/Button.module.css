@@ -1,0 +1,29 @@
+.button {
+  font: inherit;
+  font-weight: var(--font-weight-strong);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.button:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+.primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+.danger {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+}
+.ghost {
+  background: transparent;
+  border-color: transparent;
+  padding: var(--space-1) var(--space-2);
+}

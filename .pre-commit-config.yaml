@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: prettier-frontend
+        name: prettier (frontend)
+        entry: bash -c 'cd frontend && npx --no-install prettier --write "${@#frontend/}"' --
+        language: system
+        files: ^frontend/
+        exclude: ^frontend/(src/api/schema\.d\.ts|package-lock\.json)$
+        types_or: [ts, tsx, javascript, json, css]
+      - id: eslint-frontend
+        name: eslint (frontend)
+        entry: bash -c 'cd frontend && npx --no-install eslint "${@#frontend/}"' --
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js)$
+        exclude: ^frontend/src/api/schema\.d\.ts$

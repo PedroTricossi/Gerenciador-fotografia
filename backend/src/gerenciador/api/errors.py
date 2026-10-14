@@ -1,0 +1,191 @@
+"""Every error leaves the API as an RFC 9457 problem, with no internal detail."""
+
+import logging
+import traceback
+from collections.abc import Mapping, Sequence
+from http import HTTPStatus
+from pathlib import Path
+from typing import Any, cast
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import iter_route_contexts
+from starlette.exceptions import HTTPException
+from starlette.responses import Response
+
+from gerenciador.domain.contract import ContractRuleError
+from gerenciador.services.audit_service import AuditService
+from gerenciador.services.context import RequestContext
+from gerenciador.services.exceptions import (
+    ConflictError,
+    InvalidCursorError,
+    NotFoundError,
+    StaleVersionError,
+)
+
+PROBLEM_MEDIA_TYPE = "application/problem+json"
+_KNOWN_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
+_log = logging.getLogger("gerenciador.api")
+
+
+def _frames(exc: BaseException) -> str:
+    """Where the exception travelled: `folder/file.py:line:function` per frame.
+
+    Built from code locations only. The exception message and the local values
+    are never included, because either can hold personal data.
+    """
+    return " > ".join(
+        f"{'/'.join(Path(frame.filename).parts[-2:])}:{frame.lineno}:{frame.name}"
+        for frame in traceback.extract_tb(exc.__traceback__)
+    )
+
+
+def log_failure(message: str, request_id: str, exc: Exception) -> None:
+    """Log the request id, the exception class and the traceback frames.
+
+    Never the exception message: it can hold personal data.
+    """
+    _log.error(
+        "%s request_id=%s error=%s frames=%s",
+        message,
+        request_id,
+        type(exc).__name__,
+        _frames(exc),
+    )
+
+
+def problem_response(
+    status: int,
+    detail: str,
+    request_id: str,
+    errors: list[dict[str, str]] | None = None,
+    headers: Mapping[str, str] | None = None,
+) -> JSONResponse:
+    body: dict[str, Any] = {
+        "type": "about:blank",
+        "title": HTTPStatus(status).phrase,
+        "status": status,
+        "detail": detail,
+        "request_id": request_id,
+    }
+    if errors is not None:
+        body["errors"] = errors
+    return JSONResponse(
+        body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=dict(headers or {})
+    )
+
+
+def _request_id(request: Request) -> str:
+    return str(getattr(request.state, "request_id", "unknown"))
+
+
+def _field(error: Any) -> str:
+    """Field path. A key the client chose (an unknown field) is shown as "*"."""
+    loc = [part for part in error["loc"] if part != "body"]
+    if error["type"] == "extra_forbidden" and loc:
+        loc[-1] = "*"
+    return ".".join(str(part) for part in loc)
+
+
+def _message(error: Any) -> str:
+    """Validation message, replaced when it echoes the submitted value."""
+    message = str(error["msg"])
+    value = error.get("input")
+    if isinstance(value, str | int | float) and not isinstance(value, bool):
+        text = str(value)
+        if len(text) >= 3 and text in message:
+            return "valor inválido"
+    return message
+
+
+def _field_errors(errors: Sequence[Any]) -> list[dict[str, str]]:
+    """Field path and message only. The submitted value is never included."""
+    return [{"field": _field(error), "message": _message(error)} for error in errors]
+
+
+def _route_label(request: Request) -> str:
+    """Method and route template, such as `GET /api/v1/clients/{client_id}`.
+
+    Never the path the caller typed: it can hold anything, including personal data.
+    """
+    route = request.scope.get("route")
+    if route is not None:
+        # An included router keeps its routes without the prefix, so the full
+        # template comes from the application's view of the route.
+        for context in iter_route_contexts(request.app.routes):
+            if context.original_route is route and context.path_format:
+                return f"{request.method} {context.path_format}"
+    method = request.method if request.method in _KNOWN_METHODS else "OTHER"
+    return f"{method} unmatched"
+
+
+def _rejected(request: Request, errors: list[dict[str, str]]) -> Response:
+    """Answer 422 and audit the rejection: the route and field names, never the values."""
+    actor = str(getattr(request.state, "actor", "unknown"))
+    ctx = RequestContext(actor=actor, request_id=_request_id(request))
+    try:
+        with request.app.state.session_factory() as session:
+            AuditService(session).record(
+                ctx,
+                "request.rejected",
+                outcome="failure",
+                details={
+                    "route": _route_label(request),
+                    "fields": [error["field"] for error in errors],
+                },
+            )
+            session.commit()
+    except Exception as exc:
+        log_failure("audit write failed for a rejected request", ctx.request_id, exc)
+    return problem_response(422, "Request validation failed", _request_id(request), errors)
+
+
+def _invalid_request(request: Request, exc: Exception) -> Response:
+    return _rejected(request, _field_errors(cast(RequestValidationError, exc).errors()))
+
+
+def _rule_broken(request: Request, exc: Exception) -> Response:
+    error = cast(ContractRuleError, exc)
+    return _rejected(request, [{"field": error.field, "message": error.message}])
+
+
+def _invalid_cursor(request: Request, exc: Exception) -> Response:
+    return _rejected(request, [{"field": "cursor", "message": "cursor inválido"}])
+
+
+def _not_found(request: Request, exc: Exception) -> Response:
+    return problem_response(404, str(exc), _request_id(request))
+
+
+def _conflict(request: Request, exc: Exception) -> Response:
+    return problem_response(409, cast(ConflictError, exc).message, _request_id(request))
+
+
+def _stale(request: Request, exc: Exception) -> Response:
+    return problem_response(412, "The contract changed since it was loaded", _request_id(request))
+
+
+def _http_error(request: Request, exc: Exception) -> Response:
+    error = cast(HTTPException, exc)
+    return problem_response(
+        error.status_code,
+        str(error.detail),
+        _request_id(request),
+        headers=error.headers,
+    )
+
+
+def _unhandled(request: Request, exc: Exception) -> Response:
+    return problem_response(500, "Internal server error", _request_id(request))
+
+
+def register_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(RequestValidationError, _invalid_request)
+    app.add_exception_handler(ContractRuleError, _rule_broken)
+    app.add_exception_handler(InvalidCursorError, _invalid_cursor)
+    app.add_exception_handler(NotFoundError, _not_found)
+    app.add_exception_handler(ConflictError, _conflict)
+    app.add_exception_handler(StaleVersionError, _stale)
+    app.add_exception_handler(HTTPException, _http_error)
+    app.add_exception_handler(Exception, _unhandled)

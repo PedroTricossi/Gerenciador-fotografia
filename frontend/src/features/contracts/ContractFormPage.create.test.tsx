@@ -1,0 +1,269 @@
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import { IDS, makeContract, problem } from "../../test/fixtures";
+import { renderApp } from "../../test/render";
+import { server } from "../../test/server";
+
+const PDF_HEADERS = {
+  "Content-Type": "application/pdf",
+  "Content-Disposition": 'attachment; filename="contrato-bruno-ana-2027-03-14.pdf"',
+};
+
+const EXPECTED_REQUEST = {
+  groom: { full_name: "Bruno Costa", cpf: "12345678909" },
+  bride: { full_name: "Ana Lima", cpf: "98765432100" },
+  couple_address: "Rua das Flores 100",
+  event: {
+    date: "2027-03-14",
+    venue_name: "Igreja Matriz",
+    venue_address: null,
+    coverage_start: "16:00",
+    coverage_end: null,
+    hours_contracted: null,
+  },
+  photographer_count: 2,
+  payment: {
+    items: [
+      { description: "Cobertura da cerimônia na igreja", amount_cents: 120000 },
+      { description: "Diária segundo fotógrafo", amount_cents: 50000 },
+    ],
+    pix_discount_cents: 30000,
+  },
+  signing: { city: "Curitiba", date: "2026-10-14" },
+};
+
+// Date and time inputs take a whole value at once.
+function setInput(element: HTMLElement, value: string) {
+  fireEvent.change(element, { target: { value } });
+  fireEvent.blur(element);
+}
+
+async function fillValidContract(user: UserEvent) {
+  await user.type(screen.getByLabelText("Nome do noivo"), "Bruno Costa");
+  await user.type(screen.getByLabelText("CPF do noivo"), "12345678909");
+  await user.type(screen.getByLabelText("Nome da noiva"), "Ana Lima");
+  await user.type(screen.getByLabelText("CPF da noiva"), "987.654.321-00");
+  await user.type(screen.getByLabelText("Endereço do casal"), "Rua das Flores 100");
+  setInput(screen.getByLabelText("Data do evento"), "2027-03-14");
+  await user.type(screen.getByLabelText("Local do evento"), "Igreja Matriz");
+  setInput(screen.getByLabelText("Início da cobertura"), "16:00");
+  await user.type(screen.getByLabelText("Descrição do item 1"), "Cobertura da cerimônia na igreja");
+  await user.type(screen.getByLabelText("Valor do item 1"), "1200");
+  await user.click(screen.getByRole("button", { name: "Adicionar item" }));
+  await user.type(screen.getByLabelText("Descrição do item 2"), "Diária segundo fotógrafo");
+  await user.type(screen.getByLabelText("Valor do item 2"), "500");
+  await user.type(screen.getByLabelText("Desconto PIX"), "300");
+  await user.tab();
+}
+
+let anchors: HTMLAnchorElement[];
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 14, 10, 0) });
+  anchors = [];
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    anchors.push(this);
+  });
+  server.use(
+    http.get("/api/v1/contracts/:id", () => HttpResponse.json(makeContract())),
+    http.get(
+      "/api/v1/contracts/:id/pdf",
+      () => new HttpResponse(new Blob(["%PDF-1.7"]), { headers: PDF_HEADERS }),
+    ),
+  );
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test("starts with the defaults", () => {
+  renderApp("/contratos/novo");
+  expect(screen.getByRole("heading", { level: 1, name: "Novo contrato" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Cidade da assinatura")).toHaveValue("Curitiba");
+  expect(screen.getByLabelText("Data da assinatura")).toHaveValue("2026-10-14");
+  expect(screen.getByLabelText("Número de fotógrafos")).toHaveValue(2);
+  expect(
+    within(screen.getByRole("group", { name: "Pagamento" })).getByText("—"),
+  ).toBeInTheDocument();
+});
+
+test("an empty form is not sent and every required input says so", async () => {
+  const posted = vi.fn();
+  server.use(
+    http.post("/api/v1/contracts", () => {
+      posted();
+      return HttpResponse.json({});
+    }),
+  );
+  const { user } = renderApp("/contratos/novo");
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+  for (const label of ["Nome do noivo", "CPF do noivo", "Data do evento", "Valor do item 1"]) {
+    expect(screen.getByLabelText(label)).toHaveAccessibleDescription("campo obrigatório");
+  }
+  // This input also has a hint, which is part of its description.
+  expect(screen.getByLabelText("Endereço do casal")).toHaveAccessibleDescription(
+    /campo obrigatório/,
+  );
+  expect(posted).not.toHaveBeenCalled();
+});
+
+test("CPFs are checked and formatted as you leave the input", async () => {
+  const { user } = renderApp("/contratos/novo");
+  await user.type(screen.getByLabelText("CPF do noivo"), "12345678909");
+  await user.tab();
+  expect(screen.getByLabelText("CPF do noivo")).toHaveValue("123.456.789-09");
+  await user.type(screen.getByLabelText("CPF da noiva"), "12345678900");
+  await user.tab();
+  expect(screen.getByLabelText("CPF da noiva")).toHaveAccessibleDescription("CPF inválido");
+  await user.clear(screen.getByLabelText("CPF da noiva"));
+  await user.type(screen.getByLabelText("CPF da noiva"), "123.456.789-09");
+  await user.tab();
+  expect(screen.getByLabelText("CPF da noiva")).toHaveAccessibleDescription(
+    "os CPFs dos contratantes devem ser diferentes",
+  );
+});
+
+test("items can be added and removed and the total follows", async () => {
+  const { user } = renderApp("/contratos/novo");
+  const payment = () => within(screen.getByRole("group", { name: "Pagamento" }));
+  expect(screen.getByRole("button", { name: "Remover item 1" })).toBeDisabled();
+
+  await user.type(screen.getByLabelText("Valor do item 1"), "1200");
+  await user.tab();
+  expect(screen.getByLabelText("Valor do item 1")).toHaveValue("1.200,00");
+  expect(payment().getByText("R$ 1.200,00")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Adicionar item" }));
+  await user.type(screen.getByLabelText("Valor do item 2"), "500");
+  expect(payment().getByText("R$ 1.700,00")).toBeInTheDocument();
+
+  await user.type(screen.getByLabelText("Desconto PIX"), "300");
+  expect(payment().getByText("R$ 1.400,00")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Remover item 1" }));
+  // "500" was tidied to "500,00" when the input lost focus.
+  expect(screen.getByLabelText("Valor do item 1")).toHaveValue("500,00");
+  expect(payment().getByText("R$ 200,00")).toBeInTheDocument();
+});
+
+test("no more than 20 items", async () => {
+  const { user } = renderApp("/contratos/novo");
+  const add = screen.getByRole("button", { name: "Adicionar item" });
+  for (let count = 1; count < 20; count += 1) await user.click(add);
+  expect(screen.getByLabelText("Valor do item 20")).toBeInTheDocument();
+  expect(add).toBeDisabled();
+});
+
+test("saving sends the contract, downloads its PDF and opens it", async () => {
+  let body: unknown;
+  server.use(
+    http.post("/api/v1/contracts", async ({ request }) => {
+      body = await request.json();
+      return HttpResponse.json(makeContract(), { status: 201 });
+    }),
+  );
+  const { user, router } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+  await waitFor(() => expect(router.state.location.pathname).toBe(`/contratos/${IDS.contract}`));
+  expect(body).toEqual(EXPECTED_REQUEST);
+  expect(anchors).toHaveLength(1);
+  expect(anchors[0]!.download).toBe("contrato-bruno-ana-2027-03-14.pdf");
+  expect(screen.getByText("Contrato salvo")).toBeInTheDocument();
+});
+
+test("server validation errors land on their inputs, the rest in a banner", async () => {
+  server.use(
+    http.post("/api/v1/contracts", () =>
+      problem(422, "Request validation failed", {
+        errors: [
+          { field: "groom.cpf", message: "CPF recusado pelo servidor" },
+          { field: "payment.items.1.amount_cents", message: "valor recusado" },
+          { field: "payment.items", message: "informe ao menos um item" },
+        ],
+      }),
+    ),
+  );
+  const { user, router } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "payment.items: informe ao menos um item",
+  );
+  expect(screen.getByLabelText("CPF do noivo")).toHaveAccessibleDescription(
+    "CPF recusado pelo servidor",
+  );
+  expect(screen.getByLabelText("Valor do item 2")).toHaveAccessibleDescription("valor recusado");
+  expect(router.state.location.pathname).toBe("/contratos/novo");
+});
+
+test("a double click sends one request", async () => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const posted = vi.fn();
+  server.use(
+    http.post("/api/v1/contracts", async () => {
+      posted();
+      await gate;
+      return HttpResponse.json(makeContract(), { status: 201 });
+    }),
+  );
+  const { user, router } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await user.dblClick(screen.getByRole("button", { name: "Salvar" }));
+  await user.keyboard("{Enter}");
+  release();
+  await waitFor(() => expect(router.state.location.pathname).toBe(`/contratos/${IDS.contract}`));
+  expect(posted).toHaveBeenCalledOnce();
+});
+
+test("a failed PDF after a successful save keeps the contract and says so", async () => {
+  server.use(
+    http.post("/api/v1/contracts", () => HttpResponse.json(makeContract(), { status: 201 })),
+    http.get("/api/v1/contracts/:id/pdf", () => problem(500, "boom")),
+  );
+  const { user, router } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(router.state.location.pathname).toBe(`/contratos/${IDS.contract}`));
+  expect(
+    screen.getByText(
+      "Contrato salvo, mas o PDF não foi baixado. Use Baixar PDF na página do contrato.",
+    ),
+  ).toBeInTheDocument();
+});
+
+test("a refusal that is not a validation error shows in the banner and stays on the form", async () => {
+  server.use(http.post("/api/v1/contracts", () => problem(429, "Too many requests")));
+  const { user, router } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "O servidor recusou o pedido. Código: req-429",
+  );
+  expect(router.state.location.pathname).toBe("/contratos/novo");
+});
+
+test("removing an item moves the other item's error with it", async () => {
+  const { user } = renderApp("/contratos/novo");
+  await user.type(screen.getByLabelText("Valor do item 1"), "abc");
+  await user.click(screen.getByRole("button", { name: "Adicionar item" }));
+  await user.type(screen.getByLabelText("Valor do item 2"), "0,00");
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+  expect(screen.getByLabelText("Valor do item 1")).toHaveAccessibleDescription("valor inválido");
+  expect(screen.getByLabelText("Valor do item 2")).toHaveAccessibleDescription(
+    "o valor deve ser maior que zero",
+  );
+
+  await user.click(screen.getByRole("button", { name: "Remover item 1" }));
+  expect(screen.getByLabelText("Valor do item 1")).toHaveAccessibleDescription(
+    "o valor deve ser maior que zero",
+  );
+});

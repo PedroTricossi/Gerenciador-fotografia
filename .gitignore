@@ -1,0 +1,17 @@
+.DS_Store
+.env
+data/
+__pycache__/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+node_modules/
+dist/
+openapi.json
+playwright-report/
+test-results/
+coverage/
