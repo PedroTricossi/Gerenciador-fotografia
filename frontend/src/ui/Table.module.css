@@ -1,0 +1,32 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+.table th,
+.table td {
+  text-align: start;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.table th {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+.end {
+  text-align: end;
+}
+.table th.end,
+.table td.end {
+  text-align: end;
+}
+.muted td {
+  color: var(--color-text-muted);
+}
+.empty {
+  padding: var(--space-8);
+  text-align: center;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
