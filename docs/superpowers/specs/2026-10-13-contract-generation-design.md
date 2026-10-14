@@ -358,21 +358,9 @@ Locked dependencies (`uv.lock`, `package-lock.json`). CI runs `pip-audit`,
 
 ## 7. Frontend
 
-Two views:
-
-- **Contract list:** couple, event date, total. Actions per row: edit, download
-  PDF, delete. A toggle shows deleted contracts with a restore action.
-- **Contract form:** used for create and edit. Sections for the couple, the
-  event, payment and signing. Payment items can be added and removed, and the
-  total updates as values change. On create, the PDF downloads after saving.
-
-Validation errors from the API are shown on the matching inputs. A stale edit
-(`412`) tells the user the contract changed and offers a reload.
-
-Client export, client anonymise and the audit trail have no screen in this
-version. They are reachable through the API and its `/docs` page.
-
-Interface text is in Portuguese.
+Replaced by `2026-10-14-contract-frontend-design.md`, which covers the
+contract list, the contract form and a clients screen for export and
+anonymisation. Interface text is in Portuguese.
 
 ## 8. Testing
 
