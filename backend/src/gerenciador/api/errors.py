@@ -1,6 +1,7 @@
 """Every error leaves the API as an RFC 9457 problem, with no internal detail."""
 
-from collections.abc import Sequence
+import logging
+from collections.abc import Mapping, Sequence
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -22,10 +23,20 @@ from gerenciador.services.exceptions import (
 )
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
+_log = logging.getLogger("gerenciador.api")
+
+
+def log_failure(message: str, request_id: str, exc: Exception) -> None:
+    """Log the request id and exception class only: messages can hold personal data."""
+    _log.error("%s request_id=%s error=%s", message, request_id, type(exc).__name__)
 
 
 def problem_response(
-    status: int, detail: str, request_id: str, errors: list[dict[str, str]] | None = None
+    status: int,
+    detail: str,
+    request_id: str,
+    errors: list[dict[str, str]] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     body: dict[str, Any] = {
         "type": "about:blank",
@@ -36,38 +47,56 @@ def problem_response(
     }
     if errors is not None:
         body["errors"] = errors
-    return JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE)
+    return JSONResponse(
+        body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=dict(headers or {})
+    )
 
 
 def _request_id(request: Request) -> str:
     return str(getattr(request.state, "request_id", "unknown"))
 
 
+def _field(error: Any) -> str:
+    """Field path. A key the client chose (an unknown field) is shown as "*"."""
+    loc = [part for part in error["loc"] if part != "body"]
+    if error["type"] == "extra_forbidden" and loc:
+        loc[-1] = "*"
+    return ".".join(str(part) for part in loc)
+
+
+def _message(error: Any) -> str:
+    """Validation message, replaced when it echoes the submitted value."""
+    message = str(error["msg"])
+    value = error.get("input")
+    if isinstance(value, str | int | float) and not isinstance(value, bool):
+        text = str(value)
+        if len(text) >= 3 and text in message:
+            return "valor inválido"
+    return message
+
+
 def _field_errors(errors: Sequence[Any]) -> list[dict[str, str]]:
     """Field path and message only. The submitted value is never included."""
-    return [
-        {
-            "field": ".".join(str(part) for part in error["loc"] if part != "body"),
-            "message": str(error["msg"]),
-        }
-        for error in errors
-    ]
+    return [{"field": _field(error), "message": _message(error)} for error in errors]
 
 
 def _rejected(request: Request, errors: list[dict[str, str]]) -> Response:
     """Answer 422 and audit the rejection: the route and field names, never the values."""
     ctx = RequestContext(actor=get_current_actor(), request_id=_request_id(request))
-    with request.app.state.session_factory() as session:
-        AuditService(session).record(
-            ctx,
-            "request.rejected",
-            outcome="failure",
-            details={
-                "route": f"{request.method} {request.url.path}",
-                "fields": [error["field"] for error in errors],
-            },
-        )
-        session.commit()
+    try:
+        with request.app.state.session_factory() as session:
+            AuditService(session).record(
+                ctx,
+                "request.rejected",
+                outcome="failure",
+                details={
+                    "route": f"{request.method} {request.url.path}",
+                    "fields": [error["field"] for error in errors],
+                },
+            )
+            session.commit()
+    except Exception as exc:
+        log_failure("audit write failed for a rejected request", ctx.request_id, exc)
     return problem_response(422, "Request validation failed", _request_id(request), errors)
 
 
@@ -98,7 +127,12 @@ def _stale(request: Request, exc: Exception) -> Response:
 
 def _http_error(request: Request, exc: Exception) -> Response:
     error = cast(HTTPException, exc)
-    return problem_response(error.status_code, str(error.detail), _request_id(request))
+    return problem_response(
+        error.status_code,
+        str(error.detail),
+        _request_id(request),
+        headers=error.headers,
+    )
 
 
 def _unhandled(request: Request, exc: Exception) -> Response:

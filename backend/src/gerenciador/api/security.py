@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from gerenciador.api.errors import problem_response
+from gerenciador.api.errors import log_failure, problem_response
 
 ALLOWED_HOSTNAMES = frozenset({"localhost", "127.0.0.1"})
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -49,7 +49,13 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_id = str(uuid4())
         request.state.request_id = request_id
-        response = _rejection(request, request_id) or await call_next(request)
+        response = _rejection(request, request_id)
+        if response is None:
+            try:
+                response = await call_next(request)
+            except Exception as exc:
+                log_failure("unhandled error", request_id, exc)
+                response = problem_response(500, "Internal server error", request_id)
 
         path = request.url.path
         response.headers["X-Request-ID"] = request_id
