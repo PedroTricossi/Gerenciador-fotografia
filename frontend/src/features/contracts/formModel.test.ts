@@ -239,6 +239,29 @@ test.each<[string, (values: ContractFormValues) => void, string, string]>([
   expect(validate(values)[path]).toBe(message);
 });
 
+test.each<[string, (values: ContractFormValues) => void, string]>([
+  [
+    "trailing newline on venue",
+    (v) => (v.event.venue_name = "Igreja Matriz\n"),
+    "event.venue_name",
+  ],
+  ["leading tab on address", (v) => (v.couple_address = "\tRua das Flores 100"), "couple_address"],
+])("%s is stripped before the control check", (_name, change, path) => {
+  const values = valid();
+  change(values);
+  expect(validate(values)[path]).toBeUndefined();
+  expect(toRequest(values)).toBeDefined();
+});
+
+test("an astral character counts once toward the length limit", () => {
+  const accepted = valid();
+  accepted.bride.full_name = "\u{1D49C}".repeat(200);
+  expect(validate(accepted)["bride.full_name"]).toBeUndefined();
+  const refused = valid();
+  refused.bride.full_name = "\u{1D49C}".repeat(201);
+  expect(validate(refused)["bride.full_name"]).toBe("máximo de 200 caracteres");
+});
+
 test("the total follows the typed values", () => {
   expect(formTotal(valid())).toBe(140000);
   const values = valid();

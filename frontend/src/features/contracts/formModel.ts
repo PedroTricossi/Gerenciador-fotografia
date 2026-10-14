@@ -123,8 +123,10 @@ export function toRequest(values: ContractFormValues): ContractCreate {
 function textError(value: string, max: number, required: boolean): string | null {
   const trimmed = value.trim();
   if (trimmed === "") return required ? REQUIRED : null;
-  if (CONTROL.test(value)) return "não pode conter caracteres de controle";
-  if (trimmed.length > max) return `máximo de ${max} caracteres`;
+  // The API strips whitespace before refusing control characters, so check the trimmed text.
+  if (CONTROL.test(trimmed)) return "não pode conter caracteres de controle";
+  // Python counts code points, so an astral character is one character here too.
+  if ([...trimmed].length > max) return `máximo de ${max} caracteres`;
   return null;
 }
 
