@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from gerenciador.config import Settings, generate_key
+from gerenciador.services.crypto import FieldCipher
 
 
 @pytest.fixture
@@ -20,3 +21,8 @@ def settings(tmp_path: Path) -> Settings:
         host="127.0.0.1",
         port=8000,
     )
+
+
+@pytest.fixture
+def cipher(settings: Settings) -> FieldCipher:
+    return FieldCipher.from_settings(settings)
