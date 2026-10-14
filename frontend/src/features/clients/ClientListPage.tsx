@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, type ClientOut } from "../../api/client";
-import { clientKeys, useAnonymiseClient, useClients, useExportClient } from "../../api/clients";
+import { useAnonymiseClient, useClients, useExportClient } from "../../api/clients";
+import { clientKeys } from "../../api/keys";
 import { describeUnexpected, isUnexpected } from "../../api/errors";
 import { formatIsoDate } from "../../domain/dates";
 import { Banner, Button, type Column, ConfirmDialog, PageLayout, Table, useToast } from "../../ui";

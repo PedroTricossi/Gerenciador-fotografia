@@ -9,14 +9,11 @@ import {
   unwrap,
 } from "./client";
 import { saveBlob } from "./download";
+import { clientKeys, contractKeys } from "./keys";
+
+export { contractKeys };
 
 const PAGE_SIZE = 20;
-
-export const contractKeys = {
-  all: ["contracts"] as const,
-  list: (includeDeleted: boolean) => ["contracts", { includeDeleted }] as const,
-  one: (id: string) => ["contract", id] as const,
-};
 
 const path = (id: string) => ({ path: { contract_id: id } });
 
@@ -51,7 +48,11 @@ function useStoreContract() {
   const client = useQueryClient();
   return (contract: ContractOut) => {
     client.setQueryData(contractKeys.one(contract.id), contract);
-    return client.invalidateQueries({ queryKey: contractKeys.all });
+    // Saving a contract can create or rename the clients it names.
+    return Promise.all([
+      client.invalidateQueries({ queryKey: contractKeys.all }),
+      client.invalidateQueries({ queryKey: clientKeys.all }),
+    ]);
   };
 }
 

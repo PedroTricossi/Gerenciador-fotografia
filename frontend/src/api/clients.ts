@@ -1,11 +1,9 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "./client";
-import { contractKeys } from "./contracts";
 import { saveBlob } from "./download";
+import { clientKeys, contractKeys } from "./keys";
 
 const PAGE_SIZE = 20;
-
-export const clientKeys = { all: ["clients"] as const };
 
 const path = (id: string) => ({ path: { client_id: id } });
 
@@ -44,7 +42,7 @@ export function useAnonymiseClient() {
       Promise.all([
         client.invalidateQueries({ queryKey: clientKeys.all }),
         client.invalidateQueries({ queryKey: contractKeys.all }),
-        client.invalidateQueries({ queryKey: ["contract"] }),
+        client.invalidateQueries({ queryKey: contractKeys.ones }),
       ]),
   });
 }
