@@ -5,14 +5,37 @@ BREW_LIB := $(shell brew --prefix)/lib
 endif
 
 UV := cd backend && DYLD_FALLBACK_LIBRARY_PATH="$(BREW_LIB)" uv
+NPM := cd frontend && npm
 
-.PHONY: install run check openapi
+.PHONY: install install-backend install-frontend run dev dev-backend dev-frontend check openapi build api-types e2e
 
-install:
+install: install-backend install-frontend
+
+install-backend:
 	$(UV) sync
 
-run:
+install-frontend:
+	$(NPM) ci
+
+# Backend and Vite together. Vite proxies /api to the backend and keeps the browser's Host.
+dev:
+	$(MAKE) -j2 dev-backend dev-frontend
+
+dev-backend:
 	$(UV) run python -m gerenciador
+
+dev-frontend:
+	$(NPM) run dev
+
+build:
+	$(NPM) run build
+
+# Builds the interface when it is missing or older than its sources, then serves it.
+run: frontend/dist/index.html
+	$(UV) run python -m gerenciador
+
+frontend/dist/index.html: $(shell find frontend/src frontend/index.html frontend/vite.config.ts frontend/package-lock.json -type f 2>/dev/null)
+	$(NPM) run build
 
 # The app serves no schema. This writes it to openapi.json at the repository root.
 openapi:
