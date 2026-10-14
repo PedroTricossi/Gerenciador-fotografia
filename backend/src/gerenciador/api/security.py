@@ -1,9 +1,9 @@
 """Request checks and response headers for an app with no login.
 
 A web page open in the same browser can try to call a server on localhost.
-The Host allowlist blocks DNS rebinding, the fetch-metadata check blocks
-cross-site requests of every method, and the Origin and JSON-only checks block
-cross-site writes.
+The Host allowlist blocks DNS rebinding, the fetch-metadata and Origin checks
+block cross-site requests of every method, and writes must also carry a matching
+Origin and a JSON body.
 """
 
 from uuid import uuid4
@@ -32,6 +32,10 @@ def _rejection(request: Request, request_id: str) -> Response | None:
         site = request.headers.get("sec-fetch-site", "").strip().lower()
         if site in _FOREIGN_SITES:
             return problem_response(403, "Cross-site request not allowed", request_id)
+        # A read may come without an Origin (curl, a same-origin page), never with a foreign one.
+        origin = request.headers.get("origin")
+        if origin is not None and origin != f"http://{host}":
+            return problem_response(403, "Origin not allowed", request_id)
     if request.method in _SAFE_METHODS:
         return None
     if request.headers.get("origin") != f"http://{host}":

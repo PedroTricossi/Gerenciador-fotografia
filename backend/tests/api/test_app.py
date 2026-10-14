@@ -94,7 +94,8 @@ def test_unknown_host_is_rejected(api: TestClient, host: str) -> None:
 
 @pytest.mark.parametrize("host", ["localhost:8000", "127.0.0.1", "localhost"])
 def test_loopback_hosts_are_accepted(api: TestClient, host: str) -> None:
-    assert api.get("/api/v1/health", headers={"Host": host}).status_code == 200
+    headers = {"Host": host, "Origin": f"http://{host}"}
+    assert api.get("/api/v1/health", headers=headers).status_code == 200
 
 
 def test_write_without_origin_is_rejected(api: TestClient) -> None:
@@ -127,6 +128,31 @@ def test_cross_site_read_is_refused_and_leaves_no_audit_row(
     assert "João" not in response.text
     assert "123.456.789-09" not in response.text
     assert _audit_count(api) == 0
+
+
+@pytest.mark.parametrize(
+    "origin",
+    ["http://evil.example", "http://127.0.0.1:9999", "http://localhost:8000", "null", ""],
+)
+def test_read_from_a_foreign_origin_is_refused_and_leaves_no_audit_row(
+    api: TestClient, origin: str
+) -> None:
+    response = api.get(PERSONAL_PATH, headers={"Origin": origin})
+    body = _is_problem(response, 403)
+    _assert_api_headers(response, body["request_id"])
+    assert "João" not in response.text
+    assert "123.456.789-09" not in response.text
+    assert _audit_count(api) == 0
+
+
+@pytest.mark.parametrize("method", ["get", "head", "options"])
+def test_foreign_origin_is_refused_for_every_safe_method(api: TestClient, method: str) -> None:
+    response = getattr(api, method)("/api/v1/health", headers={"Origin": "http://evil.example"})
+    assert response.status_code == 403
+
+
+def test_read_with_the_matching_origin_is_allowed(api: TestClient) -> None:
+    assert api.get("/api/v1/health", headers={"Origin": BASE_URL}).status_code == 200
 
 
 @pytest.mark.parametrize("method", ["get", "head", "options", "post", "delete"])

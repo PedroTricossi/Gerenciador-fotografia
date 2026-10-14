@@ -41,7 +41,8 @@ It writes `openapi.json` at the repository root without starting the server or
 opening the database.
 
 Writes need an `Origin` header that matches the address you call. Browsers send
-it. With curl, add `-H "Origin: http://127.0.0.1:8000"`.
+it. With curl, add `-H "Origin: http://127.0.0.1:8000"`. Reads work without the
+header, but a read that carries an `Origin` for any other address is refused.
 
 ## Using the API from the terminal
 
