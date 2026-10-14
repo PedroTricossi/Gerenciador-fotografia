@@ -19,12 +19,14 @@ def encode_cursor(created_at: dt.datetime, row_id: str) -> str:
 
 
 def decode_cursor(cursor: str) -> tuple[dt.datetime, str]:
+    """The position a cursor points at, with its timestamp in UTC."""
     try:
         decoded = base64.urlsafe_b64decode(cursor.encode("utf-8")).decode("utf-8")
         timestamp, _, row_id = decoded.partition("|")
         created_at = dt.datetime.fromisoformat(timestamp)
-    except ValueError as exc:
+        if not row_id or created_at.tzinfo is None:
+            raise InvalidCursorError
+        # A timestamp at the edge of the calendar overflows when its offset is removed.
+        return created_at.astimezone(dt.UTC), row_id
+    except (ValueError, OverflowError) as exc:
         raise InvalidCursorError from exc
-    if not row_id or created_at.tzinfo is None:
-        raise InvalidCursorError
-    return created_at, row_id

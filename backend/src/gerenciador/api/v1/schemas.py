@@ -3,7 +3,15 @@
 import datetime as dt
 from typing import Annotated, Any, Self
 
-from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from gerenciador.db.models import AuditEvent
 from gerenciador.domain.cpf import format_cpf, mask_cpf, normalize_cpf
@@ -25,6 +33,14 @@ def _today() -> dt.date:
     return dt.date.today()
 
 
+def _to_utc(value: dt.datetime) -> dt.datetime:
+    """A moment at the edge of the calendar cannot be expressed in UTC."""
+    try:
+        return value.astimezone(dt.UTC)
+    except OverflowError as exc:
+        raise ValueError("data fora do intervalo permitido") from exc
+
+
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -38,6 +54,7 @@ OptionalTime = Annotated[dt.time | None, BeforeValidator(_blank_to_none)]
 Hours = Annotated[int, Field(strict=True, ge=1, le=24)]
 PhotographerCount = Annotated[int, Field(strict=True, ge=1, le=10)]
 Cents = Annotated[int, Field(strict=True, gt=0, le=100_000_000)]
+UtcDatetime = Annotated[AwareDatetime, AfterValidator(_to_utc)]
 
 
 # ---- requests -------------------------------------------------------------

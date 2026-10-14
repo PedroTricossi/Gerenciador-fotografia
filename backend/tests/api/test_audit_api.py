@@ -40,17 +40,39 @@ def test_actions_appear_newest_first(api: TestClient, contract: dict[str, Any]) 
 
 
 def test_audit_trail_holds_no_personal_values(api: TestClient, contract: dict[str, Any]) -> None:
-    api.patch(f"/api/v1/clients/{contract['groom']['id']}", json={"full_name": "João Souza"})
-    api.post(CONTRACTS, json={"groom": {"full_name": "Nome Rejeitado", "cpf": "000"}})
-    text = api.get(AUDIT).text
+    corrected = api.patch(
+        f"/api/v1/clients/{contract['groom']['id']}", json={"full_name": "João Souza"}
+    )
+    assert corrected.status_code == 200
+    rejected_body = api.post(
+        CONTRACTS, json={"groom": {"full_name": "Nome Rejeitado", "cpf": "000"}}
+    )
+    assert rejected_body.status_code == 422
+    rejected_path = api.get("/api/v1/clients/Nome Caminho 111.444.777-35")
+    assert rejected_path.status_code == 422
+
+    response = api.get(AUDIT)
+    actions = [event["action"] for event in response.json()["items"]]
+    assert "client.updated" in actions
+    assert actions.count("request.rejected") == 2
+    routes = [
+        event["details"]["route"]
+        for event in response.json()["items"]
+        if event["action"] == "request.rejected"
+    ]
+    assert routes == ["GET /api/v1/clients/{client_id}", "POST /api/v1/contracts"]
+    text = response.text
     for needle in (
         "João",
         "Maria",
         "Souza",
         "Rejeitado",
+        "Caminho",
         "12345678909",
         "123.456.789-09",
         "98765432100",
+        "111.444.777-35",
+        "11144477735",
         "Flores",
     ):
         assert needle not in text

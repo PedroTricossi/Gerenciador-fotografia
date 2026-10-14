@@ -8,10 +8,10 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import iter_route_contexts
 from starlette.exceptions import HTTPException
 from starlette.responses import Response
 
-from gerenciador.api.deps import get_current_actor
 from gerenciador.domain.contract import ContractRuleError
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.context import RequestContext
@@ -23,6 +23,7 @@ from gerenciador.services.exceptions import (
 )
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
+_KNOWN_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 _log = logging.getLogger("gerenciador.api")
 
 
@@ -80,9 +81,26 @@ def _field_errors(errors: Sequence[Any]) -> list[dict[str, str]]:
     return [{"field": _field(error), "message": _message(error)} for error in errors]
 
 
+def _route_label(request: Request) -> str:
+    """Method and route template, such as `GET /api/v1/clients/{client_id}`.
+
+    Never the path the caller typed: it can hold anything, including personal data.
+    """
+    route = request.scope.get("route")
+    if route is not None:
+        # An included router keeps its routes without the prefix, so the full
+        # template comes from the application's view of the route.
+        for context in iter_route_contexts(request.app.routes):
+            if context.original_route is route and context.path_format:
+                return f"{request.method} {context.path_format}"
+    method = request.method if request.method in _KNOWN_METHODS else "OTHER"
+    return f"{method} unmatched"
+
+
 def _rejected(request: Request, errors: list[dict[str, str]]) -> Response:
     """Answer 422 and audit the rejection: the route and field names, never the values."""
-    ctx = RequestContext(actor=get_current_actor(), request_id=_request_id(request))
+    actor = str(getattr(request.state, "actor", "unknown"))
+    ctx = RequestContext(actor=actor, request_id=_request_id(request))
     try:
         with request.app.state.session_factory() as session:
             AuditService(session).record(
@@ -90,7 +108,7 @@ def _rejected(request: Request, errors: list[dict[str, str]]) -> Response:
                 "request.rejected",
                 outcome="failure",
                 details={
-                    "route": f"{request.method} {request.url.path}",
+                    "route": _route_label(request),
                     "fields": [error["field"] for error in errors],
                 },
             )

@@ -18,6 +18,11 @@ def get_current_actor() -> str:
     return "owner"
 
 
+def bind_actor(request: Request, actor: Annotated[str, Depends(get_current_actor)]) -> None:
+    """Resolve the actor for every API route and keep it for error handlers."""
+    request.state.actor = actor
+
+
 def get_context(
     request: Request, actor: Annotated[str, Depends(get_current_actor)]
 ) -> RequestContext:

@@ -2,13 +2,15 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
-from pydantic import AwareDatetime
+from fastapi import APIRouter, Path, Query
 
 from gerenciador.api.deps import Audit, Limit
-from gerenciador.api.v1.schemas import AuditEventOut, PageOut
+from gerenciador.api.v1.schemas import AuditEventOut, PageOut, UtcDatetime
 
 router = APIRouter(prefix="/audit-events", tags=["audit"])
+
+# Largest integer SQLite can bind; anything beyond it cannot be an event id.
+EventId = Annotated[int, Path(ge=1, le=2**63 - 1)]
 
 
 @router.get("")
@@ -18,8 +20,8 @@ def list_audit_events(
     cursor: str | None = None,
     action: str | None = None,
     entity_id: str | None = None,
-    occurred_from: Annotated[AwareDatetime | None, Query(alias="from")] = None,
-    occurred_to: Annotated[AwareDatetime | None, Query(alias="to")] = None,
+    occurred_from: Annotated[UtcDatetime | None, Query(alias="from")] = None,
+    occurred_to: Annotated[UtcDatetime | None, Query(alias="to")] = None,
 ) -> PageOut[AuditEventOut]:
     page = service.list_page(
         limit=limit,
@@ -36,5 +38,5 @@ def list_audit_events(
 
 
 @router.get("/{event_id}")
-def get_audit_event(event_id: int, service: Audit) -> AuditEventOut:
+def get_audit_event(event_id: EventId, service: Audit) -> AuditEventOut:
     return AuditEventOut.from_event(service.get(event_id))

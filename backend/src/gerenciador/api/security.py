@@ -1,8 +1,9 @@
 """Request checks and response headers for an app with no login.
 
 A web page open in the same browser can try to call a server on localhost.
-The Host allowlist blocks DNS rebinding, and the Origin and JSON-only checks
-block cross-site writes.
+The Host allowlist blocks DNS rebinding, the fetch-metadata check blocks
+cross-site requests of every method, and the Origin and JSON-only checks block
+cross-site writes.
 """
 
 from uuid import uuid4
@@ -24,7 +25,8 @@ _DOCS_CSP = (
     "img-src 'self' data: https://fastapi.tiangolo.com; "
     "frame-ancestors 'none'"
 )
-_DOCS_PATHS = frozenset({"/docs", "/redoc"})
+_DOCS_PATHS = frozenset({"/docs"})
+_FOREIGN_SITES = frozenset({"cross-site", "same-site"})
 
 
 def _rejection(request: Request, request_id: str) -> Response | None:
@@ -32,6 +34,12 @@ def _rejection(request: Request, request_id: str) -> Response | None:
     hostname = host.rsplit(":", 1)[0] if ":" in host else host
     if hostname not in ALLOWED_HOSTNAMES:
         return problem_response(400, "Invalid Host header", request_id)
+    if request.url.path.startswith("/api/"):
+        # Browsers say where a request came from. Another site may not even read:
+        # a refused read must not reach the router, where it could be audited.
+        site = request.headers.get("sec-fetch-site", "").strip().lower()
+        if site in _FOREIGN_SITES:
+            return problem_response(403, "Cross-site request not allowed", request_id)
     if request.method in _SAFE_METHODS:
         return None
     if request.headers.get("origin") != f"http://{host}":

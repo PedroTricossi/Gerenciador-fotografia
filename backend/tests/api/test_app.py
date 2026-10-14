@@ -6,8 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
 from pydantic import BaseModel, ConfigDict, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
+from starlette.requests import Request
 
+from gerenciador.api import errors as api_errors
 from gerenciador.config import Settings
 from gerenciador.db.models import AuditEvent
 from gerenciador.main import create_app
@@ -15,6 +17,7 @@ from gerenciador.services.audit_service import AuditService
 
 BASE_URL = "http://127.0.0.1:8000"
 PROBLEM = "application/problem+json"
+PERSONAL_PATH = "/api/v1/clients/João da Silva 123.456.789-09"
 
 
 def _is_problem(response: Response, status: int) -> dict[str, Any]:
@@ -39,6 +42,11 @@ def _assert_api_headers(response: Response, request_id: str) -> None:
     assert (
         response.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'"
     )
+
+
+def _audit_count(api: TestClient) -> int:
+    with api.app.state.session_factory() as session:
+        return session.scalar(select(func.count()).select_from(AuditEvent)) or 0
 
 
 def test_health(api: TestClient) -> None:
@@ -90,6 +98,76 @@ def test_write_without_origin_is_rejected(api: TestClient) -> None:
 )
 def test_write_from_another_origin_is_rejected(api: TestClient, origin: str) -> None:
     _is_problem(api.post("/api/v1/health", headers={"Origin": origin}), 403)
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Sec-Fetch-Site": "cross-site", "Origin": "http://evil.example"},
+        {"Sec-Fetch-Site": "cross-site"},
+        {"Sec-Fetch-Site": "same-site"},
+        {"Sec-Fetch-Site": "Cross-Site"},
+    ],
+)
+def test_cross_site_read_is_refused_and_leaves_no_audit_row(
+    api: TestClient, headers: dict[str, str]
+) -> None:
+    response = api.get(PERSONAL_PATH, headers=headers)
+    body = _is_problem(response, 403)
+    _assert_api_headers(response, body["request_id"])
+    assert "João" not in response.text
+    assert "123.456.789-09" not in response.text
+    assert _audit_count(api) == 0
+
+
+@pytest.mark.parametrize("method", ["get", "head", "options", "post", "delete"])
+def test_cross_site_requests_are_refused_for_every_method(api: TestClient, method: str) -> None:
+    response = getattr(api, method)("/api/v1/health", headers={"Sec-Fetch-Site": "cross-site"})
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("site", ["same-origin", "none"])
+def test_same_origin_reads_are_allowed(api: TestClient, site: str) -> None:
+    assert api.get("/api/v1/health", headers={"Sec-Fetch-Site": site}).status_code == 200
+
+
+def test_read_without_origin_or_fetch_metadata_is_allowed(api: TestClient) -> None:
+    del api.headers["Origin"]
+    assert api.get("/api/v1/health").status_code == 200
+
+
+def test_cross_site_navigation_to_the_docs_page_is_allowed(api: TestClient) -> None:
+    response = api.get("/docs", headers={"Sec-Fetch-Site": "cross-site"})
+    assert response.status_code == 200
+
+
+def test_rejected_read_is_audited_by_route_template_not_by_path(api: TestClient) -> None:
+    response = api.get(PERSONAL_PATH)
+    _is_problem(response, 422)
+    with api.app.state.session_factory() as session:
+        event = session.scalars(select(AuditEvent)).one()
+        assert event.action == "request.rejected"
+        assert event.details == {
+            "route": "GET /api/v1/clients/{client_id}",
+            "fields": ["path.client_id"],
+        }
+        serialized = str(event.details)
+    for needle in ("João", "Silva", "123.456.789-09", "12345678909"):
+        assert needle not in serialized
+
+
+@pytest.mark.parametrize(
+    ("method", "label"), [("GET", "GET unmatched"), ("JOÃO", "OTHER unmatched")]
+)
+def test_route_label_without_a_matched_route_never_uses_caller_text(
+    method: str, label: str
+) -> None:
+    request = Request({"type": "http", "method": method, "path": "/João 12345678909"})
+    assert api_errors._route_label(request) == label
+
+
+def test_redoc_is_not_served(api: TestClient) -> None:
+    _is_problem(api.get("/redoc"), 404)
 
 
 def test_write_with_a_non_json_body_is_rejected(api: TestClient) -> None:

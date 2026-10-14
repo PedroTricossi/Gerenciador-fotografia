@@ -1,3 +1,4 @@
+import base64
 import datetime as dt
 
 import pytest
@@ -97,3 +98,19 @@ def test_cursor_round_trip() -> None:
 def test_decode_rejects_malformed_cursor(cursor: str) -> None:
     with pytest.raises(InvalidCursorError):
         decode_cursor(cursor)
+
+
+@pytest.mark.parametrize("timestamp", ["0001-01-01T00:00:00+14:00", "9999-12-31T23:59:59-14:00"])
+def test_decode_rejects_a_timestamp_that_overflows_in_utc(timestamp: str) -> None:
+    cursor = base64.urlsafe_b64encode(f"{timestamp}|x".encode()).decode("ascii")
+    with pytest.raises(InvalidCursorError):
+        decode_cursor(cursor)
+
+
+def test_decode_returns_the_timestamp_in_utc() -> None:
+    offset = dt.timezone(dt.timedelta(hours=-3))
+    moment = dt.datetime(2026, 10, 13, 9, 30, tzinfo=offset)
+    decoded, row_id = decode_cursor(encode_cursor(moment, "row-id"))
+    assert decoded == moment
+    assert decoded.utcoffset() == dt.timedelta(0)
+    assert row_id == "row-id"

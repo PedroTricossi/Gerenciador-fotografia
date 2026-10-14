@@ -26,7 +26,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         engine.dispose()
 
-    app = FastAPI(title="Gerenciador Fotografia", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Gerenciador Fotografia", version="0.1.0", lifespan=lifespan, redoc_url=None
+    )
     app.state.settings = settings
     app.state.session_factory = create_session_factory(engine)
     app.state.cipher = FieldCipher.from_settings(settings)
