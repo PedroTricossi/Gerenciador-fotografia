@@ -13,6 +13,7 @@ from gerenciador.config import Settings
 
 _VERSION = "v1"
 _NONCE_BYTES = 12
+_KEY_BYTES = 32
 
 
 class DecryptionError(Exception):
@@ -26,6 +27,9 @@ def field_context(table: str, column: str, row_id: str) -> str:
 
 class FieldCipher:
     def __init__(self, encryption_key: bytes, lookup_key: bytes) -> None:
+        # AES-GCM also accepts 16 and 24 byte keys; only AES-256 is allowed here.
+        if len(encryption_key) != _KEY_BYTES or len(lookup_key) != _KEY_BYTES:
+            raise ValueError("the encryption key and the lookup key must each be 32 bytes")
         self._aead = AESGCM(encryption_key)
         self._lookup_key = lookup_key
 
@@ -47,9 +51,10 @@ class FieldCipher:
             plaintext = self._aead.decrypt(
                 raw[:_NONCE_BYTES], raw[_NONCE_BYTES:], context.encode("utf-8")
             )
+            # UnicodeDecodeError is a ValueError: undecodable data is a failed decryption.
+            return plaintext.decode("utf-8")
         except (InvalidTag, ValueError) as exc:
             raise DecryptionError("could not decrypt field") from exc
-        return plaintext.decode("utf-8")
 
     def cpf_lookup(self, cpf_digits: str) -> str:
         return hmac.new(self._lookup_key, cpf_digits.encode("ascii"), hashlib.sha256).hexdigest()

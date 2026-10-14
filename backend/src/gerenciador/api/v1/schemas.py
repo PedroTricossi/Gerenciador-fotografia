@@ -1,6 +1,7 @@
 """Request and response models for API v1."""
 
 import datetime as dt
+import unicodedata
 from typing import Annotated, Any, Self
 
 from pydantic import (
@@ -33,6 +34,13 @@ def _today() -> dt.date:
     return dt.date.today()
 
 
+def _no_control_characters(value: str) -> str:
+    """Refuse NUL, tab, newline and every other character in Unicode category Cc."""
+    if any(unicodedata.category(character) == "Cc" for character in value):
+        raise ValueError("não pode conter caracteres de controle")
+    return value
+
+
 def _to_utc(value: dt.datetime) -> dt.datetime:
     """A moment at the edge of the calendar cannot be expressed in UTC."""
     try:
@@ -46,9 +54,10 @@ class StrictModel(BaseModel):
 
 
 Cpf = Annotated[str, Field(max_length=20), AfterValidator(normalize_cpf)]
-Name = Annotated[str, Field(min_length=1, max_length=200)]
-Address = Annotated[str, Field(min_length=1, max_length=300)]
-City = Annotated[str, Field(min_length=1, max_length=100)]
+_Printable = AfterValidator(_no_control_characters)
+Name = Annotated[str, Field(min_length=1, max_length=200), _Printable]
+Address = Annotated[str, Field(min_length=1, max_length=300), _Printable]
+City = Annotated[str, Field(min_length=1, max_length=100), _Printable]
 OptionalAddress = Annotated[Address | None, BeforeValidator(_blank_to_none)]
 OptionalTime = Annotated[dt.time | None, BeforeValidator(_blank_to_none)]
 Hours = Annotated[int, Field(strict=True, ge=1, le=24)]

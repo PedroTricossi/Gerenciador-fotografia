@@ -109,6 +109,18 @@ def test_create_applies_defaults(api: TestClient, payload: Payload) -> None:
         ("bride.cpf", "123.456.789-09", "bride.cpf"),
         ("nickname", "x", "*"),
         ("groom.nickname", "x", "groom.*"),
+        ("groom.full_name", "João\x00da Silva", "groom.full_name"),
+        ("bride.full_name", "Maria\nSouza", "bride.full_name"),
+        ("couple_address", "Rua das Flores\t100", "couple_address"),
+        ("couple_address", "Rua das Flores\r\n100", "couple_address"),
+        ("event.venue_name", "Igreja\x1bMatriz", "event.venue_name"),
+        ("event.venue_address", "Praça\x7f1", "event.venue_address"),
+        ("signing.city", "Curi\x85tiba", "signing.city"),
+        (
+            "payment.items",
+            [{"description": "Cobertura\x00completa", "amount_cents": 100000}],
+            "payment.items.0.description",
+        ),
     ],
 )
 def test_create_validation(
@@ -355,3 +367,37 @@ def test_weak_validator_is_refused(api: TestClient, payload: Payload) -> None:
 def test_unreadable_validators_are_stale(value: str) -> None:
     with pytest.raises(StaleVersionError):
         _expected_version(value)
+
+
+def test_control_characters_are_refused_with_a_fixed_message(
+    api: TestClient, payload: Payload
+) -> None:
+    response = api.post(URL, json=_with(payload(), "groom.full_name", "Nome\x00Secreto"))
+    assert response.status_code == 422
+    assert response.json()["errors"] == [
+        {
+            "field": "groom.full_name",
+            "message": "Value error, não pode conter caracteres de controle",
+        }
+    ]
+    assert "Secreto" not in response.text
+
+
+def test_control_characters_are_refused_when_editing(api: TestClient, payload: Payload) -> None:
+    created = _create(api, payload)
+    contract = api.patch(
+        f"{URL}/{created['id']}",
+        json={"event": {"venue_name": "Igreja\nMatriz"}},
+        headers={"If-Match": '"1"'},
+    )
+    assert contract.status_code == 422
+    client = api.patch(
+        f"/api/v1/clients/{created['groom']['id']}", json={"address": "Rua\x00Nova 5"}
+    )
+    assert client.status_code == 422
+    assert api.get(f"{URL}/{created['id']}").json() == created
+
+
+def test_surrounding_whitespace_is_still_trimmed(api: TestClient, payload: Payload) -> None:
+    body = _create(api, lambda: _with(payload(), "groom.full_name", "  João da Silva\n"))
+    assert body["groom"]["full_name"] == "João da Silva"

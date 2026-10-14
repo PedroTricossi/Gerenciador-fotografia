@@ -5,14 +5,16 @@ from pathlib import Path
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from alembic.runtime.environment import EnvironmentContext
 from sqlalchemy import Engine, inspect, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from gerenciador.clock import utcnow
 from gerenciador.config import Settings
-from gerenciador.db.migrate import init_database
+from gerenciador.db.migrate import init_database, run_migrations
 from gerenciador.db.models import AuditEvent, Base, Client
+from gerenciador.db.session import database_url
 
 
 def _mode(path: Path) -> int:
@@ -116,3 +118,23 @@ def test_audit_events_cannot_be_replaced(session: Session) -> None:
     session.rollback()
     actor = session.scalar(text("SELECT actor FROM audit_events WHERE id = :id"), {"id": event_id})
     assert actor == "owner"
+
+
+def test_a_failing_migration_still_disposes_its_engine(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    disposed: list[Engine] = []
+    dispose = Engine.dispose
+
+    def _spy(self: Engine, close: bool = True) -> None:
+        disposed.append(self)
+        dispose(self, close)
+
+    def _fail(self: EnvironmentContext, **kwargs: object) -> None:
+        raise RuntimeError("migration failed")
+
+    monkeypatch.setattr(Engine, "dispose", _spy)
+    monkeypatch.setattr(EnvironmentContext, "run_migrations", _fail)
+    with pytest.raises(RuntimeError, match="migration failed"):
+        run_migrations(database_url(tmp_path / "broken.db"))
+    assert len(disposed) == 1
