@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
+import { transferableAbortController } from "node:util";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { server } from "./server";
 
@@ -17,16 +18,25 @@ HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
 URL.createObjectURL = vi.fn(() => "blob:test");
 URL.revokeObjectURL = vi.fn();
 
-// jsdom's AbortSignal is not the one Node's native Request accepts, and React Router
-// passes one on every navigation. Dropping it only loses request cancellation in tests.
+// Node's native Request rejects jsdom's AbortSignal ("Expected signal to be an instance
+// of AbortSignal"), and React Router, TanStack Query and openapi-fetch all pass one.
+// Native signals go through untouched. A foreign signal is replaced by a native one that
+// follows it, so aborting still cancels the request.
 const NativeRequest = globalThis.Request;
+const NativeSignal = Object.getPrototypeOf(transferableAbortController().signal)
+  .constructor as typeof AbortSignal;
+const isNative = (signal: AbortSignal): boolean => signal instanceof NativeSignal;
 globalThis.Request = class extends NativeRequest {
   constructor(input: RequestInfo | URL, init?: RequestInit) {
-    if (init?.signal) {
-      super(input, { ...init, signal: undefined });
-    } else {
+    const foreign = init?.signal;
+    if (!foreign || isNative(foreign)) {
       super(input, init);
+      return;
     }
+    const native = transferableAbortController();
+    if (foreign.aborted) native.abort(foreign.reason);
+    else foreign.addEventListener("abort", () => native.abort(foreign.reason), { once: true });
+    super(input, { ...init, signal: native.signal });
   }
 };
 
