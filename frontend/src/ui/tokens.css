@@ -31,6 +31,12 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
 
+  --border-width: 1px;
+  --opacity-disabled: 0.55;
+  --z-toast: 10;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
   --radius-sm: 4px;
   --radius-md: 8px;
   --shadow-raised: 0 4px 16px rgb(0 0 0 / 12%);
