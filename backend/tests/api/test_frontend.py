@@ -36,6 +36,7 @@ def test_page_paths_serve_the_app_with_its_csp(site: TestClient, path: str) -> N
     assert response.text == INDEX
     assert response.headers["content-type"].startswith("text/html")
     assert response.headers["Content-Security-Policy"] == APP_CSP
+    assert response.headers["Cache-Control"] == "no-cache"
 
 
 def test_a_real_file_is_served_as_that_file(site: TestClient) -> None:
@@ -75,6 +76,13 @@ def test_a_dist_folder_without_index_serves_no_pages(settings: Settings, tmp_pat
 def test_paths_with_a_null_byte_are_refused_without_a_stack_trace(
     site: TestClient, path: str
 ) -> None:
+    response = site.get(path)
+    assert response.status_code == 404
+    assert response.headers["content-type"] == "application/problem+json"
+
+
+@pytest.mark.parametrize("path", ["/assets/missing.js", "/assets/old-hash.css", "/logo.png"])
+def test_a_missing_file_is_a_404_not_the_app(site: TestClient, path: str) -> None:
     response = site.get(path)
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/problem+json"

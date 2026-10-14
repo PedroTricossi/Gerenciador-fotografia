@@ -1,4 +1,5 @@
 """Serve the built frontend: real files as files, every other page path as index.html.
+A missing path that names a file (it ends in an extension) is a 404.
 
 The app routes pages in the browser, so a reload on `/contratos/<id>` must get
 index.html. Paths under `/api` never fall through to the page, so a mistyped API
@@ -28,4 +29,8 @@ def mount_frontend(app: FastAPI, dist: Path) -> None:
             raise HTTPException(status_code=404, detail="Not Found")
         if candidate.is_file():
             return FileResponse(candidate)
-        return FileResponse(index)
+        if Path(path).suffix:
+            # A missing file (such as an old hashed asset) must not come back as
+            # index.html, which the browser would refuse to run as a script.
+            raise HTTPException(status_code=404, detail="Not Found")
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
