@@ -1,8 +1,8 @@
 # Service Catalog — Design
 
 Date: 2026-10-14
-Status: awaiting review
-Branch: `feat/service-catalog` (based on `feat/contract-generation-backend`)
+Status: approved
+Branch: `feat/service-catalog` (based on `main`)
 
 ## 1. Purpose
 
