@@ -12,3 +12,5 @@ htmlcov/
 node_modules/
 dist/
 openapi.json
+playwright-report/
+test-results/

@@ -54,3 +54,8 @@ check:
 	$(UV) run python -m pytest --cov=gerenciador --cov-report=term-missing --cov-fail-under=90
 	$(UV) run python -m coverage report --include="*/gerenciador/domain/*" --fail-under=100
 	$(UV) run python -m pip_audit
+
+# Builds the interface and runs Playwright against the real backend on a temporary database.
+# First time only: cd frontend && npx playwright install chromium
+e2e: build
+	cd frontend && npx playwright test
