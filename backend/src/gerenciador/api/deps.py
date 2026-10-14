@@ -3,7 +3,7 @@
 from collections.abc import Iterator
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from gerenciador.services.audit_service import AuditService
@@ -63,3 +63,4 @@ Audit = Annotated[AuditService, Depends(get_audit_service)]
 Clients = Annotated[ClientService, Depends(get_client_service)]
 Contracts = Annotated[ContractService, Depends(get_contract_service)]
 Documents = Annotated[ContractDocumentService, Depends(get_document_service)]
+Limit = Annotated[int, Query(ge=1, le=100)]

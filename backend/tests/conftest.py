@@ -127,3 +127,35 @@ def api(settings: Settings) -> Iterator[TestClient]:
     with TestClient(create_app(settings), base_url=BASE_URL) as client:
         client.headers["Origin"] = BASE_URL
         yield client
+
+
+@pytest.fixture
+def payload() -> Callable[..., dict[str, Any]]:
+    def _make(**overrides: Any) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "groom": {"full_name": "João da Silva", "cpf": "123.456.789-09"},
+            "bride": {"full_name": "Maria Souza", "cpf": "987.654.321-00"},
+            "couple_address": "Rua das Flores 100",
+            "event": {
+                "date": "2027-03-14",
+                "venue_name": "Igreja Matriz",
+                "coverage_start": "16:00",
+            },
+            "photographer_count": 2,
+            "payment": {
+                "items": [
+                    {"description": "Diária segundo fotógrafo", "amount_cents": 50000},
+                    {"description": "Cobertura da cerimônia na igreja", "amount_cents": 120000},
+                    {
+                        "description": "Cobertura das fotos protocolares e jantar",
+                        "amount_cents": 60000,
+                    },
+                ],
+                "pix_discount_cents": 30000,
+            },
+            "signing": {"city": "Curitiba", "date": "2026-10-13"},
+        }
+        body.update(overrides)
+        return body
+
+    return _make
