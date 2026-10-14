@@ -1,5 +1,6 @@
-import { PageLayout } from "../../ui";
+import { CreateContract } from "./CreateContract";
+import { EditContract } from "./EditContract";
 
 export function ContractFormPage({ id }: { id?: string }) {
-  return <PageLayout title={id ? "Editar contrato" : "Novo contrato"} />;
+  return id === undefined ? <CreateContract /> : <EditContract id={id} />;
 }

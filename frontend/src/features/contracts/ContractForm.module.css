@@ -1,0 +1,16 @@
+.item {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+.row {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}

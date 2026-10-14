@@ -1,0 +1,63 @@
+import type { ReactNode } from "react";
+import { Banner, Button } from "../../ui";
+import styles from "./ContractForm.module.css";
+import type { ContractFormValues } from "./formModel";
+import { CoupleSection } from "./sections/CoupleSection";
+import { EventSection } from "./sections/EventSection";
+import { PaymentSection } from "./sections/PaymentSection";
+import { PhotographersSection } from "./sections/PhotographersSection";
+import { SigningSection } from "./sections/SigningSection";
+import { useContractForm } from "./useContractForm";
+
+type Props = {
+  initialValues: ContractFormValues;
+  onSubmit: (values: ContractFormValues) => Promise<void>;
+  readOnly?: boolean;
+  requireChanges?: boolean;
+  actions?: (state: { hasChanges: boolean }) => ReactNode;
+};
+
+export function ContractForm({
+  initialValues,
+  onSubmit,
+  readOnly = false,
+  requireChanges = false,
+  actions,
+}: Props) {
+  const state = useContractForm(initialValues, onSubmit);
+  const { form } = state;
+  const submitting = form.formState.isSubmitting;
+
+  return (
+    <form noValidate onSubmit={(event) => void state.onSubmit(event)}>
+      {state.serverMessages.length > 0 && (
+        <Banner tone="error">
+          <p>O servidor recusou o contrato:</p>
+          <ul>
+            {state.serverMessages.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        </Banner>
+      )}
+      <CoupleSection form={form} disabled={readOnly} />
+      <EventSection form={form} disabled={readOnly} />
+      <PhotographersSection form={form} disabled={readOnly} />
+      <PaymentSection state={state} disabled={readOnly} />
+      <SigningSection form={form} disabled={readOnly} />
+      {!readOnly && (
+        <div className={styles.actions}>
+          <Button
+            type="submit"
+            variant="primary"
+            busy={submitting}
+            disabled={requireChanges && !state.hasChanges}
+          >
+            Salvar
+          </Button>
+          {actions?.({ hasChanges: state.hasChanges })}
+        </div>
+      )}
+    </form>
+  );
+}

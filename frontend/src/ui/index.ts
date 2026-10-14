@@ -9,3 +9,4 @@ export { Table, type Column } from "./Table";
 export { TextInput } from "./TextInput";
 export { ToastProvider, useToast } from "./Toast";
 export { Checkbox } from "./Checkbox";
+export { FormSection } from "./FormSection";
