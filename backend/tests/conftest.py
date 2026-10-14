@@ -1,5 +1,8 @@
-from collections.abc import Iterator
+import datetime as dt
+from collections.abc import Callable, Iterator
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import Engine
@@ -11,6 +14,12 @@ from gerenciador.db.session import create_session_factory
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
+from gerenciador.services.contract_service import (
+    ContractInput,
+    ContractService,
+    ItemInput,
+    PersonInput,
+)
 from gerenciador.services.crypto import FieldCipher
 
 
@@ -62,3 +71,36 @@ def audit(session: Session) -> AuditService:
 @pytest.fixture
 def clients(session: Session, cipher: FieldCipher, audit: AuditService) -> ClientService:
     return ClientService(session, cipher, audit)
+
+
+@pytest.fixture
+def contracts(session: Session, clients: ClientService, audit: AuditService) -> ContractService:
+    return ContractService(session, clients, audit)
+
+
+@pytest.fixture
+def make_input() -> Callable[..., ContractInput]:
+    def _make(**overrides: Any) -> ContractInput:
+        base = ContractInput(
+            groom=PersonInput(full_name="João da Silva", cpf="12345678909"),
+            bride=PersonInput(full_name="Maria Souza", cpf="98765432100"),
+            couple_address="Rua das Flores 100",
+            event_date=dt.date(2027, 3, 14),
+            venue_name="Igreja Matriz",
+            venue_address=None,
+            coverage_start=dt.time(16, 0),
+            coverage_end=None,
+            hours_contracted=None,
+            photographer_count=2,
+            items=[
+                ItemInput("Diária segundo fotógrafo", 50000),
+                ItemInput("Cobertura da cerimônia na igreja", 120000),
+                ItemInput("Cobertura das fotos protocolares e jantar", 60000),
+            ],
+            pix_discount_cents=30000,
+            signing_city="Curitiba",
+            signing_date=dt.date(2026, 10, 13),
+        )
+        return replace(base, **overrides)
+
+    return _make
