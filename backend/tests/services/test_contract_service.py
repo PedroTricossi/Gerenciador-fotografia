@@ -238,3 +238,51 @@ def test_export_lists_the_clients_contracts(
     created = contracts.create(ctx, make_input())
     exported = clients.export(ctx, created.bride.id)
     assert [(ref.contract_id, ref.role) for ref in exported.contracts] == [(created.id, "bride")]
+
+
+def test_update_of_only_the_couple_address_bumps_the_version(
+    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    updated = contracts.update(ctx, created.id, 1, make_input(couple_address="Rua Nova 5"))
+    assert updated.version == 2
+    assert updated.couple_address == "Rua Nova 5"
+    event = _last_event(session)
+    assert event.action == "contract.updated"
+    assert event.details == {"fields": ["couple_address"], "version": 2}
+    with pytest.raises(StaleVersionError):
+        contracts.update(ctx, created.id, 1, make_input(couple_address="Rua Outra 9"))
+
+
+def test_update_of_only_a_name_bumps_the_version_without_logging_the_name(
+    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    updated = contracts.update(
+        ctx, created.id, 1, make_input(bride=PersonInput("Maria Souza Lima", "98765432100"))
+    )
+    assert updated.version == 2
+    assert updated.bride.full_name == "Maria Souza Lima"
+    event = _last_event(session)
+    assert event.details == {"fields": ["bride"], "version": 2}
+    assert "Maria" not in str(event.details)
+
+
+def test_update_reports_client_and_contract_fields_in_order(
+    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    contracts.update(
+        ctx,
+        created.id,
+        1,
+        make_input(
+            groom=PersonInput("João Silva Neto", "12345678909"),
+            couple_address="Rua Nova 5",
+            venue_name="Catedral",
+        ),
+    )
+    assert _last_event(session).details == {
+        "fields": ["groom", "couple_address", "venue_name"],
+        "version": 2,
+    }

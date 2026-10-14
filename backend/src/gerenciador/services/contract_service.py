@@ -166,16 +166,22 @@ class ContractService:
         if contract.version != expected_version:
             raise StaleVersionError
         _check_rules(data)
+        current = self._to_view(contract)
         groom = self._upsert(ctx, data.groom, data.couple_address)
         bride = self._upsert(ctx, data.bride, data.couple_address)
 
         changed: list[str] = []
-        if contract.groom_id != groom.id:
+        if contract.groom_id != groom.id or current.groom.full_name != data.groom.full_name:
             contract.groom = groom
             changed.append("groom")
-        if contract.bride_id != bride.id:
+        if contract.bride_id != bride.id or current.bride.full_name != data.bride.full_name:
             contract.bride = bride
             changed.append("bride")
+        if (
+            current.groom.address != data.couple_address
+            or current.bride.address != data.couple_address
+        ):
+            changed.append("couple_address")
         for field in _SCALAR_FIELDS:
             if getattr(contract, field) != getattr(data, field):
                 setattr(contract, field, getattr(data, field))
