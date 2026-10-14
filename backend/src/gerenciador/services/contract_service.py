@@ -192,8 +192,9 @@ class ContractService:
     ) -> ContractView:
         _check_rules(data)
         current = self._to_view(contract)
-        groom = self._upsert(ctx, data.groom, data.couple_address)
-        bride = self._upsert(ctx, data.bride, data.couple_address)
+        previous = (contract.groom, contract.bride)
+        groom = self._upsert(ctx, data.groom, data.couple_address, editing=contract.id)
+        bride = self._upsert(ctx, data.bride, data.couple_address, editing=contract.id)
 
         changed: list[str] = []
         if contract.groom_id != groom.id or current.groom.full_name != data.groom.full_name:
@@ -217,6 +218,12 @@ class ContractService:
             changed.append("items")
 
         if changed:
+            # The contract must already point at its new clients when the old ones
+            # are checked for remaining references.
+            self._session.flush()
+            for client in previous:
+                if client.id not in (groom.id, bride.id):
+                    self._clients.release_replaced(ctx, client, contract_id=contract.id)
             contract.version += 1
             contract.updated_at = utcnow()
             self._audit.record(
@@ -248,9 +255,15 @@ class ContractService:
         self._session.commit()
         return self._to_view(contract)
 
-    def _upsert(self, ctx: RequestContext, person: PersonInput, address: str) -> Client:
+    def _upsert(
+        self, ctx: RequestContext, person: PersonInput, address: str, editing: str | None = None
+    ) -> Client:
         return self._clients.upsert_for_contract(
-            ctx, full_name=person.full_name, cpf=person.cpf, address=address
+            ctx,
+            full_name=person.full_name,
+            cpf=person.cpf,
+            address=address,
+            editing_contract_id=editing,
         )
 
     def _require(self, contract_id: str) -> Contract:

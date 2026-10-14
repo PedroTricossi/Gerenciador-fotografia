@@ -52,6 +52,63 @@ def test_anonymising_removes_the_person_from_disk(
     assert b"Maria Souza" in raw
 
 
+def test_replacing_a_person_on_a_contract_leaves_no_orphan_with_their_data(
+    api: TestClient, payload: Payload, settings: Settings
+) -> None:
+    contract = api.post(CONTRACTS, json=payload()).json()
+    old_groom = contract["groom"]["id"]
+    edited = api.patch(
+        f"{CONTRACTS}/{contract['id']}",
+        json={"groom": {"full_name": "Pedro Lima", "cpf": "111.444.777-35"}},
+        headers={"If-Match": '"1"'},
+    )
+    assert edited.status_code == 200
+    assert edited.json()["groom"]["id"] != old_groom
+
+    rows = {row["id"]: row for row in api.get(CLIENTS).json()["items"]}
+    assert len(rows) == 3
+    orphan = rows[old_groom]
+    assert (orphan["full_name"], orphan["cpf"], orphan["address"]) == (None, None, None)
+    assert orphan["anonymised_at"] is not None
+    assert "João" not in api.get(CLIENTS).text
+
+    raw = _disk(settings)
+    assert "João da Silva".encode() not in raw
+    assert "João".encode() not in raw
+    assert b"Pedro Lima" in raw
+    assert b"Maria Souza" in raw
+    for needle in CPF_AND_ADDRESS:
+        assert needle.encode() not in raw
+
+    events = api.get("/api/v1/audit-events", params={"entity_id": old_groom}).json()["items"]
+    assert [event["action"] for event in events] == ["client.anonymised", "client.created"]
+    assert events[0]["details"] == {"cause": "replaced", "contract_id": contract["id"]}
+
+
+def test_replacing_a_person_keeps_a_client_who_is_on_another_contract(
+    api: TestClient, payload: Payload
+) -> None:
+    first = api.post(CONTRACTS, json=payload()).json()
+    second = api.post(
+        CONTRACTS, json=payload(event={"date": "2028-01-01", "venue_name": "Capela"})
+    ).json()
+    edited = api.patch(
+        f"{CONTRACTS}/{first['id']}",
+        json={"groom": {"full_name": "Pedro Lima", "cpf": "111.444.777-35"}},
+        headers={"If-Match": '"1"'},
+    )
+    assert edited.status_code == 200
+
+    kept = api.get(f"{CLIENTS}/{first['groom']['id']}").json()
+    assert kept["full_name"] == "João da Silva"
+    assert kept["cpf"] == "123.456.789-09"
+    assert kept["address"] == "Rua das Flores 100"
+    assert kept["anonymised_at"] is None
+    assert api.get(f"{CONTRACTS}/{second['id']}").json()["groom"]["id"] == first["groom"]["id"]
+    anonymised = api.get("/api/v1/audit-events", params={"action": "client.anonymised"})
+    assert anonymised.json()["items"] == []
+
+
 def test_logs_contain_no_personal_data(
     settings: Settings, payload: Payload, caplog: pytest.LogCaptureFixture
 ) -> None:

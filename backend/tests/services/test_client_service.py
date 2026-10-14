@@ -108,6 +108,21 @@ def test_update_to_another_clients_cpf_conflicts(
     _create(clients, session, ctx, BRIDE_CPF)
     with pytest.raises(ConflictError):
         clients.update(ctx, first, cpf=BRIDE_CPF)
+    with pytest.raises(ConflictError):
+        clients.update(ctx, first, full_name="Outro Nome", cpf=BRIDE_CPF, address="Rua Outra 9")
+
+    # Nothing was touched before the conflict was found: no pending change, same row.
+    assert not session.dirty
+    row = session.get(Client, first)
+    assert row is not None
+    assert row.full_name == "João da Silva"
+    view = clients.get(first)
+    assert (view.full_name, view.cpf, view.address) == (
+        "João da Silva",
+        GROOM_CPF,
+        "Rua das Flores 100",
+    )
+    assert _actions(session) == ["client.created", "client.created"]
 
 
 def test_export_returns_the_data_and_is_audited(

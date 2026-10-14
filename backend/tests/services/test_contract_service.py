@@ -354,3 +354,206 @@ def test_patch_propagates_apply_errors_and_stores_nothing(
     with pytest.raises(RuntimeError):
         contracts.patch(ctx, created.id, 1, apply)
     assert contracts.get(created.id).version == 1
+
+
+def _events_of(session: Session, entity_id: str) -> list[AuditEvent]:
+    return list(
+        session.scalars(
+            select(AuditEvent).where(AuditEvent.entity_id == entity_id).order_by(AuditEvent.id)
+        )
+    )
+
+
+OTHER_BRIDE = PersonInput("Ana Lima", "11144477735")
+
+
+def test_correcting_a_client_bumps_the_version_of_their_contract(
+    contracts: ContractService,
+    clients: ClientService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+) -> None:
+    created = contracts.create(ctx, make_input())
+    clients.update(ctx, created.bride.id, full_name="Maria Souza Lima")
+
+    view = contracts.get(created.id)
+    assert view.version == 2
+    assert view.updated_at >= created.updated_at
+    assert view.bride.full_name == "Maria Souza Lima"
+    events = _events_of(session, created.id)
+    assert [event.action for event in events] == ["contract.created", "contract.updated"]
+    assert events[-1].details == {"fields": ["bride"], "version": 2, "cause": "client.updated"}
+    assert "Maria" not in str(events[-1].details)
+    with pytest.raises(StaleVersionError):
+        contracts.update(ctx, created.id, 1, make_input())
+    assert contracts.get(created.id).bride.full_name == "Maria Souza Lima"
+
+
+def test_a_client_update_that_changes_nothing_bumps_no_contract(
+    contracts: ContractService,
+    clients: ClientService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+) -> None:
+    created = contracts.create(ctx, make_input())
+    before = _actions(session)
+    clients.update(ctx, created.groom.id, full_name="João da Silva")
+    assert contracts.get(created.id).version == 1
+    assert _actions(session) == before
+
+
+def test_a_second_contract_that_corrects_a_shared_client_bumps_the_first(
+    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    first = contracts.create(ctx, make_input())
+    second = contracts.create(
+        ctx,
+        make_input(bride=OTHER_BRIDE, couple_address="Rua Nova 5", event_date=dt.date(2028, 1, 1)),
+    )
+    assert second.version == 1
+    assert second.groom.id == first.groom.id
+
+    view = contracts.get(first.id)
+    assert view.version == 2
+    assert view.groom.address == "Rua Nova 5"
+    events = _events_of(session, first.id)
+    assert [event.action for event in events] == ["contract.created", "contract.updated"]
+    assert events[-1].details == {"fields": ["groom"], "version": 2, "cause": "client.updated"}
+    assert "Rua" not in str(events[-1].details)
+    assert [event.action for event in _events_of(session, second.id)] == ["contract.created"]
+
+
+def test_a_deleted_contract_is_not_bumped_by_a_client_correction(
+    contracts: ContractService,
+    clients: ClientService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+) -> None:
+    deleted = contracts.create(ctx, make_input())
+    live = contracts.create(ctx, make_input(event_date=dt.date(2028, 1, 1)))
+    contracts.delete(ctx, deleted.id)
+    clients.update(ctx, deleted.groom.id, full_name="João Souza")
+
+    assert contracts.get(deleted.id).version == 1
+    assert "contract.updated" not in [e.action for e in _events_of(session, deleted.id)]
+    assert contracts.get(live.id).version == 2
+
+
+def test_an_edit_through_the_contract_bumps_that_contract_exactly_once(
+    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    edited = contracts.create(ctx, make_input())
+    other = contracts.create(ctx, make_input(event_date=dt.date(2028, 1, 1)))
+    updated = contracts.update(
+        ctx,
+        edited.id,
+        1,
+        make_input(groom=PersonInput("João Silva Neto", "12345678909"), venue_name="Catedral"),
+    )
+
+    assert updated.version == 2
+    own = [e for e in _events_of(session, edited.id) if e.action == "contract.updated"]
+    assert [event.details for event in own] == [{"fields": ["groom", "venue_name"], "version": 2}]
+    assert _last_event(session).entity_id == edited.id
+
+    assert contracts.get(other.id).version == 2
+    others = [e for e in _events_of(session, other.id) if e.action == "contract.updated"]
+    assert [event.details for event in others] == [
+        {"fields": ["groom"], "version": 2, "cause": "client.updated"}
+    ]
+
+
+def test_contract_bumps_from_a_client_change_stay_in_the_callers_transaction(
+    contracts: ContractService,
+    clients: ClientService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+) -> None:
+    created = contracts.create(ctx, make_input())
+    before = _actions(session)
+    clients.upsert_for_contract(
+        ctx, full_name="João Souza", cpf="12345678909", address="Rua das Flores 100"
+    )
+    session.rollback()
+    session.expire_all()
+    assert contracts.get(created.id).version == 1
+    assert contracts.get(created.id).groom.full_name == "João da Silva"
+    assert _actions(session) == before
+
+
+def _client_row(session: Session, client_id: str) -> Client:
+    session.expire_all()
+    row = session.get(Client, client_id)
+    assert row is not None
+    return row
+
+
+def test_replacing_a_person_anonymises_the_client_left_without_contracts(
+    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    updated = contracts.update(
+        ctx, created.id, 1, make_input(groom=PersonInput("Pedro Lima", "11144477735"))
+    )
+    assert updated.version == 2
+
+    old = _client_row(session, created.groom.id)
+    assert (old.full_name, old.cpf_encrypted, old.cpf_lookup, old.address_encrypted) == (
+        None,
+        None,
+        None,
+        None,
+    )
+    assert old.anonymised_at is not None
+    names = set(session.scalars(select(Client.full_name)))
+    assert names == {None, "Pedro Lima", "Maria Souza"}
+
+    events = _events_of(session, created.groom.id)
+    assert [event.action for event in events] == ["client.created", "client.anonymised"]
+    assert events[-1].details == {"cause": "replaced", "contract_id": created.id}
+    assert _actions(session)[-3:] == ["client.created", "client.anonymised", "contract.updated"]
+
+
+@pytest.mark.parametrize("second_is_deleted", [False, True])
+def test_replacing_a_person_keeps_a_client_another_contract_refers_to(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    second_is_deleted: bool,
+) -> None:
+    first = contracts.create(ctx, make_input())
+    second = contracts.create(ctx, make_input(event_date=dt.date(2028, 1, 1)))
+    if second_is_deleted:
+        contracts.delete(ctx, second.id)
+    contracts.update(ctx, first.id, 1, make_input(groom=PersonInput("Pedro Lima", "11144477735")))
+
+    old = _client_row(session, first.groom.id)
+    assert old.full_name == "João da Silva"
+    assert old.cpf_encrypted is not None
+    assert old.address_encrypted is not None
+    assert old.anonymised_at is None
+    assert "client.anonymised" not in _actions(session)
+    assert contracts.get(second.id).groom.full_name == "João da Silva"
+
+
+def test_swapping_the_two_people_anonymises_nobody(
+    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    created = contracts.create(ctx, make_input())
+    swapped = contracts.update(
+        ctx,
+        created.id,
+        1,
+        make_input(
+            groom=PersonInput("Maria Souza", "98765432100"),
+            bride=PersonInput("João da Silva", "12345678909"),
+        ),
+    )
+    assert (swapped.groom.id, swapped.bride.id) == (created.bride.id, created.groom.id)
+    assert "client.anonymised" not in _actions(session)
+    assert _last_event(session).details == {"fields": ["groom", "bride"], "version": 2}

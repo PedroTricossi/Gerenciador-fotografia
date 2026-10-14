@@ -7,7 +7,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from gerenciador.clock import utcnow
-from gerenciador.db.models import Client
+from gerenciador.db.models import Client, Contract
 from gerenciador.repositories.client_repository import ClientRepository
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.context import RequestContext
@@ -16,6 +16,10 @@ from gerenciador.services.exceptions import ConflictError, NotFoundError
 from gerenciador.services.pagination import Page, decode_cursor, encode_cursor
 
 _ENTITY = "client"
+
+
+def _role(contract: Contract, client: Client) -> str:
+    return "groom" if contract.groom_id == client.id else "bride"
 
 
 @dataclass(frozen=True)
@@ -65,22 +69,49 @@ class ClientService:
         )
 
     def upsert_for_contract(
-        self, ctx: RequestContext, *, full_name: str, cpf: str, address: str
+        self,
+        ctx: RequestContext,
+        *,
+        full_name: str,
+        cpf: str,
+        address: str,
+        editing_contract_id: str | None = None,
     ) -> Client:
-        """Find the person by CPF, or create them. Runs inside the caller's transaction."""
+        """Find the person by CPF, or create them. Runs inside the caller's transaction.
+
+        `editing_contract_id` is the contract this change arrives through. Its
+        version is left alone here: the contract service bumps it itself.
+        """
         existing = self._repo.get_by_cpf_lookup(self._cipher.cpf_lookup(cpf))
         if existing is None:
             return self._create(ctx, full_name=full_name, cpf=cpf, address=address)
-        changed = self._apply(existing, full_name=full_name, cpf=None, address=address)
-        if changed:
-            self._audit.record(
-                ctx,
-                "client.updated",
-                entity_type=_ENTITY,
-                entity_id=existing.id,
-                details={"fields": changed},
-            )
+        self._change(
+            ctx,
+            existing,
+            full_name=full_name,
+            cpf=None,
+            address=address,
+            skip_contract_id=editing_contract_id,
+        )
         return existing
+
+    def release_replaced(self, ctx: RequestContext, client: Client, *, contract_id: str) -> None:
+        """Anonymise a client that a contract edit replaced. Runs in the caller's transaction.
+
+        Nothing happens while any contract, deleted ones included, still refers to
+        the client. Otherwise the row would keep a person's data with nothing
+        pointing at it, where the owner could never find it.
+        """
+        if self._repo.contracts_of(client.id):
+            return
+        self._anonymise(client)
+        self._audit.record(
+            ctx,
+            "client.anonymised",
+            entity_type=_ENTITY,
+            entity_id=client.id,
+            details={"cause": "replaced", "contract_id": contract_id},
+        )
 
     def get(self, client_id: str) -> ClientView:
         return self.to_view(self._require(client_id))
@@ -107,15 +138,9 @@ class ClientService:
         client = self._require(client_id)
         if client.anonymised_at is not None:
             raise ConflictError("client is anonymised and cannot be changed")
-        changed = self._apply(client, full_name=full_name, cpf=cpf, address=address)
-        if changed:
-            self._audit.record(
-                ctx,
-                "client.updated",
-                entity_type=_ENTITY,
-                entity_id=client.id,
-                details={"fields": changed},
-            )
+        self._change(
+            ctx, client, full_name=full_name, cpf=cpf, address=address, skip_contract_id=None
+        )
         self._session.commit()
         return self.to_view(client)
 
@@ -124,7 +149,7 @@ class ClientService:
         contracts = [
             ClientContractRef(
                 contract_id=contract.id,
-                role="groom" if contract.groom_id == client.id else "bride",
+                role=_role(contract, client),
                 event_date=contract.event_date,
                 venue_name=contract.venue_name,
                 signing_date=contract.signing_date,
@@ -142,6 +167,13 @@ class ClientService:
             raise ConflictError("client is already anonymised")
         if any(contract.deleted_at is None for contract in self._repo.contracts_of(client.id)):
             raise ConflictError("client has an active contract")
+        self._anonymise(client)
+        self._audit.record(ctx, "client.anonymised", entity_type=_ENTITY, entity_id=client.id)
+        self._session.commit()
+        return self.to_view(client)
+
+    def _anonymise(self, client: Client) -> None:
+        """Blank every personal field. The caller audits and commits."""
         now = utcnow()
         client.full_name = None
         client.cpf_encrypted = None
@@ -149,9 +181,6 @@ class ClientService:
         client.address_encrypted = None
         client.anonymised_at = now
         client.updated_at = now
-        self._audit.record(ctx, "client.anonymised", entity_type=_ENTITY, entity_id=client.id)
-        self._session.commit()
-        return self.to_view(client)
 
     def _require(self, client_id: str) -> Client:
         client = self._repo.get(client_id)
@@ -169,19 +198,69 @@ class ClientService:
         self._audit.record(ctx, "client.created", entity_type=_ENTITY, entity_id=client.id)
         return client
 
+    def _change(
+        self,
+        ctx: RequestContext,
+        client: Client,
+        *,
+        full_name: str | None,
+        cpf: str | None,
+        address: str | None,
+        skip_contract_id: str | None,
+    ) -> None:
+        """Apply a correction and audit it. The caller commits.
+
+        A contract shows its clients' data, so each live contract of this client
+        gets a new version: an edit prepared before the correction must not
+        silently put the old data back.
+        """
+        changed = self._apply(client, full_name=full_name, cpf=cpf, address=address)
+        if not changed:
+            return
+        self._audit.record(
+            ctx,
+            "client.updated",
+            entity_type=_ENTITY,
+            entity_id=client.id,
+            details={"fields": changed},
+        )
+        for contract in self._repo.contracts_of(client.id):
+            if contract.deleted_at is not None or contract.id == skip_contract_id:
+                continue
+            contract.version += 1
+            contract.updated_at = utcnow()
+            self._audit.record(
+                ctx,
+                "contract.updated",
+                entity_type="contract",
+                entity_id=contract.id,
+                details={
+                    "fields": [_role(contract, client)],
+                    "version": contract.version,
+                    "cause": "client.updated",
+                },
+            )
+
     def _apply(
         self, client: Client, *, full_name: str | None, cpf: str | None, address: str | None
     ) -> list[str]:
-        """Apply the given values and return the names of the fields that changed."""
-        changed: list[str] = []
-        if full_name is not None and full_name != client.full_name:
-            client.full_name = full_name
-            changed.append("full_name")
+        """Apply the given values and return the names of the fields that changed.
+
+        The CPF's owner is checked before anything is touched, so a conflict
+        leaves the client exactly as it was.
+        """
+        lookup: str | None = None
         if cpf is not None and cpf != self._decrypt(client, "cpf_encrypted", client.cpf_encrypted):
             lookup = self._cipher.cpf_lookup(cpf)
             owner = self._repo.get_by_cpf_lookup(lookup)
             if owner is not None and owner.id != client.id:
                 raise ConflictError("another client already has this CPF")
+
+        changed: list[str] = []
+        if full_name is not None and full_name != client.full_name:
+            client.full_name = full_name
+            changed.append("full_name")
+        if cpf is not None and lookup is not None:
             client.cpf_encrypted = self._encrypt(client, "cpf_encrypted", cpf)
             client.cpf_lookup = lookup
             changed.append("cpf")

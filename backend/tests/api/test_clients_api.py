@@ -49,6 +49,32 @@ def test_patch_corrects_a_client(api: TestClient, contract: dict[str, Any]) -> N
     assert api.get(f"{CONTRACTS}/{contract['id']}").json()["groom"]["full_name"] == "João Souza"
 
 
+def test_correcting_a_client_makes_an_older_contract_edit_stale(
+    api: TestClient, contract: dict[str, Any]
+) -> None:
+    contract_url = f"{CONTRACTS}/{contract['id']}"
+    corrected = api.patch(f"{CLIENTS}/{contract['groom']['id']}", json={"full_name": "João Souza"})
+    assert corrected.status_code == 200
+
+    fresh = api.get(contract_url)
+    assert fresh.headers["ETag"] == '"2"'
+    assert fresh.json()["version"] == 2
+
+    stale = api.patch(
+        contract_url,
+        json={"groom": {"full_name": "João da Silva"}, "event": {"venue_name": "Catedral"}},
+        headers={"If-Match": '"1"'},
+    )
+    assert stale.status_code == 412
+    after = api.get(contract_url).json()
+    assert after["groom"]["full_name"] == "João Souza"
+    assert after["event"]["venue_name"] == "Igreja Matriz"
+
+    events = api.get("/api/v1/audit-events", params={"entity_id": contract["id"]}).json()["items"]
+    assert [event["action"] for event in events] == ["contract.updated", "contract.created"]
+    assert events[0]["details"] == {"fields": ["groom"], "version": 2, "cause": "client.updated"}
+
+
 @pytest.mark.parametrize(
     "body",
     [{}, {"full_name": None}, {"cpf": "123.456.789-00"}, {"full_name": " "}, {"nickname": "x"}],
@@ -59,8 +85,17 @@ def test_patch_validation(api: TestClient, contract: dict[str, Any], body: dict[
 
 
 def test_patch_to_another_clients_cpf_conflicts(api: TestClient, contract: dict[str, Any]) -> None:
-    response = api.patch(f"{CLIENTS}/{contract['groom']['id']}", json={"cpf": "987.654.321-00"})
+    url = f"{CLIENTS}/{contract['groom']['id']}"
+    response = api.patch(url, json={"cpf": "987.654.321-00"})
     assert response.status_code == 409
+    both = api.patch(url, json={"full_name": "Outro Nome", "cpf": "987.654.321-00"})
+    assert both.status_code == 409
+
+    unchanged = api.get(url).json()
+    assert unchanged["full_name"] == "João da Silva"
+    assert unchanged["cpf"] == "123.456.789-09"
+    assert unchanged["address"] == "Rua das Flores 100"
+    assert api.get(f"{CONTRACTS}/{contract['id']}").json()["version"] == 1
 
 
 def test_export(api: TestClient, contract: dict[str, Any]) -> None:
