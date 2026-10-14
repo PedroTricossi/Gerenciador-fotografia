@@ -101,15 +101,13 @@ test("an empty form is not sent and every required input says so", async () => {
   );
   const { user } = renderApp("/contratos/novo");
   await user.click(screen.getByRole("button", { name: "Salvar" }));
-  for (const label of [
-    "Nome do noivo",
-    "CPF do noivo",
-    "Endereço do casal",
-    "Data do evento",
-    "Valor do item 1",
-  ]) {
+  for (const label of ["Nome do noivo", "CPF do noivo", "Data do evento", "Valor do item 1"]) {
     expect(screen.getByLabelText(label)).toHaveAccessibleDescription("campo obrigatório");
   }
+  // This input also has a hint, which is part of its description.
+  expect(screen.getByLabelText("Endereço do casal")).toHaveAccessibleDescription(
+    /campo obrigatório/,
+  );
   expect(posted).not.toHaveBeenCalled();
 });
 
@@ -251,4 +249,21 @@ test("a refusal that is not a validation error shows in the banner and stays on 
     "O servidor recusou o pedido. Código: req-429",
   );
   expect(router.state.location.pathname).toBe("/contratos/novo");
+});
+
+test("removing an item moves the other item's error with it", async () => {
+  const { user } = renderApp("/contratos/novo");
+  await user.type(screen.getByLabelText("Valor do item 1"), "abc");
+  await user.click(screen.getByRole("button", { name: "Adicionar item" }));
+  await user.type(screen.getByLabelText("Valor do item 2"), "0,00");
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+  expect(screen.getByLabelText("Valor do item 1")).toHaveAccessibleDescription("valor inválido");
+  expect(screen.getByLabelText("Valor do item 2")).toHaveAccessibleDescription(
+    "o valor deve ser maior que zero",
+  );
+
+  await user.click(screen.getByRole("button", { name: "Remover item 1" }));
+  expect(screen.getByLabelText("Valor do item 1")).toHaveAccessibleDescription(
+    "o valor deve ser maior que zero",
+  );
 });

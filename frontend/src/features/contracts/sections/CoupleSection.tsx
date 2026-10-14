@@ -25,7 +25,12 @@ export function CoupleSection({ form, disabled }: Props) {
         inputMode="numeric"
         format={formatCpf}
       />
-      <TextField form={form} name="couple_address" label="Endereço do casal" />
+      <TextField
+        form={form}
+        name="couple_address"
+        label="Endereço do casal"
+        hint="Impresso no contrato para os dois."
+      />
     </FormSection>
   );
 }

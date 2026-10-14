@@ -34,8 +34,8 @@ export function ContractForm({
         <Banner tone="error">
           <p>O servidor recusou o contrato:</p>
           <ul>
-            {state.serverMessages.map((message) => (
-              <li key={message}>{message}</li>
+            {state.serverMessages.map((message, index) => (
+              <li key={index}>{message}</li>
             ))}
           </ul>
         </Banner>

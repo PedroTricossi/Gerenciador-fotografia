@@ -25,11 +25,12 @@ function nest(flat: Record<string, string>): FieldErrors<ContractFormValues> {
   const root: Record<string, unknown> = {};
   for (const [path, message] of Object.entries(flat)) {
     const parts = path.split(".");
-    let node = root;
-    for (const part of parts.slice(0, -1)) {
-      node[part] ??= {};
+    let node: Record<string, unknown> = root;
+    parts.slice(0, -1).forEach((part, position) => {
+      // React Hook Form shifts field-array errors only when they sit in a real array.
+      node[part] ??= /^\d+$/.test(parts[position + 1]!) ? [] : {};
       node = node[part] as Record<string, unknown>;
-    }
+    });
     node[parts[parts.length - 1]!] = { type: "validate", message };
   }
   return root as FieldErrors<ContractFormValues>;
