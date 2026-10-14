@@ -52,6 +52,28 @@ test("saving sends only the changed section with If-Match", async () => {
   expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
 });
 
+test("a double click on Salvar sends one PATCH", async () => {
+  serveContract();
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const patched = vi.fn();
+  server.use(
+    http.patch("/api/v1/contracts/:id", async () => {
+      patched();
+      await gate;
+      return HttpResponse.json(makeContract({ version: 2 }));
+    }),
+  );
+  const { user } = renderApp(URL_PATH);
+  const venue = await screen.findByLabelText("Local do evento");
+  await user.clear(venue);
+  await user.type(venue, "Capela");
+  await user.dblClick(screen.getByRole("button", { name: "Salvar" }));
+  release();
+  expect(await screen.findByText("Alterações salvas")).toBeInTheDocument();
+  expect(patched).toHaveBeenCalledOnce();
+});
+
 test("retyping the same amount differently is not a change", async () => {
   serveContract();
   const { user } = renderApp(URL_PATH);
