@@ -8,3 +8,4 @@ export { PageLayout } from "./PageLayout";
 export { Table, type Column } from "./Table";
 export { TextInput } from "./TextInput";
 export { ToastProvider, useToast } from "./Toast";
+export { Checkbox } from "./Checkbox";
