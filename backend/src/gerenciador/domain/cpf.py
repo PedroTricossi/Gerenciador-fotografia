@@ -2,8 +2,8 @@
 
 import re
 
-_ALLOWED = re.compile(r"[\d.\-\s]*")
-_NON_DIGITS = re.compile(r"\D")
+_ALLOWED = re.compile(r"[\d.\-\s]*", re.ASCII)
+_NON_DIGITS = re.compile(r"\D", re.ASCII)
 
 
 def _check_digit(digits: str) -> int:

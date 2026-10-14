@@ -46,6 +46,8 @@ def test_normalize_accepts_punctuated_and_bare(raw: str, digits: str) -> None:
         "abc12345678909",
         "123.456.789-09x",
         "123/456/789-09",
+        "١٢٣٤٥٦٧٨٩٠٩",
+        "１２３４５６７８９０９",  # noqa: RUF001 - deliberate full-width digits
     ],
 )
 def test_normalize_rejects_invalid(raw: str) -> None:
