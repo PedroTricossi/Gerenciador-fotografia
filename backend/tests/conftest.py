@@ -9,6 +9,7 @@ from gerenciador.config import Settings, generate_key
 from gerenciador.db.migrate import init_database
 from gerenciador.db.session import create_session_factory
 from gerenciador.services.audit_service import AuditService
+from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
 from gerenciador.services.crypto import FieldCipher
 
@@ -56,3 +57,8 @@ def ctx() -> RequestContext:
 @pytest.fixture
 def audit(session: Session) -> AuditService:
     return AuditService(session)
+
+
+@pytest.fixture
+def clients(session: Session, cipher: FieldCipher, audit: AuditService) -> ClientService:
+    return ClientService(session, cipher, audit)
