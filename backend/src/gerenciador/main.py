@@ -4,10 +4,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 
 from gerenciador import API_PREFIX, APP_TITLE, APP_VERSION
 from gerenciador.api.errors import register_error_handlers
+from gerenciador.api.frontend import mount_frontend
 from gerenciador.api.security import SecurityMiddleware
 from gerenciador.api.v1 import api_router
 from gerenciador.config import Settings, get_settings
@@ -57,6 +57,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SecurityMiddleware)
     register_error_handlers(app)
     app.include_router(api_router, prefix=API_PREFIX)
-    if settings.frontend_dist.is_dir():
-        app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="frontend")
+    if (settings.frontend_dist / "index.html").is_file():
+        mount_frontend(app, settings.frontend_dist)
     return app
