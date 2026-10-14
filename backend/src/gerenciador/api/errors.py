@@ -1,8 +1,10 @@
 """Every error leaves the API as an RFC 9457 problem, with no internal detail."""
 
 import logging
+import traceback
 from collections.abc import Mapping, Sequence
 from http import HTTPStatus
+from pathlib import Path
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
@@ -27,9 +29,30 @@ _KNOWN_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OP
 _log = logging.getLogger("gerenciador.api")
 
 
+def _frames(exc: BaseException) -> str:
+    """Where the exception travelled: `folder/file.py:line:function` per frame.
+
+    Built from code locations only. The exception message and the local values
+    are never included, because either can hold personal data.
+    """
+    return " > ".join(
+        f"{'/'.join(Path(frame.filename).parts[-2:])}:{frame.lineno}:{frame.name}"
+        for frame in traceback.extract_tb(exc.__traceback__)
+    )
+
+
 def log_failure(message: str, request_id: str, exc: Exception) -> None:
-    """Log the request id and exception class only: messages can hold personal data."""
-    _log.error("%s request_id=%s error=%s", message, request_id, type(exc).__name__)
+    """Log the request id, the exception class and the traceback frames.
+
+    Never the exception message: it can hold personal data.
+    """
+    _log.error(
+        "%s request_id=%s error=%s frames=%s",
+        message,
+        request_id,
+        type(exc).__name__,
+        _frames(exc),
+    )
 
 
 def problem_response(

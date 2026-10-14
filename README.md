@@ -27,12 +27,42 @@ Homebrew's lib folder. `make run` and `make check` set it for you. When you run
 make run
 ```
 
-The API is at <http://127.0.0.1:8000/api/v1> and its documentation at
-<http://127.0.0.1:8000/docs>. The server refuses to start on any address other
-than `127.0.0.1` or `localhost`, because it has no login.
+The API is at <http://127.0.0.1:8000/api/v1>. The server refuses to start on
+any address other than `127.0.0.1` or `localhost`, because it has no login.
+
+The app serves no documentation page and no schema. To get the OpenAPI schema
+as a file (the frontend needs it), run:
+
+```bash
+make openapi
+```
+
+It writes `openapi.json` at the repository root without starting the server or
+opening the database.
 
 Writes need an `Origin` header that matches the address you call. Browsers send
 it. With curl, add `-H "Origin: http://127.0.0.1:8000"`.
+
+## Using the API from the terminal
+
+Exporting a person's data, anonymising a person and reading the audit trail
+have no screen yet. Until they do, use `curl` while the server is running.
+Replace `CLIENT_ID` with an `id` from the first command.
+
+```bash
+# List clients (CPFs are masked in lists)
+curl http://127.0.0.1:8000/api/v1/clients
+
+# Export everything held about one client
+curl http://127.0.0.1:8000/api/v1/clients/CLIENT_ID/export
+
+# Anonymise a client (permanent)
+curl -X POST -H "Origin: http://127.0.0.1:8000" \
+  http://127.0.0.1:8000/api/v1/clients/CLIENT_ID/anonymise
+
+# List audit events, newest first
+curl "http://127.0.0.1:8000/api/v1/audit-events?limit=50"
+```
 
 ## Check
 
@@ -60,8 +90,8 @@ folder's permissions to the owner.
 
 Client name, CPF and address live only in the `clients` table. Through the API
 you can export everything held about a person, correct it, or anonymise it
-(`/docs`, under "clients"). Anonymising is permanent and is refused while the
-person has a contract that is not deleted.
+(see "Using the API from the terminal"). Anonymising is permanent and is
+refused while the person has a contract that is not deleted.
 
 How long to keep a finished contract before anonymising is a legal decision.
 This software provides the technical measures, not legal advice.

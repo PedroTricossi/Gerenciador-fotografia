@@ -23,6 +23,11 @@ class ClientRepository:
             select(Client).where(Client.cpf_lookup == lookup)
         ).one_or_none()
 
+    def first_with_cpf(self) -> Client | None:
+        return self._session.scalars(
+            select(Client).where(Client.cpf_encrypted.is_not(None)).order_by(Client.id).limit(1)
+        ).first()
+
     def find_page(self, *, limit: int, before: tuple[dt.datetime, str] | None) -> list[Client]:
         stmt = keyset_newest_first(
             select(Client), Client.created_at, Client.id, before=before, limit=limit

@@ -18,14 +18,6 @@ ALLOWED_HOSTNAMES = frozenset({"localhost", "127.0.0.1"})
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _API_CSP = "default-src 'none'; frame-ancestors 'none'"
 _APP_CSP = "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
-_DOCS_CSP = (
-    "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-    "img-src 'self' data: https://fastapi.tiangolo.com; "
-    "frame-ancestors 'none'"
-)
-_DOCS_PATHS = frozenset({"/docs"})
 _FOREIGN_SITES = frozenset({"cross-site", "same-site"})
 
 
@@ -73,8 +65,6 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Content-Security-Policy"] = _API_CSP
-        elif path in _DOCS_PATHS:
-            response.headers["Content-Security-Policy"] = _DOCS_CSP
         else:
             response.headers["Content-Security-Policy"] = _APP_CSP
         return response

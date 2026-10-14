@@ -1,6 +1,7 @@
 """Clients: the only place personal data is read or written."""
 
 import datetime as dt
+import hmac
 from dataclasses import dataclass
 from uuid import uuid4
 
@@ -11,8 +12,8 @@ from gerenciador.db.models import Client, Contract
 from gerenciador.repositories.client_repository import ClientRepository
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.context import RequestContext
-from gerenciador.services.crypto import FieldCipher, field_context
-from gerenciador.services.exceptions import ConflictError, NotFoundError
+from gerenciador.services.crypto import DecryptionError, FieldCipher, field_context
+from gerenciador.services.exceptions import ConflictError, KeyMismatchError, NotFoundError
 from gerenciador.services.pagination import Page, decode_cursor, encode_cursor
 
 _ENTITY = "client"
@@ -67,6 +68,23 @@ class ClientService:
             updated_at=client.updated_at,
             anonymised_at=client.anonymised_at,
         )
+
+    def check_keys(self) -> None:
+        """Raise KeyMismatchError if the configured keys cannot read the stored clients.
+
+        One client is enough to tell. With the wrong keys every list would fail and
+        every known person would be stored again as a new client.
+        """
+        client = self._repo.first_with_cpf()
+        if client is None:
+            return
+        try:
+            cpf = self._decrypt(client, "cpf_encrypted", client.cpf_encrypted)
+        except DecryptionError:
+            raise KeyMismatchError from None
+        lookup = self._cipher.cpf_lookup(cpf or "")
+        if not hmac.compare_digest(lookup, client.cpf_lookup or ""):
+            raise KeyMismatchError
 
     def upsert_for_contract(
         self,

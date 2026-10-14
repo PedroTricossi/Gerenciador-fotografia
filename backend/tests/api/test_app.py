@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import Response
+from httpx2 import Response
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import func, select
 from starlette.requests import Request
@@ -71,10 +71,19 @@ def test_api_security_headers(api: TestClient) -> None:
     assert headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'"
 
 
-def test_docs_page_can_load_its_assets(api: TestClient) -> None:
-    response = api.get("/docs")
-    assert response.status_code == 200
-    assert "https://cdn.jsdelivr.net" in response.headers["Content-Security-Policy"]
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"])
+def test_no_documentation_page_or_schema_is_served(api: TestClient, path: str) -> None:
+    _is_problem(api.get(path), 404)
+
+
+@pytest.mark.parametrize("path", ["/api/v1/health", "/", "/api/v1/nope", "/docs"])
+def test_no_response_allows_third_party_or_inline_content(api: TestClient, path: str) -> None:
+    response = api.get(path)
+    assert "Content-Security-Policy" in response.headers
+    for value in response.headers.values():
+        assert "cdn.jsdelivr.net" not in value
+        assert "unsafe-inline" not in value
+        assert "https://" not in value
 
 
 @pytest.mark.parametrize("host", ["evil.example", "192.168.0.10:8000", "127.0.0.1.evil.example"])
@@ -136,11 +145,6 @@ def test_read_without_origin_or_fetch_metadata_is_allowed(api: TestClient) -> No
     assert api.get("/api/v1/health").status_code == 200
 
 
-def test_cross_site_navigation_to_the_docs_page_is_allowed(api: TestClient) -> None:
-    response = api.get("/docs", headers={"Sec-Fetch-Site": "cross-site"})
-    assert response.status_code == 200
-
-
 def test_rejected_read_is_audited_by_route_template_not_by_path(api: TestClient) -> None:
     response = api.get(PERSONAL_PATH)
     _is_problem(response, 422)
@@ -164,10 +168,6 @@ def test_route_label_without_a_matched_route_never_uses_caller_text(
 ) -> None:
     request = Request({"type": "http", "method": method, "path": "/João 12345678909"})
     assert api_errors._route_label(request) == label
-
-
-def test_redoc_is_not_served(api: TestClient) -> None:
-    _is_problem(api.get("/redoc"), 404)
 
 
 def test_write_with_a_non_json_body_is_rejected(api: TestClient) -> None:
@@ -234,6 +234,12 @@ def test_unhandled_errors_are_logged_without_detail(
     assert "RuntimeError" in text
     assert "12345678909" not in text
     assert records[0].exc_info is None
+    # The frames locate the failure: file, line and function of the code that raised.
+    assert "test_app.py:" in text
+    assert text.rstrip().endswith(":boom")
+    assert "secret" not in text
+    assert "detail" not in text
+    assert "\n" not in text
 
 
 def test_rejections_keep_security_headers(api: TestClient) -> None:
@@ -284,15 +290,15 @@ def test_unknown_keys_are_not_echoed(settings: Settings) -> None:
         response = client.post(
             "/api/v1/take", json={"12345678909": 1, "nested": {"98765432100": 2}}
         )
+        with app.state.session_factory() as session:
+            event = session.scalars(
+                select(AuditEvent).where(AuditEvent.action == "request.rejected")
+            ).one()
+            assert sorted(event.details["fields"]) == ["*", "nested.*"]
     body = _is_problem(response, 422)
     assert "12345678909" not in response.text
     assert "98765432100" not in response.text
     assert sorted(e["field"] for e in body["errors"]) == ["*", "nested.*"]
-    with app.state.session_factory() as session:
-        event = session.scalars(
-            select(AuditEvent).where(AuditEvent.action == "request.rejected")
-        ).one()
-        assert sorted(event.details["fields"]) == ["*", "nested.*"]
 
 
 def test_input_values_are_not_echoed_in_messages(settings: Settings) -> None:
