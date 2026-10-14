@@ -14,6 +14,8 @@ from gerenciador.db.session import create_session_factory
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
+from gerenciador.services.contract_document import ContractDocumentService
+from gerenciador.services.contract_renderer import ContractRenderer
 from gerenciador.services.contract_service import (
     ContractInput,
     ContractService,
@@ -21,6 +23,7 @@ from gerenciador.services.contract_service import (
     PersonInput,
 )
 from gerenciador.services.crypto import FieldCipher
+from gerenciador.services.pdf_renderer import WeasyPrintRenderer
 
 
 @pytest.fixture
@@ -104,3 +107,11 @@ def make_input() -> Callable[..., ContractInput]:
         return replace(base, **overrides)
 
     return _make
+
+
+@pytest.fixture
+def documents(
+    session: Session, contracts: ContractService, audit: AuditService, settings: Settings
+) -> ContractDocumentService:
+    renderer = ContractRenderer(settings.template_path, settings)
+    return ContractDocumentService(session, contracts, audit, renderer, WeasyPrintRenderer())
