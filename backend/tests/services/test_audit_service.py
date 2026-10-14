@@ -80,7 +80,9 @@ def test_list_page_filters(session: Session, audit: AuditService, ctx: RequestCo
     assert len(audit.list_page(limit=10, cursor=None, occurred_to=future).items) == 3
 
 
-@pytest.mark.parametrize("cursor", ["abc", "1.5", "-", ""])
+@pytest.mark.parametrize(
+    "cursor", ["abc", "1.5", "-", "", "99999999999999999999", "9223372036854775808", "١٢٣"]
+)
 def test_audit_rejects_malformed_cursor(audit: AuditService, cursor: str) -> None:
     with pytest.raises(InvalidCursorError):
         audit.list_page(limit=10, cursor=cursor)

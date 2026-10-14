@@ -100,3 +100,19 @@ def test_audit_events_cannot_be_deleted(session: Session) -> None:
     event_id = _add_event(session)
     with pytest.raises(DBAPIError, match="append-only"):
         session.execute(text("DELETE FROM audit_events WHERE id = :id"), {"id": event_id})
+
+
+def test_audit_events_cannot_be_replaced(session: Session) -> None:
+    event_id = _add_event(session)
+    with pytest.raises(DBAPIError, match="append-only"):
+        session.execute(
+            text(
+                "INSERT OR REPLACE INTO audit_events"
+                " (id, occurred_at, actor, action, outcome, request_id, details)"
+                " VALUES (:id, '2026-01-01 00:00:00', 'intruder', 'x', 'success', 'r2', '{}')"
+            ),
+            {"id": event_id},
+        )
+    session.rollback()
+    actor = session.scalar(text("SELECT actor FROM audit_events WHERE id = :id"), {"id": event_id})
+    assert actor == "owner"

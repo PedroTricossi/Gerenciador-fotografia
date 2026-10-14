@@ -76,9 +76,16 @@ def upgrade() -> None:
         f"CREATE TRIGGER audit_events_no_delete BEFORE DELETE ON audit_events "
         f"BEGIN {_APPEND_ONLY} END;"
     )
+    # INSERT OR REPLACE deletes the old row without firing the delete trigger.
+    op.execute(
+        "CREATE TRIGGER audit_events_no_replace BEFORE INSERT ON audit_events "
+        "WHEN EXISTS (SELECT 1 FROM audit_events WHERE id = NEW.id) "
+        "BEGIN SELECT RAISE(ABORT, 'audit_events is append-only'); END;"
+    )
 
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER audit_events_no_replace")
     op.execute("DROP TRIGGER audit_events_no_delete")
     op.execute("DROP TRIGGER audit_events_no_update")
     op.drop_table("audit_events")

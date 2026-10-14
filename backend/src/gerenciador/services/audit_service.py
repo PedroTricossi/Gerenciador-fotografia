@@ -12,6 +12,8 @@ from gerenciador.services.context import RequestContext
 from gerenciador.services.exceptions import InvalidCursorError, NotFoundError
 from gerenciador.services.pagination import Page
 
+_MAX_ID = 2**63 - 1  # largest integer SQLite can bind
+
 
 class AuditService:
     def __init__(self, session: Session) -> None:
@@ -62,9 +64,11 @@ class AuditService:
     ) -> Page[AuditEvent]:
         before_id: int | None = None
         if cursor is not None:
-            if not cursor.isdecimal():
+            if not (cursor.isascii() and cursor.isdecimal()):
                 raise InvalidCursorError
             before_id = int(cursor)
+            if before_id > _MAX_ID:
+                raise InvalidCursorError
         rows = self._repo.find_page(
             limit=limit + 1,
             before_id=before_id,
