@@ -8,11 +8,14 @@ keeps an audit trail of every action. Runs on your own machine only.
 Requires macOS with [Homebrew](https://brew.sh).
 
 ```bash
-brew install uv pango
+brew install uv pango node@22
 make install
 cp .env.example .env
 cd backend && uv run python -m gerenciador.keygen
 ```
+
+`make install` installs the backend and the interface. The first time you run the
+end-to-end tests, also run `cd frontend && npx playwright install chromium`.
 
 Paste the two generated lines into `.env` and fill in your own details.
 
@@ -27,7 +30,8 @@ Homebrew's lib folder. `make run` and `make check` set it for you. When you run
 make run
 ```
 
-The API is at <http://127.0.0.1:8000/api/v1>. The server refuses to start on
+Open <http://127.0.0.1:8000>. `make run` builds the interface first when its
+sources have changed. The API is at <http://127.0.0.1:8000/api/v1>. The server refuses to start on
 any address other than `127.0.0.1` or `localhost`, because it has no login.
 
 The app serves no documentation page and no schema. To get the OpenAPI schema
@@ -43,6 +47,18 @@ opening the database.
 Writes need an `Origin` header that matches the address you call. Browsers send
 it. With curl, add `-H "Origin: http://127.0.0.1:8000"`. Reads work without the
 header, but a read that carries an `Origin` for any other address is refused.
+
+## Develop
+
+```bash
+make dev
+```
+
+Runs the backend and the Vite dev server together. Open <http://localhost:5173>;
+Vite reloads the page as you edit and forwards `/api` to the backend.
+
+After changing the backend's routes or models, run `make api-types` and commit
+`frontend/src/api/schema.d.ts`. `make check` fails while it is out of date.
 
 ## Using the API from the terminal
 
@@ -72,6 +88,7 @@ make check
 ```
 
 Runs formatting, lint, types, tests with coverage gates, and a dependency audit.
+`make e2e` builds the interface and runs the browser tests against the real backend on a temporary database.
 
 ## Backups
 
@@ -89,9 +106,7 @@ folder's permissions to the owner.
 
 ## Personal data
 
-Client name, CPF and address live only in the `clients` table. Through the API
-you can export everything held about a person, correct it, or anonymise it
-(see "Using the API from the terminal"). Anonymising is permanent and is
+Client name, CPF and address live only in the `clients` table. On the **Clientes** screen you can export everything held about a person or anonymise them. Corrections go through the contract form, or through the API (see "Using the API from the terminal"). Anonymising is permanent and is
 refused while the person has a contract that is not deleted.
 
 How long to keep a finished contract before anonymising is a legal decision.

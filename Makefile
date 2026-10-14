@@ -7,7 +7,7 @@ endif
 UV := cd backend && DYLD_FALLBACK_LIBRARY_PATH="$(BREW_LIB)" uv
 NPM := cd frontend && npm
 
-.PHONY: install install-backend install-frontend run dev dev-backend dev-frontend check openapi build api-types e2e
+.PHONY: install install-backend install-frontend run dev dev-backend dev-frontend check check-backend check-frontend openapi build api-types e2e
 
 install: install-backend install-frontend
 
@@ -47,13 +47,23 @@ api-types: openapi
 
 # Tools run as modules (`python -m`), not through their console scripts: with a long
 # path uv starts a script through /bin/sh, and macOS then drops the library path.
-check:
+check-backend:
 	$(UV) run python -m ruff format --check .
 	$(UV) run python -m ruff check .
 	$(UV) run python -m mypy src
 	$(UV) run python -m pytest --cov=gerenciador --cov-report=term-missing --cov-fail-under=90
 	$(UV) run python -m coverage report --include="*/gerenciador/domain/*" --fail-under=100
 	$(UV) run python -m pip_audit
+
+check-frontend:
+	$(NPM) run format:check
+	$(NPM) run lint
+	$(NPM) run typecheck
+	$(NPM) run test:coverage
+	$(NPM) audit --audit-level=high
+	frontend/scripts/check-api-types.sh
+
+check: check-backend check-frontend
 
 # Builds the interface and runs Playwright against the real backend on a temporary database.
 # First time only: cd frontend && npx playwright install chromium
