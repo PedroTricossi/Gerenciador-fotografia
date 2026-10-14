@@ -41,6 +41,10 @@ frontend/dist/index.html: $(shell find frontend/src frontend/index.html frontend
 openapi:
 	$(UV) run python -m gerenciador.export_openapi ../openapi.json
 
+# Regenerates the frontend's API types from the backend's route definitions.
+api-types: openapi
+	$(NPM) run api-types
+
 # Tools run as modules (`python -m`), not through their console scripts: with a long
 # path uv starts a script through /bin/sh, and macOS then drops the library path.
 check:
