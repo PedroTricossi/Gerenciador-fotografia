@@ -69,3 +69,12 @@ def test_a_dist_folder_without_index_serves_no_pages(settings: Settings, tmp_pat
     app = create_app(settings.model_copy(update={"frontend_dist": empty}))
     with TestClient(app, base_url=BASE_URL) as client:
         assert client.get("/contratos").status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/%00", "/contratos%00x"])
+def test_paths_with_a_null_byte_are_refused_without_a_stack_trace(
+    site: TestClient, path: str
+) -> None:
+    response = site.get(path)
+    assert response.status_code == 404
+    assert response.headers["content-type"] == "application/problem+json"

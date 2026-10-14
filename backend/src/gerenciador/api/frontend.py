@@ -19,7 +19,11 @@ def mount_frontend(app: FastAPI, dist: Path) -> None:
     def frontend(path: str) -> FileResponse:
         if path == "api" or path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not Found")
-        candidate = (root / path).resolve()
+        try:
+            candidate = (root / path).resolve()
+        except (OSError, ValueError):
+            # A path that cannot exist, such as one with a null byte, is not a page.
+            raise HTTPException(status_code=404, detail="Not Found") from None
         if not candidate.is_relative_to(root):
             raise HTTPException(status_code=404, detail="Not Found")
         if candidate.is_file():
