@@ -14,6 +14,7 @@ test("reads an RFC 9457 problem", () => {
     detail: "Request validation failed",
     errors: [{ field: "groom.cpf", message: "CPF inválido" }],
     requestId: "req-1",
+    code: null,
   });
 });
 
@@ -49,4 +50,8 @@ test("splits errors into known fields and the rest", () => {
     "*: Extra inputs are not permitted",
     "erro geral",
   ]);
+});
+
+test("keeps a problem's code", () => {
+  expect(parseProblem(409, { code: "prewedding_scheduled" }).code).toBe("prewedding_scheduled");
 });

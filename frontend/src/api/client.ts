@@ -12,6 +12,8 @@ export type ItemOut = Schemas["ItemOut"];
 export type ServiceOut = Schemas["ServiceOut"];
 export type ServiceIn = Schemas["ServiceIn"];
 export type ServicePatch = Schemas["ServicePatch"];
+export type PreweddingIn = Schemas["PreweddingIn"];
+export type PreweddingOut = Schemas["PreweddingOut"];
 
 export class ApiError extends Error {
   readonly status: number;
@@ -19,6 +21,7 @@ export class ApiError extends Error {
   readonly detail: string;
   readonly errors: FieldError[];
   readonly requestId: string | null;
+  readonly code: string | null;
 
   constructor(status: number, body: unknown) {
     const problem = parseProblem(status, body);
@@ -29,6 +32,7 @@ export class ApiError extends Error {
     this.detail = problem.detail;
     this.errors = problem.errors;
     this.requestId = problem.requestId;
+    this.code = problem.code;
   }
 }
 

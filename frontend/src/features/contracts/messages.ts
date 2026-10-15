@@ -8,3 +8,7 @@ export const PDF_AFTER_SAVE_FAILED =
 export const EDIT_CONFLICT_DELETED =
   "Este contrato foi excluído em outro lugar. Recarregue a página para ver o estado atual.";
 export const CONTRACT_GONE = "Este contrato não existe mais.";
+export const PREWEDDING_CHANGED =
+  "O pré-wedding mudou desde que foi aberto. Os dados foram recarregados.";
+export const PREWEDDING_ALREADY_CANCELLED =
+  "Este pré-wedding já foi desmarcado. A lista foi atualizada.";
