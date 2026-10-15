@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { onlineManager } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import type { ContractOut, PreweddingOut } from "../../api/client";
 import { IDS, makeContract, page, problem } from "../../test/fixtures";
@@ -17,8 +18,11 @@ function eligible(prewedding: PreweddingOut | null = null): ContractOut {
   return makeContract({ has_prewedding: true, prewedding });
 }
 
+let call = 0;
+const calls = () => call;
+
 function serveList(...responses: ContractOut[][]) {
-  let call = 0;
+  call = 0;
   server.use(
     http.get("/api/v1/contracts", () => {
       const rows = responses[Math.min(call, responses.length - 1)]!;
@@ -136,6 +140,30 @@ test("a stale version reloads the dialog and the retry sends the new version", a
   await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
   expect(await screen.findByText("Pré-wedding atualizado")).toBeInTheDocument();
   expect(sent).toEqual(['"3"', '"4"']);
+});
+
+test("typing after a stale answer that reloaded nothing keeps the typed value", async () => {
+  const moved = { ...SCHEDULED, venue_name: "Jardim Botânico", version: 4 };
+  // The refetch after the 412 returns the same version; a later one returns a newer version.
+  serveList([eligible(SCHEDULED)], [eligible(SCHEDULED)], [eligible(moved)]);
+  server.use(
+    http.put("/api/v1/contracts/:id/prewedding", () =>
+      problem(412, "The prewedding changed since it was loaded"),
+    ),
+  );
+  const { user, dialog } = await openDialog("Pré-wedding 20/01");
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  await within(dialog).findByText(
+    "O pré-wedding mudou desde que foi aberto. Os dados foram recarregados.",
+  );
+  setInput(within(dialog).getByLabelText("Local"), "Meu local");
+
+  // A later background refetch (reconnecting) brings a newer version.
+  act(() => onlineManager.setOnline(false));
+  act(() => onlineManager.setOnline(true));
+  await waitFor(() => expect(calls()).toBe(3));
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  expect(within(dialog).getByLabelText("Local")).toHaveValue("Meu local");
 });
 
 test("a refusal shows the server's message", async () => {

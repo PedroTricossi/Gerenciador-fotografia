@@ -56,7 +56,8 @@ export function ContractForm({
       <EventSection form={form} disabled={readOnly} />
       <PhotographersSection form={form} disabled={readOnly} />
       <PaymentSection state={state} disabled={readOnly} savedItems={savedItems} />
-      <PreweddingSection state={state} disabled={readOnly} summary={prewedding} />
+      {/* A deleted contract reports no pre-wedding; it comes back on restore. */}
+      {!readOnly && <PreweddingSection state={state} disabled={readOnly} summary={prewedding} />}
       <SigningSection form={form} disabled={readOnly} />
       {!readOnly && (
         <div className={styles.actions}>

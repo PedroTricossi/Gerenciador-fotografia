@@ -279,6 +279,20 @@ test("shows when nothing is scheduled yet", async () => {
   expect(await screen.findByText("Pré-wedding: não agendado")).toBeInTheDocument();
 });
 
+test("a deleted contract shows no pre-wedding section", async () => {
+  serveContract(
+    makeContract({
+      payment: PRE_ITEMS,
+      has_prewedding: true,
+      deleted_at: "2026-10-14T10:00:00Z",
+    }),
+  );
+  renderApp(URL_PATH);
+  expect(await screen.findByText(/Este contrato foi excluído/)).toBeInTheDocument();
+  expect(screen.queryByText("Pré-wedding: não agendado")).toBeNull();
+  expect(screen.queryByText(/botão de pré-wedding/)).toBeNull();
+});
+
 async function removePreweddingItem(user: UserEvent) {
   await user.click(await screen.findByRole("button", { name: "Remover item 2" }));
   await user.click(screen.getByRole("button", { name: "Salvar" }));
@@ -320,26 +334,43 @@ test("removing the pre-wedding item asks before cancelling the schedule", async 
 
 test("a schedule made elsewhere is caught by the server and asked the same way", async () => {
   // The cached contract has no schedule, but the server has one.
-  serveContract(makeContract({ payment: PRE_ITEMS, has_prewedding: true }));
+  let schedule: typeof SCHEDULED | null = null;
+  server.use(
+    http.get("/api/v1/contracts/:id", () =>
+      HttpResponse.json(
+        makeContract({ payment: PRE_ITEMS, has_prewedding: true, prewedding: schedule }),
+      ),
+    ),
+  );
   const sent: Record<string, unknown>[] = [];
   server.use(
     http.patch("/api/v1/contracts/:id", async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;
       sent.push(body);
-      return body.cancel_prewedding
-        ? HttpResponse.json(makeContract({ version: 2 }))
-        : problem(409, "o contrato tem um pré-wedding agendado", { code: "prewedding_scheduled" });
+      if (body.cancel_prewedding) return HttpResponse.json(makeContract({ version: 2 }));
+      schedule = SCHEDULED;
+      return problem(409, "o contrato tem um pré-wedding agendado", {
+        code: "prewedding_scheduled",
+      });
     }),
   );
   const { user } = renderApp(URL_PATH);
-  await removePreweddingItem(user);
+  const venue = await screen.findByLabelText("Local do evento");
+  await user.clear(venue);
+  await user.type(venue, "Capela");
+  await user.click(screen.getByRole("button", { name: "Remover item 2" }));
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
   const confirm = await screen.findByRole("dialog", { name: "Cancelar pré-wedding?" });
   expect(
-    within(confirm).getByText(
-      "Este contrato tem um pré-wedding agendado. Remover o item cancela esse agendamento.",
+    await within(confirm).findByText(
+      "Este contrato tem um pré-wedding agendado em 20/01/2027. Remover o item cancela esse agendamento.",
     ),
   ).toBeInTheDocument();
   await user.click(within(confirm).getByRole("button", { name: "Remover e salvar" }));
   expect(await screen.findByText("Alterações salvas")).toBeInTheDocument();
   expect(sent.map((body) => body.cancel_prewedding)).toEqual([undefined, true]);
+  expect(sent[1]).toMatchObject({ event: EVENT_REQUEST });
+  expect(sent[1]).toHaveProperty("payment.items", [
+    { service_id: IDS.serviceCeremony, amount_cents: 120000 },
+  ]);
 });

@@ -80,6 +80,7 @@ export function PreweddingDialog({ contract, onClose }: Props) {
     const found = validatePrewedding(values);
     setErrors(found);
     setBanner(null);
+    setStaleVersion(undefined);
     if (Object.keys(found).length > 0) return;
     try {
       await schedule.mutateAsync({
@@ -111,8 +112,11 @@ export function PreweddingDialog({ contract, onClose }: Props) {
     if (!busy) onClose();
   };
 
-  const set = (key: keyof PreweddingValues, value: string) =>
+  const set = (key: keyof PreweddingValues, value: string) => {
+    // Typing supersedes a reload that never changed anything.
+    setStaleVersion(undefined);
     setValues((previous) => ({ ...previous, [key]: value }));
+  };
 
   return (
     <Dialog open title="Pré-wedding" onClose={close}>

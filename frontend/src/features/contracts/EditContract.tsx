@@ -63,6 +63,8 @@ export function EditContract({ id }: { id: string }) {
     } catch (error) {
       if (error instanceof ApiError && error.status === 412) return setConflict(true);
       if (error instanceof ApiError && error.code === "prewedding_scheduled") {
+        // The cached contract lacks the schedule the server has; same version, so the form keeps its edits.
+        void contract.refetch();
         return setPendingRemoval(body);
       }
       if (error instanceof ApiError && error.status === 409) {
