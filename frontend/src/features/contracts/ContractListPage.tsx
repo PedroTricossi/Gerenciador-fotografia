@@ -25,6 +25,8 @@ import {
 import styles from "./ContractListPage.module.css";
 import { DELETE_CONFLICT, NOT_FOUND_IN_LIST, PDF_DELETED, RESTORE_CONFLICT } from "./messages";
 import { coupleLabel } from "./names";
+import { PreweddingDialog } from "./PreweddingDialog";
+import { preweddingButtonLabel } from "./preweddingForm";
 
 export function ContractListPage() {
   const navigate = useNavigate();
@@ -32,12 +34,14 @@ export function ContractListPage() {
   const client = useQueryClient();
   const [showDeleted, setShowDeleted] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ContractOut | null>(null);
+  const [preweddingFor, setPreweddingFor] = useState<string | null>(null);
   const contracts = useContracts(showDeleted);
   const remove = useDeleteContract();
   const restore = useRestoreContract();
   const pdf = useDownloadPdf();
 
   const rows = contracts.data?.pages.flatMap((result) => result.items) ?? [];
+  const preweddingTarget = rows.find((row) => row.id === preweddingFor) ?? null;
 
   const failureHandler = (messages: { 404: string; 409: string }) => (error: unknown) => {
     if (!(error instanceof ApiError)) return;
@@ -105,6 +109,11 @@ export function ContractListPage() {
           </Button>
         ) : (
           <span className={styles.actions}>
+            {(contract.has_prewedding || contract.prewedding !== null) && (
+              <Button onClick={() => setPreweddingFor(contract.id)}>
+                {preweddingButtonLabel(contract.prewedding)}
+              </Button>
+            )}
             <Button onClick={() => navigate(`/contratos/${contract.id}`)}>Editar</Button>
             <Button
               onClick={() => pdf.mutate(contract.id, { onError: onPdfError })}
@@ -171,6 +180,9 @@ export function ContractListPage() {
           será excluído. Você pode restaurá-lo depois em "Mostrar excluídos".
         </p>
       </ConfirmDialog>
+      {preweddingTarget && (
+        <PreweddingDialog contract={preweddingTarget} onClose={() => setPreweddingFor(null)} />
+      )}
     </PageLayout>
   );
 }

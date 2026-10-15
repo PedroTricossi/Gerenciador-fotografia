@@ -97,6 +97,10 @@ class Contract(Base):
     items: Mapped[list["ContractItem"]] = relationship(
         order_by="ContractItem.position", cascade="all, delete-orphan", lazy="selectin"
     )
+    # One-to-one: setting this to None deletes the row.
+    prewedding: Mapped["PreweddingEvent | None"] = relationship(
+        cascade="all, delete-orphan", lazy="selectin"
+    )
 
 
 class ContractItem(Base):
@@ -115,6 +119,23 @@ class ContractItem(Base):
     amount_cents: Mapped[int]
 
     service: Mapped[Service] = relationship(lazy="joined")
+
+
+class PreweddingEvent(Base):
+    __tablename__ = "prewedding_events"
+    __table_args__ = (UniqueConstraint("contract_id", name="uq_prewedding_events_contract_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    contract_id: Mapped[str] = mapped_column(
+        ForeignKey("contracts.id", name="fk_prewedding_events_contract_id_contracts")
+    )
+    event_date: Mapped[dt.date]
+    venue_name: Mapped[str] = mapped_column(String(200))
+    venue_address: Mapped[str | None] = mapped_column(String(300))
+    start_time: Mapped[dt.time | None]
+    version: Mapped[int]
+    created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+    updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
 
 
 class AuditEvent(Base):

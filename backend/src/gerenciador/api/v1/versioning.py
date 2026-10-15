@@ -17,3 +17,14 @@ def expected_version(if_match: str | None, entity: str) -> int:
     if match is None:
         raise StaleVersionError(entity)
     return int(match.group(1))
+
+
+def optional_version(if_match: str | None) -> int | None:
+    """For edits that may create: an absent header means nothing is expected.
+
+    An unreadable validator becomes 0, which no version ever has.
+    """
+    if if_match is None:
+        return None
+    match = _STRONG_VERSION.fullmatch(if_match.strip())
+    return int(match.group(1)) if match else 0

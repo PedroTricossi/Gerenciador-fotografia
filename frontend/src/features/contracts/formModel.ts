@@ -3,6 +3,13 @@ import { discountError, totalCents } from "../../domain/contract";
 import { cpfDigits, formatCpf } from "../../domain/cpf";
 import { REQUIRED, amountError, textError } from "../../domain/fieldRules";
 import { formatBrlAmount, parseBrl } from "../../domain/money";
+import {
+  type PreweddingValues,
+  emptyPrewedding,
+  isBlankPrewedding,
+  toPreweddingRequest,
+  validatePrewedding,
+} from "./preweddingForm";
 
 export type ItemValues = { service_id: string; amount_cents: string };
 
@@ -21,6 +28,7 @@ export type ContractFormValues = {
   photographer_count: string;
   payment: { items: ItemValues[]; pix_discount_cents: string };
   signing: { city: string; date: string };
+  prewedding: PreweddingValues;
 };
 
 export const MAX_ITEMS = 20;
@@ -45,6 +53,7 @@ export function defaultValues(today: string): ContractFormValues {
     photographer_count: "2",
     payment: { items: [emptyItem()], pix_discount_cents: "" },
     signing: { city: "Curitiba", date: today },
+    prewedding: emptyPrewedding(),
   };
 }
 
@@ -82,6 +91,7 @@ export function fromContract(contract: ContractOut): ContractFormValues {
           : formatBrlAmount(contract.payment.pix_discount_cents),
     },
     signing: { city: contract.signing.city, date: contract.signing.date },
+    prewedding: emptyPrewedding(),
   };
 }
 
@@ -113,6 +123,9 @@ export function toRequest(values: ContractFormValues): ContractCreate {
       pix_discount_cents: parseBrl(values.payment.pix_discount_cents),
     },
     signing: { city: values.signing.city.trim(), date: values.signing.date },
+    ...(isBlankPrewedding(values.prewedding)
+      ? {}
+      : { prewedding: toPreweddingRequest(values.prewedding) }),
   };
 }
 
@@ -176,6 +189,11 @@ export function validate(values: ContractFormValues): Record<string, string> {
 
   check("signing.city", textError(values.signing.city, 100, true));
   check("signing.date", values.signing.date === "" ? REQUIRED : null);
+  if (!isBlankPrewedding(values.prewedding)) {
+    for (const [key, message] of Object.entries(validatePrewedding(values.prewedding))) {
+      errors[`prewedding.${key}`] = message;
+    }
+  }
   return errors;
 }
 
@@ -205,6 +223,10 @@ const FIXED_FIELDS = new Set([
   "payment.pix_discount_cents",
   "signing.city",
   "signing.date",
+  "prewedding.date",
+  "prewedding.venue_name",
+  "prewedding.venue_address",
+  "prewedding.start_time",
 ]);
 const ITEM_FIELD = /^payment\.items\.(\d+)\.(service_id|amount_cents)$/;
 

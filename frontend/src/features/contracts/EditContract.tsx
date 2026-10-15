@@ -7,13 +7,16 @@ import {
   useRestoreContract,
   useUpdateContract,
 } from "../../api/contracts";
+import { useServices } from "../../api/services";
 import { describeUnexpected, isUnexpected } from "../../api/errors";
+import { formatIsoDate } from "../../domain/dates";
 import { changedSections } from "../../domain/patch";
 import { Banner, Button, ConfirmDialog, PageLayout, useToast } from "../../ui";
 import { ContractForm } from "./ContractForm";
 import { type ContractFormValues, fromContract, toRequest } from "./formModel";
 import { CONTRACT_GONE, EDIT_CONFLICT_DELETED, PDF_DELETED, RESTORE_CONFLICT } from "./messages";
 import { coupleLabel } from "./names";
+import { preweddingServiceIds } from "./serviceOptions";
 
 export function EditContract({ id }: { id: string }) {
   const contract = useContract(id);
@@ -22,6 +25,8 @@ export function EditContract({ id }: { id: string }) {
   const pdf = useDownloadPdf();
   const notify = useToast();
   const [conflict, setConflict] = useState(false);
+  const services = useServices(true);
+  const [pendingRemoval, setPendingRemoval] = useState<ContractPatch | null>(null);
 
   const data = contract.data;
   if (data === undefined) {
@@ -51,18 +56,46 @@ export function EditContract({ id }: { id: string }) {
 
   const deleted = data.deleted_at !== null;
 
-  const submit = async (values: ContractFormValues) => {
-    // Sections are compared as API requests, so only real changes are sent.
-    const body = changedSections(toRequest(fromContract(data)), toRequest(values)) as ContractPatch;
+  const save = async (body: ContractPatch) => {
     try {
       await update.mutateAsync({ version: data.version, body });
       notify("Alterações salvas");
     } catch (error) {
       if (error instanceof ApiError && error.status === 412) return setConflict(true);
+      if (error instanceof ApiError && error.code === "prewedding_scheduled") {
+        // The cached contract lacks the schedule the server has; same version, so the form keeps its edits.
+        void contract.refetch();
+        return setPendingRemoval(body);
+      }
       if (error instanceof ApiError && error.status === 409) {
         return notify(EDIT_CONFLICT_DELETED, { tone: "error" });
       }
       throw error;
+    }
+  };
+
+  const submit = async (values: ContractFormValues) => {
+    // Sections are compared as API requests, so only real changes are sent.
+    const body = changedSections(toRequest(fromContract(data)), toRequest(values)) as ContractPatch;
+    const ids = preweddingServiceIds(services.data ?? []);
+    const removesLast =
+      data.payment.items.some((item) => ids.has(item.service_id)) &&
+      !values.payment.items.some((item) => ids.has(item.service_id));
+    if (data.prewedding && removesLast) return setPendingRemoval(body);
+    await save(body);
+  };
+
+  const confirmRemoval = async () => {
+    const body = pendingRemoval;
+    if (!body) return;
+    try {
+      await save({ ...body, cancel_prewedding: true });
+    } catch (error) {
+      if (error instanceof ApiError && !isUnexpected(error)) {
+        notify(describeUnexpected(error), { tone: "error" });
+      }
+    } finally {
+      setPendingRemoval(null);
     }
   };
 
@@ -101,6 +134,7 @@ export function EditContract({ id }: { id: string }) {
         readOnly={deleted}
         savedItems={data.payment.items}
         requireChanges
+        prewedding={data.prewedding}
         actions={({ hasChanges }) => (
           <>
             <Button onClick={downloadPdf} disabled={hasChanges} busy={pdf.isPending}>
@@ -121,6 +155,23 @@ export function EditContract({ id }: { id: string }) {
         onCancel={() => setConflict(false)}
       >
         <p>Este contrato foi alterado em outro lugar. Recarregue para ver a versão atual.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        title="Cancelar pré-wedding?"
+        confirmLabel="Remover e salvar"
+        cancelLabel="Voltar"
+        tone="danger"
+        busy={update.isPending}
+        onConfirm={() => void confirmRemoval()}
+        onCancel={() => setPendingRemoval(null)}
+      >
+        <p>
+          {data.prewedding
+            ? `Este contrato tem um pré-wedding agendado em ${formatIsoDate(data.prewedding.date)}.`
+            : "Este contrato tem um pré-wedding agendado."}{" "}
+          Remover o item cancela esse agendamento.
+        </p>
       </ConfirmDialog>
     </PageLayout>
   );

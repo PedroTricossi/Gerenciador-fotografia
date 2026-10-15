@@ -2,16 +2,17 @@
 
 
 class NotFoundError(Exception):
-    def __init__(self, entity: str, entity_id: str) -> None:
-        super().__init__(f"{entity} not found")
+    def __init__(self, entity: str, entity_id: str, message: str | None = None) -> None:
+        super().__init__(message or f"{entity} not found")
         self.entity = entity
         self.entity_id = entity_id
 
 
 class ConflictError(Exception):
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(message)
         self.message = message
+        self.code = code
 
 
 class StaleVersionError(Exception):
@@ -20,6 +21,10 @@ class StaleVersionError(Exception):
     def __init__(self, entity: str = "contract") -> None:
         super().__init__(f"{entity} changed")
         self.entity = entity
+
+
+class PreconditionRequiredError(Exception):
+    """An edit of something that exists was sent without the version it was based on."""
 
 
 class KeyMismatchError(Exception):

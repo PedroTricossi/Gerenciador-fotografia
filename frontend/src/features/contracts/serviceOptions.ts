@@ -20,3 +20,8 @@ export function serviceOptions(services: ServiceOut[], savedItems: SavedItem[]):
       };
     });
 }
+
+/** Every service marked as a pre-wedding shoot, archived or not. */
+export function preweddingServiceIds(services: ServiceOut[]): Set<string> {
+  return new Set(services.filter((service) => service.is_prewedding).map((service) => service.id));
+}

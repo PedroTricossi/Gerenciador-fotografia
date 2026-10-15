@@ -345,3 +345,76 @@ test("a server error on a service lands on that row", async () => {
   expect(await screen.findByText("serviço arquivado")).toBeInTheDocument();
   expect(screen.getByLabelText("Serviço do item 2")).toHaveAttribute("aria-invalid", "true");
 });
+
+async function pickPrewedding(user: UserEvent, index = 2) {
+  await user.selectOptions(
+    screen.getByLabelText(`Serviço do item ${index}`),
+    "Ensaio de pré-wedding",
+  );
+}
+
+test("the pre-wedding section follows the pre-wedding item", async () => {
+  const { user } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  expect(screen.queryByRole("group", { name: "Pré-wedding" })).toBeNull();
+
+  await pickPrewedding(user);
+  const section = screen.getByRole("group", { name: "Pré-wedding" });
+  expect(within(section).getByText("Pode deixar em branco e agendar depois.")).toBeInTheDocument();
+
+  await user.selectOptions(screen.getByLabelText("Serviço do item 2"), "Diária segundo fotógrafo");
+  expect(screen.queryByRole("group", { name: "Pré-wedding" })).toBeNull();
+});
+
+test("a filled pre-wedding is sent with the contract", async () => {
+  let body: Record<string, unknown> | undefined;
+  server.use(
+    http.post("/api/v1/contracts", async ({ request }) => {
+      body = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json(makeContract(), { status: 201 });
+    }),
+  );
+  const { user, router } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await pickPrewedding(user);
+  setInput(screen.getByLabelText("Data do pré-wedding"), "2027-01-20");
+  await user.type(screen.getByLabelText("Local do pré-wedding"), "Parque Barigui");
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+  await waitFor(() => expect(router.state.location.pathname).toBe(`/contratos/${IDS.contract}`));
+  expect(body?.prewedding).toEqual({
+    date: "2027-01-20",
+    venue_name: "Parque Barigui",
+    venue_address: null,
+    start_time: null,
+  });
+});
+
+test("a half-filled pre-wedding asks for the missing date", async () => {
+  const { user } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await pickPrewedding(user);
+  await user.type(screen.getByLabelText("Local do pré-wedding"), "Parque Barigui");
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+  const section = screen.getByRole("group", { name: "Pré-wedding" });
+  expect(await within(section).findByText("campo obrigatório")).toBeInTheDocument();
+});
+
+test("hidden pre-wedding values are not sent", async () => {
+  let body: Record<string, unknown> | undefined;
+  server.use(
+    http.post("/api/v1/contracts", async ({ request }) => {
+      body = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json(makeContract(), { status: 201 });
+    }),
+  );
+  const { user, router } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await pickPrewedding(user);
+  await user.type(screen.getByLabelText("Local do pré-wedding"), "Parque Barigui");
+  await user.selectOptions(screen.getByLabelText("Serviço do item 2"), "Diária segundo fotógrafo");
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+  await waitFor(() => expect(router.state.location.pathname).toBe(`/contratos/${IDS.contract}`));
+  expect(body).toEqual(EXPECTED_REQUEST);
+});

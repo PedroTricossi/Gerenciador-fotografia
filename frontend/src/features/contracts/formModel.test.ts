@@ -9,6 +9,7 @@ import {
   toRequest,
   validate,
 } from "./formModel";
+import { emptyPrewedding } from "./preweddingForm";
 
 function valid(): ContractFormValues {
   return {
@@ -32,6 +33,7 @@ function valid(): ContractFormValues {
       pix_discount_cents: "300",
     },
     signing: { city: "Curitiba", date: "2026-10-13" },
+    prewedding: emptyPrewedding(),
   };
 }
 
@@ -299,4 +301,29 @@ test.each([
   ["", 1, false],
 ])("isFormField(%j, %i) is %s", (path, count, expected) => {
   expect(isFormField(path, count)).toBe(expected);
+});
+
+test("a blank pre-wedding is left out of the request", () => {
+  expect(toRequest(valid())).not.toHaveProperty("prewedding");
+});
+
+test("a filled pre-wedding is sent and needs a date and a place", () => {
+  const values = {
+    ...valid(),
+    prewedding: { date: "", venue_name: "Parque", venue_address: "", start_time: "16:00" },
+  };
+  expect(validate(values)).toEqual({ "prewedding.date": "campo obrigatório" });
+  values.prewedding.date = "2027-01-20";
+  expect(validate(values)).toEqual({});
+  expect(toRequest(values).prewedding).toEqual({
+    date: "2027-01-20",
+    venue_name: "Parque",
+    venue_address: null,
+    start_time: "16:00",
+  });
+});
+
+test("pre-wedding fields are form fields for server errors", () => {
+  expect(isFormField("prewedding.venue_name", 1)).toBe(true);
+  expect(isFormField("prewedding", 1)).toBe(false);
 });

@@ -19,6 +19,7 @@ from gerenciador.services.contract_service import (
     PersonInput,
 )
 from gerenciador.services.exceptions import ConflictError, NotFoundError, StaleVersionError
+from gerenciador.services.prewedding_service import PreweddingInput, PreweddingService
 
 MakeInput = Callable[..., ContractInput]
 
@@ -753,3 +754,186 @@ def test_has_prewedding_reads_the_current_flag(
 
     with pytest.raises(NotFoundError):
         contracts.has_prewedding("5e7a1c00-0000-4000-8000-0000000000ff")
+
+
+PARK = PreweddingInput(dt.date(2027, 1, 20), "Parque Barigui", None, dt.time(16, 0))
+
+
+def _with_prewedding(
+    make_input: MakeInput, catalog: dict[str, str], **overrides: object
+) -> ContractInput:
+    items = [
+        ItemInput(catalog["ceremony"], 120000),
+        ItemInput(catalog["prewedding"], 80000),
+    ]
+    return make_input(items=items, prewedding=PARK, **overrides)
+
+
+def _contract_actions(session: Session) -> list[str]:
+    return [a for a in _actions(session) if a.startswith(("contract.", "prewedding."))]
+
+
+def test_create_with_a_prewedding_schedules_it(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    view = contracts.create(ctx, _with_prewedding(make_input, catalog))
+
+    assert view.has_prewedding is True
+    assert view.prewedding is not None
+    assert (view.prewedding.venue_name, view.prewedding.version) == (
+        "Parque Barigui",
+        1,
+    )
+    assert _contract_actions(session) == ["contract.created", "prewedding.scheduled"]
+    assert _last_event(session).details == {"version": 1, "contract_id": view.id}
+
+
+def test_create_with_a_prewedding_needs_a_prewedding_item(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+) -> None:
+    with pytest.raises(ContractRuleError) as error:
+        contracts.create(ctx, make_input(prewedding=PARK))
+    assert (error.value.field, error.value.message) == (
+        "prewedding",
+        "inclua um serviço de pré-wedding",
+    )
+    assert session.scalars(select(Contract)).all() == []
+
+
+def test_a_contract_without_a_prewedding_reports_none(
+    contracts: ContractService, ctx: RequestContext, make_input: MakeInput
+) -> None:
+    view = contracts.create(ctx, make_input())
+    assert (view.has_prewedding, view.prewedding) == (False, None)
+
+
+def test_removing_the_last_prewedding_item_needs_confirmation(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    created = contracts.create(ctx, _with_prewedding(make_input, catalog))
+    without = make_input(items=[ItemInput(catalog["ceremony"], 120000)])
+
+    with pytest.raises(ConflictError) as error:
+        contracts.update(ctx, created.id, 1, without)
+    assert error.value.code == "prewedding_scheduled"
+    unchanged = contracts.get(created.id)
+    assert (unchanged.version, unchanged.prewedding is not None) == (1, True)
+
+    updated = contracts.update(ctx, created.id, 1, without, cancel_prewedding=True)
+    assert (updated.version, updated.has_prewedding, updated.prewedding) == (
+        2,
+        False,
+        None,
+    )
+    assert _contract_actions(session)[-2:] == [
+        "contract.updated",
+        "prewedding.cancelled",
+    ]
+    assert _last_event(session).details == {"version": 1, "via": "contract_update"}
+
+
+def test_the_cancel_flag_is_ignored_while_a_prewedding_item_remains(
+    contracts: ContractService,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    created = contracts.create(ctx, _with_prewedding(make_input, catalog))
+    kept = make_input(items=[ItemInput(catalog["prewedding"], 80000)], pix_discount_cents=None)
+    updated = contracts.update(ctx, created.id, 1, kept, cancel_prewedding=True)
+    assert updated.prewedding is not None
+
+
+def test_swapping_prewedding_services_keeps_the_schedule(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    session.execute(
+        update(Service).where(Service.id == catalog["second"]).values(is_prewedding=True)
+    )
+    session.commit()
+    created = contracts.create(ctx, _with_prewedding(make_input, catalog))
+    swapped = make_input(
+        items=[
+            ItemInput(catalog["ceremony"], 120000),
+            ItemInput(catalog["second"], 50000),
+        ]
+    )
+    updated = contracts.update(ctx, created.id, 1, swapped)
+    assert updated.prewedding is not None
+
+
+def test_edits_after_unmarking_the_service_keep_the_schedule(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    created = contracts.create(ctx, _with_prewedding(make_input, catalog))
+    session.execute(
+        update(Service).where(Service.id == catalog["prewedding"]).values(is_prewedding=False)
+    )
+    session.commit()
+
+    renamed = contracts.update(
+        ctx, created.id, 1, _with_prewedding(make_input, catalog, venue_name="Catedral")
+    )
+    assert (renamed.version, renamed.has_prewedding) == (2, False)
+    assert renamed.prewedding is not None
+
+    dropped = contracts.update(
+        ctx, created.id, 2, make_input(items=[ItemInput(catalog["ceremony"], 120000)])
+    )
+    assert dropped.prewedding is not None
+
+
+def test_a_deleted_contract_reports_no_prewedding_until_restored(
+    contracts: ContractService,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    created = contracts.create(ctx, _with_prewedding(make_input, catalog))
+    contracts.delete(ctx, created.id)
+    deleted = contracts.get(created.id)
+    assert (deleted.has_prewedding, deleted.prewedding) == (False, None)
+
+    restored = contracts.restore(ctx, created.id)
+    assert restored.has_prewedding is True
+    assert restored.prewedding is not None
+
+
+def test_scheduling_later_shows_on_the_contract_without_a_new_version(
+    contracts: ContractService,
+    preweddings: PreweddingService,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    items = [
+        ItemInput(catalog["ceremony"], 120000),
+        ItemInput(catalog["prewedding"], 80000),
+    ]
+    created = contracts.create(ctx, make_input(items=items))
+    assert (created.has_prewedding, created.prewedding) == (True, None)
+
+    preweddings.schedule(ctx, created.id, None, PARK)
+    view = contracts.get(created.id)
+    assert view.version == 1
+    assert view.prewedding is not None
+    assert view.prewedding.venue_name == "Parque Barigui"

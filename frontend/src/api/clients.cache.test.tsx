@@ -41,6 +41,8 @@ test("editing a contract refetches the clients list", async () => {
   await waitFor(() => expect(clients.result.current.isSuccess).toBe(true));
 
   const update = renderHook(() => useUpdateContract("c1"), { wrapper });
-  await act(() => update.result.current.mutateAsync({ version: 1, body: {} }));
+  await act(() =>
+    update.result.current.mutateAsync({ version: 1, body: { cancel_prewedding: false } }),
+  );
   await waitFor(() => expect(listed()).toBe(2));
 });

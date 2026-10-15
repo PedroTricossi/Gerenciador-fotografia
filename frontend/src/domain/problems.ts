@@ -5,6 +5,7 @@ export type Problem = {
   detail: string;
   errors: FieldError[];
   requestId: string | null;
+  code: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -23,6 +24,7 @@ export function parseProblem(status: number, body: unknown): Problem {
     detail: typeof record.detail === "string" ? record.detail : "",
     errors: errors.map(({ field, message }) => ({ field, message })),
     requestId: typeof record.request_id === "string" ? record.request_id : null,
+    code: typeof record.code === "string" ? record.code : null,
   };
 }
 

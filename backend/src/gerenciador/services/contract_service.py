@@ -17,6 +17,15 @@ from gerenciador.services.client_service import ClientService, ClientView
 from gerenciador.services.context import RequestContext
 from gerenciador.services.exceptions import ConflictError, NotFoundError, StaleVersionError
 from gerenciador.services.pagination import Page, decode_cursor, encode_cursor
+from gerenciador.services.prewedding_service import (
+    PreweddingInput,
+    PreweddingView,
+    includes_prewedding,
+    new_prewedding,
+    prewedding_view,
+    record_cancelled,
+    record_scheduled,
+)
 
 _ENTITY = "contract"
 _SCALAR_FIELDS = (
@@ -30,6 +39,9 @@ _SCALAR_FIELDS = (
     "pix_discount_cents",
     "signing_city",
     "signing_date",
+)
+PREWEDDING_SCHEDULED = (
+    "o contrato tem um pré-wedding agendado; confirme o cancelamento para remover o item"
 )
 
 
@@ -61,6 +73,7 @@ class ContractInput:
     pix_discount_cents: int | None
     signing_city: str
     signing_date: dt.date
+    prewedding: PreweddingInput | None = None
 
 
 @dataclass(frozen=True)
@@ -92,6 +105,8 @@ class ContractView:
     created_at: dt.datetime
     updated_at: dt.datetime
     deleted_at: dt.datetime | None
+    has_prewedding: bool
+    prewedding: PreweddingView | None
 
 
 def _check_rules(data: ContractInput) -> None:
@@ -102,6 +117,10 @@ def _check_rules(data: ContractInput) -> None:
 
 def _item_error(position: int, message: str) -> ContractRuleError:
     return ContractRuleError(f"payment.items.{position}.service_id", message)
+
+
+def _wants_prewedding(data: ContractInput, services: dict[str, Service]) -> bool:
+    return any(services[item.service_id].is_prewedding for item in data.items)
 
 
 class ContractService:
@@ -115,6 +134,8 @@ class ContractService:
     def create(self, ctx: RequestContext, data: ContractInput) -> ContractView:
         _check_rules(data)
         services = self._resolve_services(data, [])
+        if data.prewedding is not None and not _wants_prewedding(data, services):
+            raise ContractRuleError("prewedding", "inclua um serviço de pré-wedding")
         groom = self._upsert(ctx, data.groom, data.couple_address)
         bride = self._upsert(ctx, data.bride, data.couple_address)
         now = utcnow()
@@ -123,6 +144,7 @@ class ContractService:
             groom=groom,
             bride=bride,
             items=self._sync_items([], data, services),
+            prewedding=new_prewedding(data.prewedding) if data.prewedding is not None else None,
             version=1,
             created_at=now,
             updated_at=now,
@@ -136,12 +158,14 @@ class ContractService:
             entity_id=contract.id,
             details={"version": 1},
         )
+        if contract.prewedding is not None:
+            record_scheduled(self._audit, ctx, contract.prewedding)
         self._session.commit()
         return self._to_view(contract)
 
     def has_prewedding(self, contract_id: str) -> bool:
         """True when any item's service is currently marked as a pre-wedding shoot."""
-        return any(item.service.is_prewedding for item in self._require(contract_id).items)
+        return includes_prewedding(self._require(contract_id).items)
 
     def get(self, contract_id: str) -> ContractView:
         return self._to_view(self._require(contract_id))
@@ -159,10 +183,16 @@ class ContractService:
         return Page(items=[self._to_view(row) for row in rows[:limit]], next_cursor=next_cursor)
 
     def update(
-        self, ctx: RequestContext, contract_id: str, expected_version: int, data: ContractInput
+        self,
+        ctx: RequestContext,
+        contract_id: str,
+        expected_version: int,
+        data: ContractInput,
+        *,
+        cancel_prewedding: bool = False,
     ) -> ContractView:
         contract = self._editable(contract_id, expected_version)
-        return self._apply_update(ctx, contract, data)
+        return self._apply_update(ctx, contract, data, cancel_prewedding)
 
     def patch(
         self,
@@ -170,6 +200,8 @@ class ContractService:
         contract_id: str,
         expected_version: int,
         apply: Callable[[ContractView], ContractInput],
+        *,
+        cancel_prewedding: bool = False,
     ) -> ContractView:
         """Edit a contract from a function of its current state.
 
@@ -177,7 +209,7 @@ class ContractService:
         whatever it raises propagates and nothing is stored.
         """
         contract = self._editable(contract_id, expected_version)
-        return self._apply_update(ctx, contract, apply(self._to_view(contract)))
+        return self._apply_update(ctx, contract, apply(self._to_view(contract)), cancel_prewedding)
 
     def _editable(self, contract_id: str, expected_version: int) -> Contract:
         contract = self._require(contract_id)
@@ -188,10 +220,19 @@ class ContractService:
         return contract
 
     def _apply_update(
-        self, ctx: RequestContext, contract: Contract, data: ContractInput
+        self, ctx: RequestContext, contract: Contract, data: ContractInput, cancel_prewedding: bool
     ) -> ContractView:
         _check_rules(data)
         services = self._resolve_services(data, contract.items)
+        # Only an edit that drops the last pre-wedding item cancels the schedule.
+        scheduled = contract.prewedding
+        removing = (
+            scheduled is not None
+            and includes_prewedding(contract.items)
+            and not _wants_prewedding(data, services)
+        )
+        if removing and not cancel_prewedding:
+            raise ConflictError(PREWEDDING_SCHEDULED, code="prewedding_scheduled")
         current = self._to_view(contract)
         previous = (contract.groom, contract.bride)
         groom = self._upsert(ctx, data.groom, data.couple_address, editing=contract.id)
@@ -234,6 +275,9 @@ class ContractService:
                 entity_id=contract.id,
                 details={"fields": changed, "version": contract.version},
             )
+        if removing and scheduled is not None:
+            record_cancelled(self._audit, ctx, scheduled, via="contract_update")
+            contract.prewedding = None
         self._session.commit()
         return self._to_view(contract)
 
@@ -323,6 +367,7 @@ class ContractService:
             ItemView(item.service_id, item.description, item.amount_cents)
             for item in contract.items
         ]
+        active = contract.deleted_at is None
         subtotal = sum(item.amount_cents for item in items)
         return ContractView(
             id=contract.id,
@@ -345,4 +390,10 @@ class ContractService:
             created_at=contract.created_at,
             updated_at=contract.updated_at,
             deleted_at=contract.deleted_at,
+            has_prewedding=active and includes_prewedding(contract.items),
+            prewedding=(
+                prewedding_view(contract.prewedding)
+                if active and contract.prewedding is not None
+                else None
+            ),
         )

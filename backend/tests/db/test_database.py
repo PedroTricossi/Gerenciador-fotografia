@@ -23,7 +23,14 @@ def _mode(path: Path) -> int:
 
 def test_migrations_create_all_tables(engine: Engine) -> None:
     tables = set(inspect(engine).get_table_names())
-    assert {"clients", "contracts", "contract_items", "audit_events", "services"} <= tables
+    assert {
+        "clients",
+        "contracts",
+        "contract_items",
+        "audit_events",
+        "services",
+        "prewedding_events",
+    } <= tables
 
 
 def test_models_match_migrations(engine: Engine) -> None:

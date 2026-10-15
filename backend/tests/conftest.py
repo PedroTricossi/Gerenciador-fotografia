@@ -29,6 +29,7 @@ from gerenciador.services.contract_service import (
 )
 from gerenciador.services.crypto import FieldCipher
 from gerenciador.services.pdf_renderer import WeasyPrintRenderer
+from gerenciador.services.prewedding_service import PreweddingService
 
 
 @pytest.fixture
@@ -127,6 +128,11 @@ def clients(session: Session, cipher: FieldCipher, audit: AuditService) -> Clien
 @pytest.fixture
 def contracts(session: Session, clients: ClientService, audit: AuditService) -> ContractService:
     return ContractService(session, clients, audit)
+
+
+@pytest.fixture
+def preweddings(session: Session, audit: AuditService) -> PreweddingService:
+    return PreweddingService(session, audit)
 
 
 @pytest.fixture
