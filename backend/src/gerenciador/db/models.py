@@ -3,7 +3,15 @@
 import datetime as dt
 from typing import Any
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String, Text
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.engine import Dialect
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
@@ -45,6 +53,21 @@ class Client(Base):
     anonymised_at: Mapped[dt.datetime | None] = mapped_column(UTCDateTime)
 
 
+class Service(Base):
+    """Something offered in contracts. Items copy its name; renaming never rewrites them."""
+
+    __tablename__ = "services"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    default_price_cents: Mapped[int]
+    is_prewedding: Mapped[bool]
+    archived_at: Mapped[dt.datetime | None] = mapped_column(UTCDateTime)
+    version: Mapped[int]
+    created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+    updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+
+
 class Contract(Base):
     __tablename__ = "contracts"
     __table_args__ = (
@@ -78,12 +101,20 @@ class Contract(Base):
 
 class ContractItem(Base):
     __tablename__ = "contract_items"
+    __table_args__ = (
+        UniqueConstraint("contract_id", "service_id", name="uq_contract_items_service"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     contract_id: Mapped[str] = mapped_column(ForeignKey("contracts.id"))
+    service_id: Mapped[str] = mapped_column(
+        ForeignKey("services.id", name="fk_contract_items_service_id_services")
+    )
     position: Mapped[int]
     description: Mapped[str] = mapped_column(String(200))
     amount_cents: Mapped[int]
+
+    service: Mapped[Service] = relationship(lazy="joined")
 
 
 class AuditEvent(Base):

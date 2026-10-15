@@ -35,6 +35,23 @@ sources have changed. The API is at <http://127.0.0.1:8000/api/v1>. The server
 refuses to start on any address other than `127.0.0.1` or `localhost`, because
 it has no login.
 
+Contract items are picked from the services on the **Serviços** screen, so
+add your services there before creating the first contract. Each contract keeps
+its own copy of an item's name and price: renaming a service or changing its
+price only affects items added afterwards, and archiving a service hides it from
+new contracts without changing those that already use it. Mark a service as
+"Ensaio de pré-wedding" when it is a pre-wedding shoot.
+
+The first start after upgrading creates one service for each distinct item
+description already in your contracts, priced at its most recent amount, and
+marks those whose name contains "pré-wedding" (ignoring case and accents, so
+"Pre-Wedding" counts too) as pre-wedding shoots. Check the **Serviços** screen
+afterwards.
+
+If a contract has two items with the same description, that first start stops
+with an error naming the contract. To recover, start the previous version, give
+those items different descriptions (or merge them), then upgrade again.
+
 The app serves no documentation page and no schema. To get the OpenAPI schema
 as a file (the frontend needs it), run:
 

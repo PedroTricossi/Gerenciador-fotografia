@@ -8,3 +8,8 @@ export const contractKeys = {
 };
 
 export const clientKeys = { all: ["clients"] as const };
+
+export const serviceKeys = {
+  all: ["services"] as const,
+  list: (includeArchived: boolean) => ["services", { includeArchived }] as const,
+};

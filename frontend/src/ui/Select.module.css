@@ -1,0 +1,16 @@
+.select {
+  font: inherit;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.select[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+.select:disabled {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}

@@ -3,6 +3,7 @@
 import datetime as dt
 import unicodedata
 from typing import Annotated, Any, Self
+from uuid import UUID
 
 from pydantic import (
     AfterValidator,
@@ -16,6 +17,7 @@ from pydantic import (
 
 from gerenciador.db.models import AuditEvent
 from gerenciador.domain.cpf import format_cpf, mask_cpf, normalize_cpf
+from gerenciador.services.catalog_service import ServiceChanges, ServiceInput, ServiceView
 from gerenciador.services.client_service import ClientExport, ClientView
 from gerenciador.services.contract_service import (
     ContractInput,
@@ -63,6 +65,7 @@ OptionalTime = Annotated[dt.time | None, BeforeValidator(_blank_to_none)]
 Hours = Annotated[int, Field(strict=True, ge=1, le=24)]
 PhotographerCount = Annotated[int, Field(strict=True, ge=1, le=10)]
 Cents = Annotated[int, Field(strict=True, gt=0, le=100_000_000)]
+Flag = Annotated[bool, Field(strict=True)]
 UtcDatetime = Annotated[AwareDatetime, AfterValidator(_to_utc)]
 
 
@@ -84,7 +87,7 @@ class EventIn(StrictModel):
 
 
 class ItemIn(StrictModel):
-    description: Name
+    service_id: UUID
     amount_cents: Cents
 
 
@@ -119,7 +122,9 @@ class ContractCreate(StrictModel):
             coverage_end=self.event.coverage_end,
             hours_contracted=self.event.hours_contracted,
             photographer_count=self.photographer_count,
-            items=[ItemInput(item.description, item.amount_cents) for item in self.payment.items],
+            items=[
+                ItemInput(str(item.service_id), item.amount_cents) for item in self.payment.items
+            ],
             pix_discount_cents=self.payment.pix_discount_cents,
             signing_city=self.signing.city,
             signing_date=self.signing.date,
@@ -178,7 +183,7 @@ def _as_request(view: ContractView) -> dict[str, Any]:
         "photographer_count": view.photographer_count,
         "payment": {
             "items": [
-                {"description": item.description, "amount_cents": item.amount_cents}
+                {"service_id": item.service_id, "amount_cents": item.amount_cents}
                 for item in view.items
             ],
             "pix_discount_cents": view.pix_discount_cents,
@@ -219,12 +224,58 @@ class ClientPatch(StrictModel):
         return self
 
 
+class ServiceIn(StrictModel):
+    name: Name
+    default_price_cents: Cents
+    is_prewedding: Flag = False
+
+    def to_input(self) -> ServiceInput:
+        return ServiceInput(self.name, self.default_price_cents, self.is_prewedding)
+
+
+class ServicePatch(StrictModel):
+    """Every field optional. Only the fields sent are changed."""
+
+    name: Name | None = None
+    default_price_cents: Cents | None = None
+    is_prewedding: Flag | None = None
+
+    @model_validator(mode="after")
+    def _at_least_one_field(self) -> Self:
+        if self.name is None and self.default_price_cents is None and self.is_prewedding is None:
+            raise ValueError("informe ao menos um campo")
+        return self
+
+    def to_changes(self) -> ServiceChanges:
+        return ServiceChanges(self.name, self.default_price_cents, self.is_prewedding)
+
+
 # ---- responses ------------------------------------------------------------
 
 
 class PageOut[T](BaseModel):
     items: list[T]
     next_cursor: str | None
+
+
+class ServiceOut(BaseModel):
+    id: str
+    name: str
+    default_price_cents: int
+    is_prewedding: bool
+    archived_at: dt.datetime | None
+    version: int
+
+    @classmethod
+    def from_view(cls, view: ServiceView) -> Self:
+        return cls(
+            id=view.id,
+            name=view.name,
+            default_price_cents=view.default_price_cents,
+            is_prewedding=view.is_prewedding,
+            archived_at=view.archived_at,
+            version=view.version,
+        )
 
 
 class ClientOut(BaseModel):
@@ -262,6 +313,7 @@ class EventOut(BaseModel):
 
 
 class ItemOut(BaseModel):
+    service_id: str
     description: str
     amount_cents: int
 
@@ -309,7 +361,11 @@ class ContractOut(BaseModel):
             photographer_count=view.photographer_count,
             payment=PaymentOut(
                 items=[
-                    ItemOut(description=item.description, amount_cents=item.amount_cents)
+                    ItemOut(
+                        service_id=item.service_id,
+                        description=item.description,
+                        amount_cents=item.amount_cents,
+                    )
                     for item in view.items
                 ],
                 pix_discount_cents=view.pix_discount_cents,

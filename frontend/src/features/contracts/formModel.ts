@@ -1,9 +1,10 @@
 import type { ContractCreate, ContractOut } from "../../api/client";
 import { discountError, totalCents } from "../../domain/contract";
 import { cpfDigits, formatCpf } from "../../domain/cpf";
-import { MAX_CENTS, formatBrlAmount, parseBrl } from "../../domain/money";
+import { REQUIRED, amountError, textError } from "../../domain/fieldRules";
+import { formatBrlAmount, parseBrl } from "../../domain/money";
 
-export type ItemValues = { description: string; amount_cents: string };
+export type ItemValues = { service_id: string; amount_cents: string };
 
 export type ContractFormValues = {
   groom: { full_name: string; cpf: string };
@@ -24,13 +25,8 @@ export type ContractFormValues = {
 
 export const MAX_ITEMS = 20;
 
-const REQUIRED = "campo obrigatório";
-// Unicode category Cc, as the backend refuses it.
-// eslint-disable-next-line no-control-regex -- matching control characters is the point
-const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
-
 export function emptyItem(): ItemValues {
-  return { description: "", amount_cents: "" };
+  return { service_id: "", amount_cents: "" };
 }
 
 export function defaultValues(today: string): ContractFormValues {
@@ -77,7 +73,7 @@ export function fromContract(contract: ContractOut): ContractFormValues {
     photographer_count: String(contract.photographer_count),
     payment: {
       items: contract.payment.items.map((item) => ({
-        description: item.description,
+        service_id: item.service_id,
         amount_cents: formatBrlAmount(item.amount_cents),
       })),
       pix_discount_cents:
@@ -111,7 +107,7 @@ export function toRequest(values: ContractFormValues): ContractCreate {
     photographer_count: Number(values.photographer_count),
     payment: {
       items: values.payment.items.map((item) => ({
-        description: item.description.trim(),
+        service_id: item.service_id,
         amount_cents: parseBrl(item.amount_cents) ?? Number.NaN,
       })),
       pix_discount_cents: parseBrl(values.payment.pix_discount_cents),
@@ -120,29 +116,10 @@ export function toRequest(values: ContractFormValues): ContractCreate {
   };
 }
 
-function textError(value: string, max: number, required: boolean): string | null {
-  const trimmed = value.trim();
-  if (trimmed === "") return required ? REQUIRED : null;
-  // The API strips whitespace before refusing control characters, so check the trimmed text.
-  if (CONTROL.test(trimmed)) return "não pode conter caracteres de controle";
-  // Python counts code points, so an astral character is one character here too.
-  if ([...trimmed].length > max) return `máximo de ${max} caracteres`;
-  return null;
-}
-
 function integerInRange(value: string, min: number, max: number): boolean {
   if (!/^\d+$/.test(value.trim())) return false;
   const number = Number(value);
   return number >= min && number <= max;
-}
-
-function amountError(text: string, required: boolean): string | null {
-  const cents = parseBrl(text);
-  if (cents === null) return required ? REQUIRED : null;
-  if (Number.isNaN(cents)) return "valor inválido";
-  if (cents <= 0) return "o valor deve ser maior que zero";
-  if (cents > MAX_CENTS) return "valor máximo R$ 1.000.000,00";
-  return null;
 }
 
 const amounts = (values: ContractFormValues) =>
@@ -181,8 +158,14 @@ export function validate(values: ContractFormValues): Record<string, string> {
     errors.photographer_count = "informe de 1 a 10 fotógrafos";
   }
 
+  const seen = new Set<string>();
   values.payment.items.forEach((item, index) => {
-    check(`payment.items.${index}.description`, textError(item.description, 200, true));
+    if (item.service_id === "") {
+      errors[`payment.items.${index}.service_id`] = "selecione um serviço";
+    } else if (seen.has(item.service_id)) {
+      errors[`payment.items.${index}.service_id`] = "serviço repetido no contrato";
+    }
+    seen.add(item.service_id);
     check(`payment.items.${index}.amount_cents`, amountError(item.amount_cents, true));
   });
   const discountText = amountError(values.payment.pix_discount_cents, false);
@@ -223,7 +206,7 @@ const FIXED_FIELDS = new Set([
   "signing.city",
   "signing.date",
 ]);
-const ITEM_FIELD = /^payment\.items\.(\d+)\.(description|amount_cents)$/;
+const ITEM_FIELD = /^payment\.items\.(\d+)\.(service_id|amount_cents)$/;
 
 export function isFormField(path: string, itemCount: number): boolean {
   if (FIXED_FIELDS.has(path)) return true;

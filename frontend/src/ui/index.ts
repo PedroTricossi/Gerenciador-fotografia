@@ -3,6 +3,7 @@ export { Button } from "./Button";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { Dialog, DialogActions } from "./Dialog";
 export { Field, type ControlProps } from "./Field";
+export { Select } from "./Select";
 export { Nav } from "./Nav";
 export { PageLayout } from "./PageLayout";
 export { Table, type Column } from "./Table";

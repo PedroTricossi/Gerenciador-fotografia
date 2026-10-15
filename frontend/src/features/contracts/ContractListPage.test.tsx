@@ -11,7 +11,7 @@ const second = makeContract({
   bride: makeClient({ id: "b2", full_name: "Duda Melo" }),
   event: { ...makeContract().event, date: "2027-05-01", venue_name: "Chácara Sol" },
   payment: {
-    items: [{ description: "Cerimônia", amount_cents: 99000 }],
+    items: [{ service_id: IDS.serviceCeremony, description: "Cerimônia", amount_cents: 99000 }],
     pix_discount_cents: null,
     total_cents: 99000,
   },

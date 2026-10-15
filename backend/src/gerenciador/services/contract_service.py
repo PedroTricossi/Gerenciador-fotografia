@@ -8,9 +8,10 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from gerenciador.clock import utcnow
-from gerenciador.db.models import Client, Contract, ContractItem
+from gerenciador.db.models import Client, Contract, ContractItem, Service
 from gerenciador.domain.contract import ContractRuleError, compute_total_cents
 from gerenciador.repositories.contract_repository import ContractRepository
+from gerenciador.repositories.service_repository import ServiceRepository
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.client_service import ClientService, ClientView
 from gerenciador.services.context import RequestContext
@@ -40,7 +41,7 @@ class PersonInput:
 
 @dataclass(frozen=True)
 class ItemInput:
-    description: str
+    service_id: str
     amount_cents: int
 
 
@@ -64,6 +65,7 @@ class ContractInput:
 
 @dataclass(frozen=True)
 class ItemView:
+    service_id: str
     description: str
     amount_cents: int
 
@@ -98,27 +100,21 @@ def _check_rules(data: ContractInput) -> None:
     compute_total_cents([item.amount_cents for item in data.items], data.pix_discount_cents)
 
 
-def _new_items(data: ContractInput) -> list[ContractItem]:
-    return [
-        ContractItem(
-            id=str(uuid4()),
-            position=position,
-            description=item.description,
-            amount_cents=item.amount_cents,
-        )
-        for position, item in enumerate(data.items)
-    ]
+def _item_error(position: int, message: str) -> ContractRuleError:
+    return ContractRuleError(f"payment.items.{position}.service_id", message)
 
 
 class ContractService:
     def __init__(self, session: Session, clients: ClientService, audit: AuditService) -> None:
         self._session = session
         self._repo = ContractRepository(session)
+        self._services = ServiceRepository(session)
         self._clients = clients
         self._audit = audit
 
     def create(self, ctx: RequestContext, data: ContractInput) -> ContractView:
         _check_rules(data)
+        services = self._resolve_services(data, [])
         groom = self._upsert(ctx, data.groom, data.couple_address)
         bride = self._upsert(ctx, data.bride, data.couple_address)
         now = utcnow()
@@ -126,7 +122,7 @@ class ContractService:
             id=str(uuid4()),
             groom=groom,
             bride=bride,
-            items=_new_items(data),
+            items=self._sync_items([], data, services),
             version=1,
             created_at=now,
             updated_at=now,
@@ -142,6 +138,10 @@ class ContractService:
         )
         self._session.commit()
         return self._to_view(contract)
+
+    def has_prewedding(self, contract_id: str) -> bool:
+        """True when any item's service is currently marked as a pre-wedding shoot."""
+        return any(item.service.is_prewedding for item in self._require(contract_id).items)
 
     def get(self, contract_id: str) -> ContractView:
         return self._to_view(self._require(contract_id))
@@ -191,6 +191,7 @@ class ContractService:
         self, ctx: RequestContext, contract: Contract, data: ContractInput
     ) -> ContractView:
         _check_rules(data)
+        services = self._resolve_services(data, contract.items)
         current = self._to_view(contract)
         previous = (contract.groom, contract.bride)
         groom = self._upsert(ctx, data.groom, data.couple_address, editing=contract.id)
@@ -212,9 +213,9 @@ class ContractService:
             if getattr(contract, field) != getattr(data, field):
                 setattr(contract, field, getattr(data, field))
                 changed.append(field)
-        current_items = [(item.description, item.amount_cents) for item in contract.items]
-        if current_items != [(item.description, item.amount_cents) for item in data.items]:
-            contract.items = _new_items(data)
+        current_items = [(item.service_id, item.amount_cents) for item in contract.items]
+        if current_items != [(item.service_id, item.amount_cents) for item in data.items]:
+            contract.items = self._sync_items(contract.items, data, services)
             changed.append("items")
 
         if changed:
@@ -266,6 +267,50 @@ class ContractService:
             editing_contract_id=editing,
         )
 
+    def _resolve_services(
+        self, data: ContractInput, current: list[ContractItem]
+    ) -> dict[str, Service]:
+        """Check every item's service before anything is changed."""
+        already_on = {item.service_id for item in current}
+        found = self._services.get_many({item.service_id for item in data.items})
+        seen: set[str] = set()
+        for position, item in enumerate(data.items):
+            service = found.get(item.service_id)
+            if service is None:
+                raise _item_error(position, "serviço não encontrado")
+            if item.service_id in seen:
+                raise _item_error(position, "serviço repetido no contrato")
+            if service.archived_at is not None and item.service_id not in already_on:
+                raise _item_error(position, "serviço arquivado")
+            seen.add(item.service_id)
+        return found
+
+    @staticmethod
+    def _sync_items(
+        current: list[ContractItem], data: ContractInput, services: dict[str, Service]
+    ) -> list[ContractItem]:
+        """Reuse the row of a service already on the contract, so its wording stays.
+
+        Reusing rows also keeps the (contract, service) unique constraint from firing
+        while SQLAlchemy inserts new rows before deleting removed ones.
+        """
+        existing = {item.service_id: item for item in current}
+        result: list[ContractItem] = []
+        for position, item in enumerate(data.items):
+            row = existing.get(item.service_id)
+            if row is None:
+                service = services[item.service_id]
+                row = ContractItem(
+                    id=str(uuid4()),
+                    service_id=service.id,
+                    service=service,
+                    description=service.name,
+                )
+            row.position = position
+            row.amount_cents = item.amount_cents
+            result.append(row)
+        return result
+
     def _require(self, contract_id: str) -> Contract:
         contract = self._repo.get(contract_id)
         if contract is None:
@@ -274,7 +319,10 @@ class ContractService:
 
     def _to_view(self, contract: Contract) -> ContractView:
         groom = self._clients.to_view(contract.groom)
-        items = [ItemView(item.description, item.amount_cents) for item in contract.items]
+        items = [
+            ItemView(item.service_id, item.description, item.amount_cents)
+            for item in contract.items
+        ]
         subtotal = sum(item.amount_cents for item in items)
         return ContractView(
             id=contract.id,

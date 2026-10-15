@@ -15,7 +15,11 @@ class ConflictError(Exception):
 
 
 class StaleVersionError(Exception):
-    """The caller's version of a contract is not the current one."""
+    """The caller's version of a contract or service is not the current one."""
+
+    def __init__(self, entity: str = "contract") -> None:
+        super().__init__(f"{entity} changed")
+        self.entity = entity
 
 
 class KeyMismatchError(Exception):

@@ -23,7 +23,7 @@ def _mode(path: Path) -> int:
 
 def test_migrations_create_all_tables(engine: Engine) -> None:
     tables = set(inspect(engine).get_table_names())
-    assert {"clients", "contracts", "contract_items", "audit_events"} <= tables
+    assert {"clients", "contracts", "contract_items", "audit_events", "services"} <= tables
 
 
 def test_models_match_migrations(engine: Engine) -> None:
@@ -70,8 +70,9 @@ def test_foreign_keys_are_enforced(session: Session) -> None:
     with pytest.raises(DBAPIError):
         session.execute(
             text(
-                "INSERT INTO contract_items (id, contract_id, position, description, amount_cents)"
-                " VALUES ('i1', 'missing', 0, 'x', 100)"
+                "INSERT INTO contract_items"
+                " (id, contract_id, service_id, position, description, amount_cents)"
+                " VALUES ('i1', 'missing', 'missing', 0, 'x', 100)"
             )
         )
 

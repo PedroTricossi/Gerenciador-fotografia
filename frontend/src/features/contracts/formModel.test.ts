@@ -1,4 +1,4 @@
-import { makeContract } from "../../test/fixtures";
+import { IDS, makeContract } from "../../test/fixtures";
 import {
   type ContractFormValues,
   defaultValues,
@@ -26,8 +26,8 @@ function valid(): ContractFormValues {
     photographer_count: "2",
     payment: {
       items: [
-        { description: "Cobertura da cerimônia na igreja", amount_cents: "1.200,00" },
-        { description: "Diária segundo fotógrafo", amount_cents: "500" },
+        { service_id: IDS.serviceCeremony, amount_cents: "1.200,00" },
+        { service_id: IDS.serviceSecond, amount_cents: "500" },
       ],
       pix_discount_cents: "300",
     },
@@ -37,7 +37,7 @@ function valid(): ContractFormValues {
 
 test("defaults: one empty item, two photographers, Curitiba, signed today", () => {
   const values = defaultValues("2026-10-14");
-  expect(values.payment.items).toEqual([{ description: "", amount_cents: "" }]);
+  expect(values.payment.items).toEqual([{ service_id: "", amount_cents: "" }]);
   expect(values.photographer_count).toBe("2");
   expect(values.signing).toEqual({ city: "Curitiba", date: "2026-10-14" });
 });
@@ -58,8 +58,8 @@ test("toRequest converts text to the API's types", () => {
     photographer_count: 2,
     payment: {
       items: [
-        { description: "Cobertura da cerimônia na igreja", amount_cents: 120000 },
-        { description: "Diária segundo fotógrafo", amount_cents: 50000 },
+        { service_id: IDS.serviceCeremony, amount_cents: 120000 },
+        { service_id: IDS.serviceSecond, amount_cents: 50000 },
       ],
       pix_discount_cents: 30000,
     },
@@ -100,8 +100,8 @@ test("fromContract fills the form, and converting back gives the same request", 
     photographer_count: 2,
     payment: {
       items: [
-        { description: "Cobertura da cerimônia na igreja", amount_cents: 120000 },
-        { description: "Diária segundo fotógrafo", amount_cents: 50000 },
+        { service_id: IDS.serviceCeremony, amount_cents: 120000 },
+        { service_id: IDS.serviceSecond, amount_cents: 50000 },
       ],
       pix_discount_cents: 30000,
     },
@@ -121,6 +121,16 @@ test("a valid form has no errors", () => {
   expect(validate(valid())).toEqual({});
 });
 
+test("every item needs a service, and a service appears once", () => {
+  const values = valid();
+  values.payment.items[0]!.service_id = "";
+  values.payment.items.push({ service_id: IDS.serviceSecond, amount_cents: "10" });
+  expect(validate(values)).toMatchObject({
+    "payment.items.0.service_id": "selecione um serviço",
+    "payment.items.2.service_id": "serviço repetido no contrato",
+  });
+});
+
 test("an empty form names every required input", () => {
   const errors = validate(defaultValues("2026-10-14"));
   for (const path of [
@@ -131,11 +141,11 @@ test("an empty form names every required input", () => {
     "couple_address",
     "event.date",
     "event.venue_name",
-    "payment.items.0.description",
     "payment.items.0.amount_cents",
   ]) {
     expect(errors[path]).toBe("campo obrigatório");
   }
+  expect(errors["payment.items.0.service_id"]).toBe("selecione um serviço");
   expect(errors["signing.city"]).toBeUndefined();
 });
 
@@ -281,8 +291,8 @@ test.each([
   ["groom.cpf", 1, true],
   ["signing.date", 1, true],
   ["payment.items.0.amount_cents", 1, true],
-  ["payment.items.1.description", 2, true],
-  ["payment.items.2.description", 2, false],
+  ["payment.items.1.service_id", 2, true],
+  ["payment.items.2.service_id", 2, false],
   ["payment.items", 2, false],
   ["payment", 1, false],
   ["*", 1, false],

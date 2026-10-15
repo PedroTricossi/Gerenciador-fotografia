@@ -4,6 +4,7 @@ import styles from "./ContractForm.module.css";
 import type { ContractFormValues } from "./formModel";
 import { CoupleSection } from "./sections/CoupleSection";
 import { EventSection } from "./sections/EventSection";
+import type { SavedItem } from "./serviceOptions";
 import { PaymentSection } from "./sections/PaymentSection";
 import { PhotographersSection } from "./sections/PhotographersSection";
 import { SigningSection } from "./sections/SigningSection";
@@ -14,6 +15,8 @@ type Props = {
   initialValues: ContractFormValues;
   onSubmit: (values: ContractFormValues) => Promise<void>;
   readOnly?: boolean;
+  /** Items the contract already has, so their services stay selectable even if archived. */
+  savedItems?: SavedItem[];
   requireChanges?: boolean;
   actions?: (state: { hasChanges: boolean }) => ReactNode;
 };
@@ -22,6 +25,7 @@ export function ContractForm({
   initialValues,
   onSubmit,
   readOnly = false,
+  savedItems = [],
   requireChanges = false,
   actions,
 }: Props) {
@@ -46,7 +50,7 @@ export function ContractForm({
       <CoupleSection form={form} disabled={readOnly} />
       <EventSection form={form} disabled={readOnly} />
       <PhotographersSection form={form} disabled={readOnly} />
-      <PaymentSection state={state} disabled={readOnly} />
+      <PaymentSection state={state} disabled={readOnly} savedItems={savedItems} />
       <SigningSection form={form} disabled={readOnly} />
       {!readOnly && (
         <div className={styles.actions}>
