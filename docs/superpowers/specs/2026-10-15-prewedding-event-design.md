@@ -73,7 +73,9 @@ change. It is not checked on cancel: cancelling always works.
   contract brings it back.
 - Un-marking a service as pre-wedding in the catalog keeps existing
   schedules. Changing them is then refused (409), cancelling still works. The
-  catalog edit is not blocked.
+  catalog edit is not blocked, and later contract edits leave such a schedule
+  alone (no item being removed is a pre-wedding item any more). The list
+  keeps showing its button, so it can still be cancelled.
 
 ### Migration `0003_prewedding_events`
 
@@ -131,8 +133,9 @@ Response (`PreweddingOut`): the same fields plus `version`.
   pre-wedding is created in the same transaction and audited
   `prewedding.scheduled`.
 - `PATCH /contracts/{id}` accepts an optional `cancel_prewedding: bool`
-  (default false). When a pre-wedding is scheduled and the new items include
-  no pre-wedding service:
+  (default false). When a pre-wedding is scheduled, the contract's current
+  items include a pre-wedding service, and the new items include none (the
+  edit removes the last pre-wedding item):
   - without the flag → 409 problem with `code: "prewedding_scheduled"`,
     nothing saved;
   - with the flag → the contract is updated and the pre-wedding deleted in
@@ -172,7 +175,8 @@ scheduled one meanwhile).
 
 ### 4.3 Contracts list
 
-Rows with `has_prewedding` get a button: "Agendar pré-wedding" when nothing
+Rows of non-deleted contracts with `has_prewedding`, or with a
+`prewedding` (section 2, un-marked service), get a button: "Agendar pré-wedding" when nothing
 is scheduled, "Pré-wedding 12/03" when something is. It opens the
 **pré-wedding dialog**:
 
