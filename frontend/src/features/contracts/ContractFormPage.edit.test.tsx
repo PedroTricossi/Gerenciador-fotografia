@@ -1,4 +1,5 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { IDS, makeContract, page, problem } from "../../test/fixtures";
 import { renderApp } from "../../test/render";
@@ -237,4 +238,108 @@ test("an old contract keeps its archived service under its own wording", async (
   const select = await screen.findByLabelText("Serviço do item 1");
   expect(select).toHaveDisplayValue("Álbum de luxo (arquivado)");
   expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+});
+
+const PRE_ITEMS = {
+  items: [
+    {
+      service_id: IDS.serviceCeremony,
+      description: "Cobertura da cerimônia na igreja",
+      amount_cents: 120000,
+    },
+    {
+      service_id: IDS.servicePrewedding,
+      description: "Ensaio de pré-wedding",
+      amount_cents: 80000,
+    },
+  ],
+  pix_discount_cents: null,
+  total_cents: 200000,
+};
+const SCHEDULED = {
+  date: "2027-01-20",
+  venue_name: "Parque Barigui",
+  venue_address: null,
+  start_time: "16:00:00",
+  version: 2,
+};
+
+test("shows the pre-wedding as a read-only summary", async () => {
+  serveContract(makeContract({ payment: PRE_ITEMS, has_prewedding: true, prewedding: SCHEDULED }));
+  renderApp(URL_PATH);
+  expect(
+    await screen.findByText("Pré-wedding: 20/01/2027 às 16:00 · Parque Barigui"),
+  ).toBeInTheDocument();
+  expect(screen.queryByLabelText("Data do pré-wedding")).toBeNull();
+});
+
+test("shows when nothing is scheduled yet", async () => {
+  serveContract(makeContract({ payment: PRE_ITEMS, has_prewedding: true }));
+  renderApp(URL_PATH);
+  expect(await screen.findByText("Pré-wedding: não agendado")).toBeInTheDocument();
+});
+
+async function removePreweddingItem(user: UserEvent) {
+  await user.click(await screen.findByRole("button", { name: "Remover item 2" }));
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+}
+
+test("removing the pre-wedding item asks before cancelling the schedule", async () => {
+  serveContract(makeContract({ payment: PRE_ITEMS, has_prewedding: true, prewedding: SCHEDULED }));
+  const sent: unknown[] = [];
+  server.use(
+    http.patch("/api/v1/contracts/:id", async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json(makeContract({ version: 2 }));
+    }),
+  );
+  const { user } = renderApp(URL_PATH);
+  await removePreweddingItem(user);
+  const confirm = screen.getByRole("dialog", { name: "Cancelar pré-wedding?" });
+  expect(
+    within(confirm).getByText(
+      "Este contrato tem um pré-wedding agendado em 20/01/2027. Remover o item cancela esse agendamento.",
+    ),
+  ).toBeInTheDocument();
+  await user.click(within(confirm).getByRole("button", { name: "Voltar" }));
+  expect(sent).toEqual([]);
+
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+  await user.click(screen.getByRole("button", { name: "Remover e salvar" }));
+  expect(await screen.findByText("Alterações salvas")).toBeInTheDocument();
+  expect(sent).toEqual([
+    {
+      payment: {
+        items: [{ service_id: IDS.serviceCeremony, amount_cents: 120000 }],
+        pix_discount_cents: null,
+      },
+      cancel_prewedding: true,
+    },
+  ]);
+});
+
+test("a schedule made elsewhere is caught by the server and asked the same way", async () => {
+  // The cached contract has no schedule, but the server has one.
+  serveContract(makeContract({ payment: PRE_ITEMS, has_prewedding: true }));
+  const sent: Record<string, unknown>[] = [];
+  server.use(
+    http.patch("/api/v1/contracts/:id", async ({ request }) => {
+      const body = (await request.json()) as Record<string, unknown>;
+      sent.push(body);
+      return body.cancel_prewedding
+        ? HttpResponse.json(makeContract({ version: 2 }))
+        : problem(409, "o contrato tem um pré-wedding agendado", { code: "prewedding_scheduled" });
+    }),
+  );
+  const { user } = renderApp(URL_PATH);
+  await removePreweddingItem(user);
+  const confirm = await screen.findByRole("dialog", { name: "Cancelar pré-wedding?" });
+  expect(
+    within(confirm).getByText(
+      "Este contrato tem um pré-wedding agendado. Remover o item cancela esse agendamento.",
+    ),
+  ).toBeInTheDocument();
+  await user.click(within(confirm).getByRole("button", { name: "Remover e salvar" }));
+  expect(await screen.findByText("Alterações salvas")).toBeInTheDocument();
+  expect(sent.map((body) => body.cancel_prewedding)).toEqual([undefined, true]);
 });

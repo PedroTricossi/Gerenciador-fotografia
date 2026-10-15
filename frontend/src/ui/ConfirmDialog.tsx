@@ -10,6 +10,7 @@ type Props = {
   title: string;
   children: ReactNode;
   confirmLabel: string;
+  cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
   tone?: "default" | "danger";
@@ -30,6 +31,7 @@ export function ConfirmDialog({ open, title, onCancel, ...body }: Props) {
 function ConfirmBody({
   children,
   confirmLabel,
+  cancelLabel = "Cancelar",
   onConfirm,
   onCancel,
   tone = "default",
@@ -57,7 +59,7 @@ function ConfirmBody({
       {error && <Banner tone="error">{error}</Banner>}
       <DialogActions>
         <Button variant="secondary" onClick={onCancel} disabled={busy}>
-          Cancelar
+          {cancelLabel}
         </Button>
         <Button
           variant={tone === "danger" ? "danger" : "primary"}

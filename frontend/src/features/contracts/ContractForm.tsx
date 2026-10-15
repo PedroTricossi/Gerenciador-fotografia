@@ -5,7 +5,9 @@ import type { ContractFormValues } from "./formModel";
 import { CoupleSection } from "./sections/CoupleSection";
 import { EventSection } from "./sections/EventSection";
 import type { SavedItem } from "./serviceOptions";
+import type { PreweddingOut } from "../../api/client";
 import { PaymentSection } from "./sections/PaymentSection";
+import { PreweddingSection } from "./sections/PreweddingSection";
 import { PhotographersSection } from "./sections/PhotographersSection";
 import { SigningSection } from "./sections/SigningSection";
 import { useContractForm } from "./useContractForm";
@@ -18,6 +20,8 @@ type Props = {
   /** Items the contract already has, so their services stay selectable even if archived. */
   savedItems?: SavedItem[];
   requireChanges?: boolean;
+  /** Absent while creating. When editing, the stored pre-wedding, shown read-only. */
+  prewedding?: PreweddingOut | null;
   actions?: (state: { hasChanges: boolean }) => ReactNode;
 };
 
@@ -27,6 +31,7 @@ export function ContractForm({
   readOnly = false,
   savedItems = [],
   requireChanges = false,
+  prewedding,
   actions,
 }: Props) {
   const state = useContractForm(initialValues, onSubmit);
@@ -51,6 +56,7 @@ export function ContractForm({
       <EventSection form={form} disabled={readOnly} />
       <PhotographersSection form={form} disabled={readOnly} />
       <PaymentSection state={state} disabled={readOnly} savedItems={savedItems} />
+      <PreweddingSection state={state} disabled={readOnly} summary={prewedding} />
       <SigningSection form={form} disabled={readOnly} />
       {!readOnly && (
         <div className={styles.actions}>
