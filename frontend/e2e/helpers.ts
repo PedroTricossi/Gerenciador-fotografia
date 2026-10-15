@@ -3,8 +3,15 @@ import { readFile } from "node:fs/promises";
 import { type Download, type Page, test as base, expect } from "@playwright/test";
 import { completeCpf } from "../src/domain/cpf";
 
+const SERVICES = [
+  { name: "Cobertura da cerimônia na igreja", default_price_cents: 120000, is_prewedding: false },
+  { name: "Diária segundo fotógrafo", default_price_cents: 50000, is_prewedding: false },
+];
+
 // Every test fails on any browser console error, which is where CSP violations appear.
-export const test = base.extend<{ consoleErrors: string[] }>({
+// Every test also starts with the services the contract helpers pick (409 means already there).
+// eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- a fixture that only does setup
+export const test = base.extend<{ consoleErrors: string[]; services: void }>({
   consoleErrors: [
     async ({ page }, use) => {
       const errors: string[] = [];
@@ -14,6 +21,19 @@ export const test = base.extend<{ consoleErrors: string[] }>({
       page.on("pageerror", (error) => errors.push(error.message));
       await use(errors);
       expect(errors, "browser console errors (including CSP violations)").toEqual([]);
+    },
+    { auto: true },
+  ],
+  services: [
+    async ({ request, baseURL }, use) => {
+      for (const service of SERVICES) {
+        const response = await request.post("/api/v1/services", {
+          data: service,
+          headers: { Origin: baseURL! },
+        });
+        expect([201, 409]).toContain(response.status());
+      }
+      await use();
     },
     { auto: true },
   ],
@@ -27,7 +47,7 @@ export function freshCpf(): string {
   return completeCpf(`000000${String(counter).padStart(3, "0")}`);
 }
 
-function uniqueSuffix(): string {
+export function uniqueSuffix(): string {
   return Array.from(
     { length: 6 },
     () => "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)],
@@ -66,10 +86,12 @@ export async function fillContract(page: Page, couple: Couple): Promise<void> {
   await page.getByLabel("Data do evento").fill("2027-03-14");
   await page.getByLabel("Local do evento").fill("Igreja Matriz");
   await page.getByLabel("Início da cobertura").fill("16:00");
-  await page.getByLabel("Descrição do item 1").fill("Cobertura da cerimônia na igreja");
+  await page
+    .getByLabel("Serviço do item 1")
+    .selectOption({ label: "Cobertura da cerimônia na igreja" });
   await page.getByLabel("Valor do item 1").fill("1.200,00");
   await page.getByRole("button", { name: "Adicionar item" }).click();
-  await page.getByLabel("Descrição do item 2").fill("Diária segundo fotógrafo");
+  await page.getByLabel("Serviço do item 2").selectOption({ label: "Diária segundo fotógrafo" });
   await page.getByLabel("Valor do item 2").fill("500");
   await page.getByLabel("Desconto PIX").fill("300");
 }

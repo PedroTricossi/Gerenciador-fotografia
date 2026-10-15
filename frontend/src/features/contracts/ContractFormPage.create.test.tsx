@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { IDS, makeContract, problem } from "../../test/fixtures";
+import { IDS, makeContract, problem, servicesHandler } from "../../test/fixtures";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
 
@@ -25,8 +25,8 @@ const EXPECTED_REQUEST = {
   photographer_count: 2,
   payment: {
     items: [
-      { description: "Cobertura da cerimônia na igreja", amount_cents: 120000 },
-      { description: "Diária segundo fotógrafo", amount_cents: 50000 },
+      { service_id: IDS.serviceCeremony, amount_cents: 120000 },
+      { service_id: IDS.serviceSecond, amount_cents: 50000 },
     ],
     pix_discount_cents: 30000,
   },
@@ -48,11 +48,12 @@ async function fillValidContract(user: UserEvent) {
   setInput(screen.getByLabelText("Data do evento"), "2027-03-14");
   await user.type(screen.getByLabelText("Local do evento"), "Igreja Matriz");
   setInput(screen.getByLabelText("Início da cobertura"), "16:00");
-  await user.type(screen.getByLabelText("Descrição do item 1"), "Cobertura da cerimônia na igreja");
-  await user.type(screen.getByLabelText("Valor do item 1"), "1200");
+  await user.selectOptions(
+    await screen.findByLabelText("Serviço do item 1"),
+    "Cobertura da cerimônia na igreja",
+  );
   await user.click(screen.getByRole("button", { name: "Adicionar item" }));
-  await user.type(screen.getByLabelText("Descrição do item 2"), "Diária segundo fotógrafo");
-  await user.type(screen.getByLabelText("Valor do item 2"), "500");
+  await user.selectOptions(screen.getByLabelText("Serviço do item 2"), "Diária segundo fotógrafo");
   await user.type(screen.getByLabelText("Desconto PIX"), "300");
   await user.tab();
 }
@@ -80,14 +81,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test("starts with the defaults", () => {
+test("starts with the defaults", async () => {
   renderApp("/contratos/novo");
   expect(screen.getByRole("heading", { level: 1, name: "Novo contrato" })).toBeInTheDocument();
   expect(screen.getByLabelText("Cidade da assinatura")).toHaveValue("Curitiba");
   expect(screen.getByLabelText("Data da assinatura")).toHaveValue("2026-10-14");
   expect(screen.getByLabelText("Número de fotógrafos")).toHaveValue(2);
   expect(
-    within(screen.getByRole("group", { name: "Pagamento" })).getByText("—"),
+    await within(screen.getByRole("group", { name: "Pagamento" })).findByText("—"),
   ).toBeInTheDocument();
 });
 
@@ -130,6 +131,7 @@ test("CPFs are checked and formatted as you leave the input", async () => {
 test("items can be added and removed and the total follows", async () => {
   const { user } = renderApp("/contratos/novo");
   const payment = () => within(screen.getByRole("group", { name: "Pagamento" }));
+  await screen.findByLabelText("Valor do item 1");
   expect(screen.getByRole("button", { name: "Remover item 1" })).toBeDisabled();
 
   await user.type(screen.getByLabelText("Valor do item 1"), "1200");
@@ -152,7 +154,7 @@ test("items can be added and removed and the total follows", async () => {
 
 test("no more than 20 items", async () => {
   const { user } = renderApp("/contratos/novo");
-  const add = screen.getByRole("button", { name: "Adicionar item" });
+  const add = await screen.findByRole("button", { name: "Adicionar item" });
   for (let count = 1; count < 20; count += 1) await user.click(add);
   expect(screen.getByLabelText("Valor do item 20")).toBeInTheDocument();
   expect(add).toBeDisabled();
@@ -253,7 +255,7 @@ test("a refusal that is not a validation error shows in the banner and stays on 
 
 test("removing an item moves the other item's error with it", async () => {
   const { user } = renderApp("/contratos/novo");
-  await user.type(screen.getByLabelText("Valor do item 1"), "abc");
+  await user.type(await screen.findByLabelText("Valor do item 1"), "abc");
   await user.click(screen.getByRole("button", { name: "Adicionar item" }));
   await user.type(screen.getByLabelText("Valor do item 2"), "0,00");
   await user.click(screen.getByRole("button", { name: "Salvar" }));
@@ -266,4 +268,53 @@ test("removing an item moves the other item's error with it", async () => {
   expect(screen.getByLabelText("Valor do item 1")).toHaveAccessibleDescription(
     "o valor deve ser maior que zero",
   );
+});
+
+test("choosing a service fills its price, which stays editable", async () => {
+  const { user } = renderApp("/contratos/novo");
+  const amount = await screen.findByLabelText("Valor do item 1");
+  await user.selectOptions(screen.getByLabelText("Serviço do item 1"), "Ensaio de pré-wedding");
+  expect(amount).toHaveValue("800,00");
+  await user.clear(amount);
+  await user.type(amount, "650");
+  await user.tab();
+  expect(amount).toHaveValue("650,00");
+  await user.selectOptions(screen.getByLabelText("Serviço do item 1"), "Diária segundo fotógrafo");
+  expect(amount).toHaveValue("500,00");
+});
+
+test("a service chosen in one row is disabled in the others", async () => {
+  const { user } = renderApp("/contratos/novo");
+  await user.selectOptions(
+    await screen.findByLabelText("Serviço do item 1"),
+    "Diária segundo fotógrafo",
+  );
+  await user.click(screen.getByRole("button", { name: "Adicionar item" }));
+  const second = screen.getByLabelText("Serviço do item 2");
+  expect(within(second).getByRole("option", { name: "Diária segundo fotógrafo" })).toBeDisabled();
+  expect(within(second).queryByRole("option", { name: /Álbum antigo/ })).toBeNull();
+});
+
+test("with no services, the form links to the catalog", async () => {
+  server.use(servicesHandler([]));
+  renderApp("/contratos/novo");
+  expect(await screen.findByRole("link", { name: "Cadastre os serviços" })).toHaveAttribute(
+    "href",
+    "/servicos",
+  );
+});
+
+test("a server error on a service lands on that row", async () => {
+  server.use(
+    http.post("/api/v1/contracts", () =>
+      problem(422, "Request validation failed", {
+        errors: [{ field: "payment.items.1.service_id", message: "serviço arquivado" }],
+      }),
+    ),
+  );
+  const { user } = renderApp("/contratos/novo");
+  await fillValidContract(user);
+  await user.click(screen.getByRole("button", { name: "Salvar" }));
+  expect(await screen.findByText("serviço arquivado")).toBeInTheDocument();
+  expect(screen.getByLabelText("Serviço do item 2")).toHaveAttribute("aria-invalid", "true");
 });

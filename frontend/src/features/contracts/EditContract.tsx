@@ -99,6 +99,7 @@ export function EditContract({ id }: { id: string }) {
         initialValues={fromContract(data)}
         onSubmit={submit}
         readOnly={deleted}
+        savedItems={data.payment.items}
         requireChanges
         actions={({ hasChanges }) => (
           <>

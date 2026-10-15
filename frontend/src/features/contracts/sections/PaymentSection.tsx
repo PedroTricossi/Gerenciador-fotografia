@@ -1,22 +1,62 @@
+import { Link } from "react-router";
+import { useServices } from "../../../api/services";
 import { formatBrl } from "../../../domain/money";
-import { Button, FormSection } from "../../../ui";
+import { Banner, Button, FormSection } from "../../../ui";
 import styles from "../ContractForm.module.css";
 import { moneyText } from "../formModel";
+import { type SavedItem, serviceOptions } from "../serviceOptions";
 import type { ContractFormState } from "../useContractForm";
+import { ServiceField } from "./ServiceField";
 import { TextField } from "./TextField";
 
-type Props = { state: ContractFormState; disabled: boolean };
+type Props = { state: ContractFormState; disabled: boolean; savedItems: SavedItem[] };
 
-export function PaymentSection({ state, disabled }: Props) {
+export function PaymentSection({ state, disabled, savedItems }: Props) {
   const { form, items } = state;
+  const services = useServices(true);
+
+  if (services.isPending) {
+    return (
+      <FormSection title="Pagamento" disabled>
+        <p className={styles.row}>Carregando serviços…</p>
+      </FormSection>
+    );
+  }
+  if (services.isError) {
+    return (
+      <FormSection title="Pagamento" disabled={disabled}>
+        <div className={styles.row}>
+          <Banner tone="error">
+            Não foi possível carregar os serviços.{" "}
+            <Button onClick={() => void services.refetch()}>Tentar de novo</Button>
+          </Banner>
+        </div>
+      </FormSection>
+    );
+  }
+
+  const options = serviceOptions(services.data, savedItems);
+  if (options.length === 0) {
+    return (
+      <FormSection title="Pagamento" disabled={disabled}>
+        <p className={styles.row}>
+          Nenhum serviço cadastrado. <Link to="/servicos">Cadastre os serviços</Link> antes de criar
+          o contrato.
+        </p>
+      </FormSection>
+    );
+  }
+
+  const chosen = state.values.payment.items.map((item) => item.service_id);
   return (
     <FormSection title="Pagamento" disabled={disabled}>
       {items.fields.map((field, index) => (
         <div key={field.id} className={styles.item}>
-          <TextField
+          <ServiceField
             form={form}
-            name={`payment.items.${index}.description`}
-            label={`Descrição do item ${index + 1}`}
+            index={index}
+            options={options}
+            taken={new Set(chosen.filter((id, other) => other !== index && id !== ""))}
           />
           <TextField
             form={form}

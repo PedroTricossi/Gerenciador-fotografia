@@ -8,6 +8,10 @@ export type ContractCreate = Schemas["ContractCreate"];
 export type ContractPatch = Schemas["ContractPatch"];
 export type ClientOut = Schemas["ClientOut"];
 export type ClientExportOut = Schemas["ClientExportOut"];
+export type ItemOut = Schemas["ItemOut"];
+export type ServiceOut = Schemas["ServiceOut"];
+export type ServiceIn = Schemas["ServiceIn"];
+export type ServicePatch = Schemas["ServicePatch"];
 
 export class ApiError extends Error {
   readonly status: number;

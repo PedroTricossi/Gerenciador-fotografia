@@ -24,7 +24,7 @@ test("loads the contract into the form with nothing to save yet", async () => {
   expect(await screen.findByRole("heading", { level: 1, name: "Bruno & Ana" })).toBeInTheDocument();
   expect(screen.getByLabelText("Nome do noivo")).toHaveValue("Bruno Costa");
   expect(screen.getByLabelText("CPF da noiva")).toHaveValue("987.654.321-00");
-  expect(screen.getByLabelText("Valor do item 1")).toHaveValue("1.200,00");
+  expect(await screen.findByLabelText("Valor do item 1")).toHaveValue("1.200,00");
   expect(screen.getByLabelText("Desconto PIX")).toHaveValue("300,00");
   expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
 });
@@ -99,7 +99,7 @@ test("a changed item list is sent whole", async () => {
   await screen.findByText("Alterações salvas");
   expect(body).toEqual({
     payment: {
-      items: [{ description: "Cobertura da cerimônia na igreja", amount_cents: 120000 }],
+      items: [{ service_id: IDS.serviceCeremony, amount_cents: 120000 }],
       pix_discount_cents: null,
     },
   });
@@ -219,4 +219,22 @@ test("Baixar PDF on a contract deleted elsewhere says so", async () => {
   expect(
     await screen.findByText("Este contrato foi excluído. Restaure-o para baixar o PDF."),
   ).toBeInTheDocument();
+});
+
+test("an old contract keeps its archived service under its own wording", async () => {
+  serveContract(
+    makeContract({
+      payment: {
+        items: [
+          { service_id: IDS.serviceArchived, description: "Álbum de luxo", amount_cents: 30000 },
+        ],
+        pix_discount_cents: null,
+        total_cents: 30000,
+      },
+    }),
+  );
+  renderApp(URL_PATH);
+  const select = await screen.findByLabelText("Serviço do item 1");
+  expect(select).toHaveDisplayValue("Álbum de luxo (arquivado)");
+  expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
 });

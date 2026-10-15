@@ -1,10 +1,14 @@
-import { HttpResponse } from "msw";
-import type { ClientOut, ContractOut } from "../api/client";
+import { HttpResponse, http } from "msw";
+import type { ClientOut, ContractOut, ServiceOut } from "../api/client";
 
 export const IDS = {
   contract: "6f1c0a52-1111-4000-8000-000000000001",
   groom: "6f1c0a52-2222-4000-8000-000000000002",
   bride: "6f1c0a52-3333-4000-8000-000000000003",
+  serviceCeremony: "6f1c0a52-4444-4000-8000-000000000004",
+  serviceSecond: "6f1c0a52-5555-4000-8000-000000000005",
+  servicePrewedding: "6f1c0a52-6666-4000-8000-000000000006",
+  serviceArchived: "6f1c0a52-7777-4000-8000-000000000007",
 };
 
 const STAMP = "2026-10-13T12:00:00Z";
@@ -20,6 +24,48 @@ export function makeClient(overrides: Partial<ClientOut> = {}): ClientOut {
     anonymised_at: null,
     ...overrides,
   };
+}
+
+export function makeService(overrides: Partial<ServiceOut> = {}): ServiceOut {
+  return {
+    id: IDS.serviceCeremony,
+    name: "Cobertura da cerimônia na igreja",
+    default_price_cents: 120000,
+    is_prewedding: false,
+    archived_at: null,
+    version: 1,
+    ...overrides,
+  };
+}
+
+/** Sorted as the server sorts: by name, ignoring case and accents. */
+export const SERVICES: ServiceOut[] = [
+  makeService({
+    id: IDS.serviceArchived,
+    name: "Álbum antigo",
+    default_price_cents: 30000,
+    archived_at: STAMP,
+    version: 2,
+  }),
+  makeService(),
+  makeService({
+    id: IDS.serviceSecond,
+    name: "Diária segundo fotógrafo",
+    default_price_cents: 50000,
+  }),
+  makeService({
+    id: IDS.servicePrewedding,
+    name: "Ensaio de pré-wedding",
+    default_price_cents: 80000,
+    is_prewedding: true,
+  }),
+];
+
+export function servicesHandler(services: ServiceOut[] = SERVICES) {
+  return http.get("/api/v1/services", ({ request }) => {
+    const all = new URL(request.url).searchParams.get("include_archived") === "true";
+    return HttpResponse.json(all ? services : services.filter((s) => s.archived_at === null));
+  });
 }
 
 export function makeContract(overrides: Partial<ContractOut> = {}): ContractOut {
@@ -39,8 +85,16 @@ export function makeContract(overrides: Partial<ContractOut> = {}): ContractOut 
     photographer_count: 2,
     payment: {
       items: [
-        { description: "Cobertura da cerimônia na igreja", amount_cents: 120000 },
-        { description: "Diária segundo fotógrafo", amount_cents: 50000 },
+        {
+          service_id: IDS.serviceCeremony,
+          description: "Cobertura da cerimônia na igreja",
+          amount_cents: 120000,
+        },
+        {
+          service_id: IDS.serviceSecond,
+          description: "Diária segundo fotógrafo",
+          amount_cents: 50000,
+        },
       ],
       pix_discount_cents: 30000,
       total_cents: 140000,
