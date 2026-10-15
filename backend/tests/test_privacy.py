@@ -129,3 +129,25 @@ def test_logs_contain_no_personal_data(
     assert "INSERT INTO clients" in text
     for needle in (*CPF_AND_ADDRESS, "João", "Maria", "Souza"):
         assert needle not in text
+
+
+def test_service_audit_details_hold_no_names_or_prices(api: TestClient) -> None:
+    created = api.post(
+        "/api/v1/services",
+        json={"name": "Álbum Exclusivo", "default_price_cents": 123456},
+    ).json()
+    url = f"/api/v1/services/{created['id']}"
+    api.patch(url, json={"name": "Álbum Raro"}, headers={"If-Match": '"1"'})
+    api.post(f"{url}/archive")
+    api.post(f"{url}/restore")
+
+    events = api.get("/api/v1/audit-events", params={"entity_id": created["id"]}).json()["items"]
+    assert {event["action"] for event in events} == {
+        "service.created",
+        "service.updated",
+        "service.archived",
+        "service.restored",
+    }
+    text = str([event["details"] for event in events])
+    for value in ("Álbum", "Exclusivo", "Raro", "123456"):
+        assert value not in text

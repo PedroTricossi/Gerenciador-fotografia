@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from sqlalchemy import select
 
-from gerenciador.api.v1.contracts import _expected_version
+from gerenciador.api.v1.versioning import expected_version
 from gerenciador.db.models import AuditEvent
 from gerenciador.services.exceptions import StaleVersionError
 
@@ -389,7 +389,7 @@ def test_weak_validator_is_refused(api: TestClient, payload: Payload) -> None:
 @pytest.mark.parametrize("value", ['"٢"', '"²"', '"-1"', '""', "1", 'W/"1"', "*"])
 def test_unreadable_validators_are_stale(value: str) -> None:
     with pytest.raises(StaleVersionError):
-        _expected_version(value)
+        expected_version(value, "contract")
 
 
 def test_control_characters_are_refused_with_a_fixed_message(

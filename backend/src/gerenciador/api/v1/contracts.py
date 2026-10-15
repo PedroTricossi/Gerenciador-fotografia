@@ -1,30 +1,16 @@
-import re
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Response
+from fastapi import APIRouter, Header, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
 from gerenciador.api.deps import Contracts, Ctx, Documents, Limit
 from gerenciador.api.v1.schemas import ContractCreate, ContractOut, ContractPatch, PageOut
+from gerenciador.api.v1.versioning import expected_version
 from gerenciador.services.contract_service import ContractView
-from gerenciador.services.exceptions import StaleVersionError
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
-
-
-_STRONG_VERSION = re.compile(r'"([0-9]{1,18})"')
-
-
-def _expected_version(if_match: str | None) -> int:
-    """Read a strong `"<n>"` validator. Anything else cannot match any version."""
-    if if_match is None:
-        raise HTTPException(status_code=428, detail="If-Match header is required")
-    match = _STRONG_VERSION.fullmatch(if_match.strip())
-    if match is None:
-        raise StaleVersionError
-    return int(match.group(1))
 
 
 def _respond(view: ContractView, response: Response) -> ContractOut:
@@ -69,10 +55,10 @@ def update_contract(
     service: Contracts,
     if_match: Annotated[str | None, Header()] = None,
 ) -> ContractOut:
-    expected_version = _expected_version(if_match)
+    version = expected_version(if_match, "contract")
     try:
         view = service.patch(
-            ctx, str(contract_id), expected_version, lambda view: body.apply_to(view).to_input()
+            ctx, str(contract_id), version, lambda view: body.apply_to(view).to_input()
         )
     except ValidationError as exc:
         raise RequestValidationError(exc.errors()) from exc
