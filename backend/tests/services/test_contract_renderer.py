@@ -18,6 +18,7 @@ from gerenciador.services.contract_service import (
     ItemInput,
     PersonInput,
 )
+from gerenciador.services.prewedding_service import PreweddingInput, PreweddingService
 
 MakeInput = Callable[..., ContractInput]
 
@@ -238,3 +239,30 @@ def test_anonymised_client_cannot_be_rendered(
 def test_missing_template_fails_at_construction(settings: Settings, tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         ContractRenderer(tmp_path / "missing.md", settings)
+
+
+def test_the_pdf_ignores_the_prewedding(
+    renderer: ContractRenderer,
+    contracts: ContractService,
+    preweddings: PreweddingService,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    items = [
+        ItemInput(catalog["ceremony"], 120000),
+        ItemInput(catalog["prewedding"], 80000),
+    ]
+    created = contracts.create(ctx, make_input(items=items, pix_discount_cents=None))
+    before = renderer.render_html(contracts.get(created.id))
+
+    preweddings.schedule(
+        ctx,
+        created.id,
+        None,
+        PreweddingInput(dt.date(2027, 1, 20), "Parque Barigui", "Rua A, 1", dt.time(16, 0)),
+    )
+    after = renderer.render_html(contracts.get(created.id))
+
+    assert after == before
+    assert "Parque Barigui" not in after
