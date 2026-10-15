@@ -9,8 +9,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from gerenciador.clock import utcnow
 from gerenciador.config import Settings, generate_key
 from gerenciador.db.migrate import init_database
+from gerenciador.db.models import Service
 from gerenciador.db.session import create_session_factory
 from gerenciador.main import create_app
 from gerenciador.services.audit_service import AuditService
@@ -63,6 +65,44 @@ def session(engine: Engine) -> Iterator[Session]:
         yield db_session
 
 
+SERVICE_IDS = {
+    "second": "5e7a1c00-0000-4000-8000-000000000001",
+    "ceremony": "5e7a1c00-0000-4000-8000-000000000002",
+    "dinner": "5e7a1c00-0000-4000-8000-000000000003",
+    "prewedding": "5e7a1c00-0000-4000-8000-000000000004",
+    "archived": "5e7a1c00-0000-4000-8000-000000000005",
+}
+_SERVICES = {
+    "second": ("Diária segundo fotógrafo", 50000, False),
+    "ceremony": ("Cobertura da cerimônia na igreja", 120000, False),
+    "dinner": ("Cobertura das fotos protocolares e jantar", 60000, False),
+    "prewedding": ("Ensaio de pré-wedding", 80000, True),
+    "archived": ("Álbum antigo", 30000, False),
+}
+
+
+@pytest.fixture
+def catalog(engine: Engine) -> dict[str, str]:
+    """Five services, the last one archived, written straight to the database."""
+    now = utcnow()
+    with create_session_factory(engine)() as db_session:
+        for key, (name, price, prewedding) in _SERVICES.items():
+            db_session.add(
+                Service(
+                    id=SERVICE_IDS[key],
+                    name=name,
+                    default_price_cents=price,
+                    is_prewedding=prewedding,
+                    archived_at=now if key == "archived" else None,
+                    version=1,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+        db_session.commit()
+    return SERVICE_IDS
+
+
 @pytest.fixture
 def ctx() -> RequestContext:
     return RequestContext(actor="owner", request_id="test-request")
@@ -84,7 +124,7 @@ def contracts(session: Session, clients: ClientService, audit: AuditService) -> 
 
 
 @pytest.fixture
-def make_input() -> Callable[..., ContractInput]:
+def make_input(catalog: dict[str, str]) -> Callable[..., ContractInput]:
     def _make(**overrides: Any) -> ContractInput:
         base = ContractInput(
             groom=PersonInput(full_name="João da Silva", cpf="12345678909"),
@@ -98,9 +138,9 @@ def make_input() -> Callable[..., ContractInput]:
             hours_contracted=None,
             photographer_count=2,
             items=[
-                ItemInput("Diária segundo fotógrafo", 50000),
-                ItemInput("Cobertura da cerimônia na igreja", 120000),
-                ItemInput("Cobertura das fotos protocolares e jantar", 60000),
+                ItemInput(catalog["second"], 50000),
+                ItemInput(catalog["ceremony"], 120000),
+                ItemInput(catalog["dinner"], 60000),
             ],
             pix_discount_cents=30000,
             signing_city="Curitiba",
@@ -130,7 +170,7 @@ def api(settings: Settings) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def payload() -> Callable[..., dict[str, Any]]:
+def payload(catalog: dict[str, str]) -> Callable[..., dict[str, Any]]:
     def _make(**overrides: Any) -> dict[str, Any]:
         body: dict[str, Any] = {
             "groom": {"full_name": "João da Silva", "cpf": "123.456.789-09"},
@@ -144,12 +184,9 @@ def payload() -> Callable[..., dict[str, Any]]:
             "photographer_count": 2,
             "payment": {
                 "items": [
-                    {"description": "Diária segundo fotógrafo", "amount_cents": 50000},
-                    {"description": "Cobertura da cerimônia na igreja", "amount_cents": 120000},
-                    {
-                        "description": "Cobertura das fotos protocolares e jantar",
-                        "amount_cents": 60000,
-                    },
+                    {"service_id": catalog["second"], "amount_cents": 50000},
+                    {"service_id": catalog["ceremony"], "amount_cents": 120000},
+                    {"service_id": catalog["dinner"], "amount_cents": 60000},
                 ],
                 "pix_discount_cents": 30000,
             },

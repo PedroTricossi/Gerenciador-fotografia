@@ -2,10 +2,11 @@ import datetime as dt
 from collections.abc import Callable
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from gerenciador.db.models import AuditEvent, Client, Contract
+from gerenciador.clock import utcnow
+from gerenciador.db.models import AuditEvent, Client, Contract, Service
 from gerenciador.domain.contract import ContractRuleError
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.client_service import ClientService
@@ -107,19 +108,23 @@ def test_get_missing_contract(contracts: ContractService) -> None:
 
 
 def test_update_changes_fields_bumps_version_and_audits_names(
-    contracts: ContractService, session: Session, ctx: RequestContext, make_input: MakeInput
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
 ) -> None:
     created = contracts.create(ctx, make_input())
     updated = contracts.update(
         ctx,
         created.id,
         1,
-        make_input(venue_name="Catedral", items=[ItemInput("Cobertura completa", 250000)]),
+        make_input(venue_name="Catedral", items=[ItemInput(catalog["ceremony"], 250000)]),
     )
     assert updated.version == 2
     assert updated.venue_name == "Catedral"
     assert [(item.description, item.amount_cents) for item in updated.items] == [
-        ("Cobertura completa", 250000)
+        ("Cobertura da cerimônia na igreja", 250000)
     ]
     assert updated.total_cents == 220000
     assert updated.updated_at >= created.updated_at
@@ -557,3 +562,194 @@ def test_swapping_the_two_people_anonymises_nobody(
     assert (swapped.groom.id, swapped.bride.id) == (created.bride.id, created.groom.id)
     assert "client.anonymised" not in _actions(session)
     assert _last_event(session).details == {"fields": ["groom", "bride"], "version": 2}
+
+
+def _rename(session: Session, service_id: str, name: str) -> None:
+    session.execute(update(Service).where(Service.id == service_id).values(name=name))
+    session.commit()
+
+
+def _archive(session: Session, service_id: str) -> None:
+    session.execute(update(Service).where(Service.id == service_id).values(archived_at=utcnow()))
+    session.commit()
+
+
+def _descriptions(view: ContractView) -> list[str]:
+    return [item.description for item in view.items]
+
+
+def test_items_copy_the_service_name(
+    contracts: ContractService,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    view = contracts.create(ctx, make_input())
+    assert [item.service_id for item in view.items] == [
+        catalog["second"],
+        catalog["ceremony"],
+        catalog["dinner"],
+    ]
+    assert _descriptions(view) == [
+        "Diária segundo fotógrafo",
+        "Cobertura da cerimônia na igreja",
+        "Cobertura das fotos protocolares e jantar",
+    ]
+
+
+def test_a_rename_reaches_only_items_added_after_it(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    created = contracts.create(ctx, make_input())
+    _rename(session, catalog["ceremony"], "Cerimônia (novo nome)")
+    _rename(session, catalog["prewedding"], "Pré-wedding (novo nome)")
+
+    venue = contracts.update(ctx, created.id, 1, make_input(venue_name="Catedral"))
+    assert _descriptions(venue)[1] == "Cobertura da cerimônia na igreja"
+
+    priced = contracts.update(
+        ctx,
+        created.id,
+        2,
+        make_input(
+            items=[
+                ItemInput(catalog["ceremony"], 99000),
+                ItemInput(catalog["prewedding"], 80000),
+            ]
+        ),
+    )
+    assert _descriptions(priced) == [
+        "Cobertura da cerimônia na igreja",
+        "Pré-wedding (novo nome)",
+    ]
+    assert [item.amount_cents for item in priced.items] == [99000, 80000]
+
+
+def test_reordering_and_swapping_items_reuses_rows(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    a, b, c = catalog["second"], catalog["ceremony"], catalog["dinner"]
+    created = contracts.create(ctx, make_input(items=[ItemInput(a, 50000), ItemInput(b, 120000)]))
+    _rename(session, b, "Renomeado")
+
+    swapped = contracts.update(
+        ctx,
+        created.id,
+        1,
+        make_input(items=[ItemInput(b, 120000), ItemInput(c, 60000)]),
+    )
+    assert _descriptions(swapped) == [
+        "Cobertura da cerimônia na igreja",
+        "Cobertura das fotos protocolares e jantar",
+    ]
+
+    reordered = contracts.update(
+        ctx,
+        created.id,
+        2,
+        make_input(items=[ItemInput(c, 60000), ItemInput(b, 120000)]),
+    )
+    assert [item.service_id for item in reordered.items] == [c, b]
+    assert _last_event(session).details == {"fields": ["items"], "version": 3}
+
+
+@pytest.mark.parametrize(
+    ("items", "field", "message"),
+    [
+        (
+            lambda ids: [ItemInput("5e7a1c00-0000-4000-8000-0000000000ff", 1000)],
+            "payment.items.0.service_id",
+            "serviço não encontrado",
+        ),
+        (
+            lambda ids: [
+                ItemInput(ids["second"], 1000),
+                ItemInput(ids["second"], 2000),
+            ],
+            "payment.items.1.service_id",
+            "serviço repetido no contrato",
+        ),
+        (
+            lambda ids: [ItemInput(ids["archived"], 1000)],
+            "payment.items.0.service_id",
+            "serviço arquivado",
+        ),
+    ],
+)
+def test_invalid_items_are_refused_and_nothing_is_stored(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+    items: Callable[[dict[str, str]], list[ItemInput]],
+    field: str,
+    message: str,
+) -> None:
+    with pytest.raises(ContractRuleError) as error:
+        contracts.create(ctx, make_input(items=items(catalog), pix_discount_cents=None))
+    assert (error.value.field, error.value.message) == (field, message)
+    session.rollback()
+    assert session.scalars(select(Contract)).all() == []
+
+
+def test_archived_service_already_on_the_contract_is_kept(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    created = contracts.create(ctx, make_input())
+    _archive(session, catalog["ceremony"])
+    updated = contracts.update(ctx, created.id, 1, make_input(venue_name="Catedral"))
+    assert catalog["ceremony"] in [item.service_id for item in updated.items]
+
+    with pytest.raises(ContractRuleError) as error:
+        contracts.create(
+            ctx,
+            make_input(
+                event_date=dt.date(2028, 1, 1),
+                items=[ItemInput(catalog["ceremony"], 1000)],
+                pix_discount_cents=None,
+            ),
+        )
+    assert error.value.message == "serviço arquivado"
+
+
+def test_has_prewedding_reads_the_current_flag(
+    contracts: ContractService,
+    session: Session,
+    ctx: RequestContext,
+    make_input: MakeInput,
+    catalog: dict[str, str],
+) -> None:
+    plain = contracts.create(ctx, make_input())
+    assert contracts.has_prewedding(plain.id) is False
+
+    with_pre = contracts.create(
+        ctx,
+        make_input(
+            event_date=dt.date(2028, 1, 1),
+            items=[ItemInput(catalog["prewedding"], 80000)],
+            pix_discount_cents=None,
+        ),
+    )
+    assert contracts.has_prewedding(with_pre.id) is True
+
+    session.execute(
+        update(Service).where(Service.id == catalog["second"]).values(is_prewedding=True)
+    )
+    session.commit()
+    assert contracts.has_prewedding(plain.id) is True
+
+    with pytest.raises(NotFoundError):
+        contracts.has_prewedding("5e7a1c00-0000-4000-8000-0000000000ff")

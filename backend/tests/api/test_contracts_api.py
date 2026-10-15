@@ -40,6 +40,9 @@ def _fields(response: Any) -> list[str]:
     return [error["field"] for error in response.json()["errors"]]
 
 
+SERVICE_ID_CEREMONY = "5e7a1c00-0000-4000-8000-000000000002"
+
+
 def test_create_returns_the_contract(api: TestClient, payload: Payload) -> None:
     response = api.post(URL, json=payload())
     assert response.status_code == 201
@@ -50,6 +53,11 @@ def test_create_returns_the_contract(api: TestClient, payload: Payload) -> None:
     assert body["groom"]["cpf"] == "123.456.789-09"
     assert body["bride"]["cpf"] == "987.654.321-00"
     assert body["couple_address"] == "Rua das Flores 100"
+    assert body["payment"]["items"][0] == {
+        "service_id": "5e7a1c00-0000-4000-8000-000000000001",
+        "description": "Diária segundo fotógrafo",
+        "amount_cents": 50000,
+    }
     assert body["event"] == {
         "date": "2027-03-14",
         "venue_name": "Igreja Matriz",
@@ -94,15 +102,19 @@ def test_create_applies_defaults(api: TestClient, payload: Payload) -> None:
         ("photographer_count", 0, "photographer_count"),
         ("photographer_count", "2", "photographer_count"),
         ("payment.items", [], "payment.items"),
-        ("payment.items", [{"description": "x", "amount_cents": 1}] * 21, "payment.items"),
         (
             "payment.items",
-            [{"description": "x", "amount_cents": 10.5}],
+            [{"service_id": "5e7a1c00-0000-4000-8000-000000000001", "amount_cents": 1}] * 21,
+            "payment.items",
+        ),
+        (
+            "payment.items",
+            [{"service_id": "5e7a1c00-0000-4000-8000-000000000001", "amount_cents": 10.5}],
             "payment.items.0.amount_cents",
         ),
         (
             "payment.items",
-            [{"description": "x", "amount_cents": 0}],
+            [{"service_id": "5e7a1c00-0000-4000-8000-000000000001", "amount_cents": 0}],
             "payment.items.0.amount_cents",
         ),
         ("payment.pix_discount_cents", 230000, "payment.pix_discount_cents"),
@@ -118,8 +130,13 @@ def test_create_applies_defaults(api: TestClient, payload: Payload) -> None:
         ("signing.city", "Curi\x85tiba", "signing.city"),
         (
             "payment.items",
-            [{"description": "Cobertura\x00completa", "amount_cents": 100000}],
-            "payment.items.0.description",
+            [{"service_id": "not-a-uuid", "amount_cents": 100000}],
+            "payment.items.0.service_id",
+        ),
+        (
+            "payment.items",
+            [{"service_id": "5e7a1c00-0000-4000-8000-0000000000ff", "amount_cents": 100000}],
+            "payment.items.0.service_id",
         ),
     ],
 )
@@ -260,10 +277,16 @@ def test_patch_can_remove_the_discount_and_replace_items(api: TestClient, payloa
 
     replaced = api.patch(
         url,
-        json={"payment": {"items": [{"description": "Pacote", "amount_cents": 100000}]}},
+        json={"payment": {"items": [{"service_id": SERVICE_ID_CEREMONY, "amount_cents": 100000}]}},
         headers={"If-Match": '"2"'},
     ).json()
-    assert replaced["payment"]["items"] == [{"description": "Pacote", "amount_cents": 100000}]
+    assert replaced["payment"]["items"] == [
+        {
+            "service_id": SERVICE_ID_CEREMONY,
+            "description": "Cobertura da cerimônia na igreja",
+            "amount_cents": 100000,
+        }
+    ]
     assert replaced["payment"]["total_cents"] == 100000
 
 

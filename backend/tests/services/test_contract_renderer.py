@@ -4,8 +4,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from sqlalchemy.orm import Session
 
+from gerenciador.clock import utcnow
 from gerenciador.config import Settings
+from gerenciador.db.models import Service
 from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
 from gerenciador.services.contract_renderer import ContractRenderer, escape_markdown
@@ -156,9 +159,23 @@ def test_markdown_and_html_in_names_print_literally(
 def test_newlines_in_values_cannot_add_structure(
     renderer: ContractRenderer,
     contracts: ContractService,
+    session: Session,
     ctx: RequestContext,
     make_input: MakeInput,
 ) -> None:
+    session.add(
+        Service(
+            id="5e7a1c00-0000-4000-8000-0000000000aa",
+            name="Cobertura\n\n# Outro",
+            default_price_cents=230000,
+            is_prewedding=False,
+            archived_at=None,
+            version=1,
+            created_at=utcnow(),
+            updated_at=utcnow(),
+        )
+    )
+    session.commit()
     baseline = _html(renderer, contracts, ctx, make_input())
     injected = _html(
         renderer,
@@ -166,7 +183,7 @@ def test_newlines_in_values_cannot_add_structure(
         ctx,
         make_input(
             couple_address="Rua A\n\n# Injetado\n\n* item",
-            items=[ItemInput("Cobertura\n\n# Outro", 230000)],
+            items=[ItemInput("5e7a1c00-0000-4000-8000-0000000000aa", 230000)],
             pix_discount_cents=None,
         ),
     )

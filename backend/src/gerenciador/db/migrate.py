@@ -11,11 +11,15 @@ from gerenciador.db.session import create_db_engine, database_url, prepare_datab
 MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "migrations"
 
 
-def run_migrations(url: str) -> None:
+def migration_config(url: str) -> Config:
     config = Config()
     config.set_main_option("script_location", str(MIGRATIONS_DIR))
     config.set_main_option("sqlalchemy.url", url)
-    command.upgrade(config, "head")
+    return config
+
+
+def run_migrations(url: str) -> None:
+    command.upgrade(migration_config(url), "head")
 
 
 def init_database(path: Path) -> Engine:

@@ -3,6 +3,7 @@
 import datetime as dt
 import unicodedata
 from typing import Annotated, Any, Self
+from uuid import UUID
 
 from pydantic import (
     AfterValidator,
@@ -84,7 +85,7 @@ class EventIn(StrictModel):
 
 
 class ItemIn(StrictModel):
-    description: Name
+    service_id: UUID
     amount_cents: Cents
 
 
@@ -119,7 +120,9 @@ class ContractCreate(StrictModel):
             coverage_end=self.event.coverage_end,
             hours_contracted=self.event.hours_contracted,
             photographer_count=self.photographer_count,
-            items=[ItemInput(item.description, item.amount_cents) for item in self.payment.items],
+            items=[
+                ItemInput(str(item.service_id), item.amount_cents) for item in self.payment.items
+            ],
             pix_discount_cents=self.payment.pix_discount_cents,
             signing_city=self.signing.city,
             signing_date=self.signing.date,
@@ -178,7 +181,7 @@ def _as_request(view: ContractView) -> dict[str, Any]:
         "photographer_count": view.photographer_count,
         "payment": {
             "items": [
-                {"description": item.description, "amount_cents": item.amount_cents}
+                {"service_id": item.service_id, "amount_cents": item.amount_cents}
                 for item in view.items
             ],
             "pix_discount_cents": view.pix_discount_cents,
@@ -262,6 +265,7 @@ class EventOut(BaseModel):
 
 
 class ItemOut(BaseModel):
+    service_id: str
     description: str
     amount_cents: int
 
@@ -309,7 +313,11 @@ class ContractOut(BaseModel):
             photographer_count=view.photographer_count,
             payment=PaymentOut(
                 items=[
-                    ItemOut(description=item.description, amount_cents=item.amount_cents)
+                    ItemOut(
+                        service_id=item.service_id,
+                        description=item.description,
+                        amount_cents=item.amount_cents,
+                    )
                     for item in view.items
                 ],
                 pix_discount_cents=view.pix_discount_cents,
