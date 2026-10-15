@@ -163,7 +163,8 @@ def _conflict(request: Request, exc: Exception) -> Response:
 
 
 def _stale(request: Request, exc: Exception) -> Response:
-    return problem_response(412, "The contract changed since it was loaded", _request_id(request))
+    entity = cast(StaleVersionError, exc).entity
+    return problem_response(412, f"The {entity} changed since it was loaded", _request_id(request))
 
 
 def _http_error(request: Request, exc: Exception) -> Response:

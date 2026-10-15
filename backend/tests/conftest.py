@@ -16,6 +16,7 @@ from gerenciador.db.models import Service
 from gerenciador.db.session import create_session_factory
 from gerenciador.main import create_app
 from gerenciador.services.audit_service import AuditService
+from gerenciador.services.catalog_service import CatalogService
 from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
 from gerenciador.services.contract_document import ContractDocumentService
@@ -111,6 +112,11 @@ def ctx() -> RequestContext:
 @pytest.fixture
 def audit(session: Session) -> AuditService:
     return AuditService(session)
+
+
+@pytest.fixture
+def catalog_service(session: Session, audit: AuditService) -> CatalogService:
+    return CatalogService(session, audit)
 
 
 @pytest.fixture
