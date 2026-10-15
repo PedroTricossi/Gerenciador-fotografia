@@ -92,6 +92,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contracts/{contract_id}/prewedding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Prewedding */
+        get: operations["get_prewedding_api_v1_contracts__contract_id__prewedding_get"];
+        /** Schedule Prewedding */
+        put: operations["schedule_prewedding_api_v1_contracts__contract_id__prewedding_put"];
+        post?: never;
+        /** Cancel Prewedding */
+        delete: operations["cancel_prewedding_api_v1_contracts__contract_id__prewedding_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clients": {
         parameters: {
             query?: never;
@@ -373,6 +392,7 @@ export interface components {
             photographer_count: number;
             payment: components["schemas"]["PaymentIn"];
             signing?: components["schemas"]["SigningIn"];
+            prewedding?: components["schemas"]["PreweddingIn"] | null;
         };
         /** ContractOut */
         ContractOut: {
@@ -387,6 +407,9 @@ export interface components {
             photographer_count: number;
             payment: components["schemas"]["PaymentOut"];
             signing: components["schemas"]["SigningOut"];
+            /** Has Prewedding */
+            has_prewedding: boolean;
+            prewedding: components["schemas"]["PreweddingOut"] | null;
             /** Version */
             version: number;
             /**
@@ -416,6 +439,11 @@ export interface components {
             photographer_count?: number | null;
             payment?: components["schemas"]["PaymentPatch"] | null;
             signing?: components["schemas"]["SigningPatch"] | null;
+            /**
+             * Cancel Prewedding
+             * @default false
+             */
+            cancel_prewedding: boolean;
         };
         /** EventIn */
         EventIn: {
@@ -549,6 +577,36 @@ export interface components {
             full_name?: string | null;
             /** Cpf */
             cpf?: string | null;
+        };
+        /** PreweddingIn */
+        PreweddingIn: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Venue Name */
+            venue_name: string;
+            /** Venue Address */
+            venue_address?: string | null;
+            /** Start Time */
+            start_time?: string | null;
+        };
+        /** PreweddingOut */
+        PreweddingOut: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Venue Name */
+            venue_name: string;
+            /** Venue Address */
+            venue_address: string | null;
+            /** Start Time */
+            start_time: string | null;
+            /** Version */
+            version: number;
         };
         /** ServiceIn */
         ServiceIn: {
@@ -876,6 +934,114 @@ export interface operations {
                 content: {
                     "application/pdf": unknown;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_prewedding_api_v1_contracts__contract_id__prewedding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreweddingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_prewedding_api_v1_contracts__contract_id__prewedding_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreweddingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreweddingOut"];
+                };
+            };
+            /** @description Scheduled */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreweddingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_prewedding_api_v1_contracts__contract_id__prewedding_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

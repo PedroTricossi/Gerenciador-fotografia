@@ -25,6 +25,7 @@ from gerenciador.services.contract_service import (
     ItemInput,
     PersonInput,
 )
+from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
 
 
 def _blank_to_none(value: Any) -> Any:
@@ -101,6 +102,16 @@ class SigningIn(StrictModel):
     date: dt.date = Field(default_factory=_today)
 
 
+class PreweddingIn(StrictModel):
+    date: dt.date
+    venue_name: Name
+    venue_address: OptionalAddress = None
+    start_time: OptionalTime = None
+
+    def to_input(self) -> PreweddingInput:
+        return PreweddingInput(self.date, self.venue_name, self.venue_address, self.start_time)
+
+
 class ContractCreate(StrictModel):
     groom: PersonIn
     bride: PersonIn
@@ -109,6 +120,7 @@ class ContractCreate(StrictModel):
     photographer_count: PhotographerCount = 2
     payment: PaymentIn
     signing: SigningIn = Field(default_factory=SigningIn)
+    prewedding: PreweddingIn | None = None
 
     def to_input(self) -> ContractInput:
         return ContractInput(
@@ -128,6 +140,7 @@ class ContractCreate(StrictModel):
             pix_discount_cents=self.payment.pix_discount_cents,
             signing_city=self.signing.city,
             signing_date=self.signing.date,
+            prewedding=self.prewedding.to_input() if self.prewedding is not None else None,
         )
 
 
@@ -202,13 +215,17 @@ class ContractPatch(StrictModel):
     photographer_count: PhotographerCount | None = None
     payment: PaymentPatch | None = None
     signing: SigningPatch | None = None
+    cancel_prewedding: Flag = False
 
     def apply_to(self, view: ContractView) -> ContractCreate:
         """The contract as it would be after this patch, validated as a whole.
 
         Raises pydantic.ValidationError if the result is not a valid contract.
         """
-        merged = _merge(_as_request(view), self.model_dump(exclude_unset=True))
+        merged = _merge(
+            _as_request(view),
+            self.model_dump(exclude_unset=True, exclude={"cancel_prewedding"}),
+        )
         return ContractCreate.model_validate(merged)
 
 
@@ -329,6 +346,24 @@ class SigningOut(BaseModel):
     date: dt.date
 
 
+class PreweddingOut(BaseModel):
+    date: dt.date
+    venue_name: str
+    venue_address: str | None
+    start_time: dt.time | None
+    version: int
+
+    @classmethod
+    def from_view(cls, view: PreweddingView) -> Self:
+        return cls(
+            date=view.event_date,
+            venue_name=view.venue_name,
+            venue_address=view.venue_address,
+            start_time=view.start_time,
+            version=view.version,
+        )
+
+
 class ContractOut(BaseModel):
     id: str
     groom: ClientOut
@@ -338,6 +373,8 @@ class ContractOut(BaseModel):
     photographer_count: int
     payment: PaymentOut
     signing: SigningOut
+    has_prewedding: bool
+    prewedding: PreweddingOut | None
     version: int
     created_at: dt.datetime
     updated_at: dt.datetime
@@ -372,6 +409,10 @@ class ContractOut(BaseModel):
                 total_cents=view.total_cents,
             ),
             signing=SigningOut(city=view.signing_city, date=view.signing_date),
+            has_prewedding=view.has_prewedding,
+            prewedding=PreweddingOut.from_view(view.prewedding)
+            if view.prewedding is not None
+            else None,
             version=view.version,
             created_at=view.created_at,
             updated_at=view.updated_at,

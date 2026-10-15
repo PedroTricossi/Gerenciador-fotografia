@@ -58,7 +58,11 @@ def update_contract(
     version = expected_version(if_match, "contract")
     try:
         view = service.patch(
-            ctx, str(contract_id), version, lambda view: body.apply_to(view).to_input()
+            ctx,
+            str(contract_id),
+            version,
+            lambda view: body.apply_to(view).to_input(),
+            cancel_prewedding=body.cancel_prewedding,
         )
     except ValidationError as exc:
         raise RequestValidationError(exc.errors()) from exc

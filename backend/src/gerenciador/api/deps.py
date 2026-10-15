@@ -12,6 +12,7 @@ from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
 from gerenciador.services.contract_document import ContractDocumentService
 from gerenciador.services.contract_service import ContractService
+from gerenciador.services.prewedding_service import PreweddingService
 
 
 def get_current_actor() -> str:
@@ -56,6 +57,10 @@ def get_contract_service(request: Request, session: DbSession) -> ContractServic
     return ContractService(session, clients, audit)
 
 
+def get_prewedding_service(session: DbSession) -> PreweddingService:
+    return PreweddingService(session, AuditService(session))
+
+
 def get_document_service(request: Request, session: DbSession) -> ContractDocumentService:
     audit = AuditService(session)
     clients = ClientService(session, request.app.state.cipher, audit)
@@ -73,5 +78,6 @@ Audit = Annotated[AuditService, Depends(get_audit_service)]
 Catalog = Annotated[CatalogService, Depends(get_catalog_service)]
 Clients = Annotated[ClientService, Depends(get_client_service)]
 Contracts = Annotated[ContractService, Depends(get_contract_service)]
+Preweddings = Annotated[PreweddingService, Depends(get_prewedding_service)]
 Documents = Annotated[ContractDocumentService, Depends(get_document_service)]
 Limit = Annotated[int, Query(ge=1, le=100)]

@@ -21,6 +21,7 @@ from gerenciador.services.exceptions import (
     ConflictError,
     InvalidCursorError,
     NotFoundError,
+    PreconditionRequiredError,
     StaleVersionError,
 )
 
@@ -61,6 +62,7 @@ def problem_response(
     request_id: str,
     errors: list[dict[str, str]] | None = None,
     headers: Mapping[str, str] | None = None,
+    code: str | None = None,
 ) -> JSONResponse:
     body: dict[str, Any] = {
         "type": "about:blank",
@@ -71,6 +73,8 @@ def problem_response(
     }
     if errors is not None:
         body["errors"] = errors
+    if code is not None:
+        body["code"] = code
     return JSONResponse(
         body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=dict(headers or {})
     )
@@ -159,7 +163,12 @@ def _not_found(request: Request, exc: Exception) -> Response:
 
 
 def _conflict(request: Request, exc: Exception) -> Response:
-    return problem_response(409, cast(ConflictError, exc).message, _request_id(request))
+    error = cast(ConflictError, exc)
+    return problem_response(409, error.message, _request_id(request), code=error.code)
+
+
+def _precondition_required(request: Request, exc: Exception) -> Response:
+    return problem_response(428, "If-Match header is required", _request_id(request))
 
 
 def _stale(request: Request, exc: Exception) -> Response:
@@ -188,5 +197,6 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(NotFoundError, _not_found)
     app.add_exception_handler(ConflictError, _conflict)
     app.add_exception_handler(StaleVersionError, _stale)
+    app.add_exception_handler(PreconditionRequiredError, _precondition_required)
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(Exception, _unhandled)
