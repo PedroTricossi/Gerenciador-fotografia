@@ -6,6 +6,7 @@ import { completeCpf } from "../src/domain/cpf";
 const SERVICES = [
   { name: "Cobertura da cerimônia na igreja", default_price_cents: 120000, is_prewedding: false },
   { name: "Diária segundo fotógrafo", default_price_cents: 50000, is_prewedding: false },
+  { name: "Ensaio de pré-wedding", default_price_cents: 80000, is_prewedding: true },
 ];
 
 // Every test fails on any browser console error, which is where CSP violations appear.

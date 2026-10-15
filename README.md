@@ -48,6 +48,21 @@ marks those whose name contains "pré-wedding" (ignoring case and accents, so
 "Pre-Wedding" counts too) as pre-wedding shoots. Check the **Serviços** screen
 afterwards.
 
+### Pré-wedding
+
+A contract that includes a pre-wedding service can carry its pre-wedding
+shoot: a date and a place, plus an optional address and start time. Fill it in
+when creating the contract, or leave it blank and use the **Agendar
+pré-wedding** button on the contracts list once the client has a date. The
+same button (then labelled with the date) changes or unschedules it. None of
+this changes the contract, its version or its PDF.
+
+Removing the last pre-wedding item from a contract asks for confirmation and
+cancels the scheduled pre-wedding in the same save.
+
+Upgrading adds an empty `prewedding_events` table (migration `0003`); no
+existing data changes. Back up `data/gerenciador.db` first anyway.
+
 If a contract has two items with the same description, that first start stops
 with an error naming the contract. To recover, start the previous version, give
 those items different descriptions (or merge them), then upgrade again.
