@@ -1,7 +1,7 @@
 # Pre-wedding Event — Design
 
 Date: 2026-10-15
-Status: draft
+Status: approved
 Branch: `feat/prewedding-event` (based on `main`)
 
 ## 1. Purpose
