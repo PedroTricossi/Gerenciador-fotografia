@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { IDS, makeService, page, problem } from "../../test/fixtures";
+import { IDS, SERVICES, makeService, page, problem } from "../../test/fixtures";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
 
@@ -128,4 +128,64 @@ test("a restore conflict is explained", async () => {
       "Não foi possível restaurar: já existe um serviço ativo com este nome, ou ele já foi restaurado.",
     ),
   ).toBeInTheDocument();
+});
+
+test("after a stale save, the list refreshes and the next edit sends the new version", async () => {
+  let changed = false;
+  const ifMatch: (string | null)[] = [];
+  server.use(
+    http.get("/api/v1/services", () =>
+      HttpResponse.json(
+        changed
+          ? SERVICES.filter((s) => s.archived_at === null).map((s) =>
+              s.id === IDS.serviceSecond
+                ? { ...s, version: 2, default_price_cents: 55000, name: "Diária 2º fotógrafo" }
+                : s,
+            )
+          : SERVICES.filter((s) => s.archived_at === null),
+      ),
+    ),
+    http.patch("/api/v1/services/:id", ({ request }) => {
+      ifMatch.push(request.headers.get("If-Match"));
+      if (changed) return HttpResponse.json(makeService({ id: IDS.serviceSecond, version: 3 }));
+      changed = true;
+      return problem(412, "The service changed since it was loaded");
+    }),
+  );
+  const { user } = renderApp("/servicos");
+  const row = await screen.findByRole("row", { name: /Diária segundo fotógrafo/ });
+  await user.click(within(row).getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog", { name: "Editar serviço" });
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  await within(dialog).findByText(/foi alterado em outro lugar/);
+  await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+  const fresh = await screen.findByRole("row", { name: /Diária 2º fotógrafo/ });
+  await user.click(within(fresh).getByRole("button", { name: "Editar" }));
+  const again = screen.getByRole("dialog", { name: "Editar serviço" });
+  await user.click(within(again).getByRole("button", { name: "Salvar" }));
+  expect(await screen.findByText("Serviço atualizado")).toBeInTheDocument();
+  expect(ifMatch).toEqual(['"1"', '"2"']);
+});
+
+test("Cancelar is disabled while a save is pending", async () => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  server.use(
+    http.patch("/api/v1/services/:id", async () => {
+      await gate;
+      return HttpResponse.json(makeService({ id: IDS.serviceSecond, version: 2 }));
+    }),
+  );
+  const { user } = renderApp("/servicos");
+  const row = await screen.findByRole("row", { name: /Diária segundo fotógrafo/ });
+  await user.click(within(row).getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog", { name: "Editar serviço" });
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  await user.keyboard("{Escape}");
+  expect(screen.getByRole("dialog", { name: "Editar serviço" })).toBeInTheDocument();
+  release();
+  expect(await screen.findByText("Serviço atualizado")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });

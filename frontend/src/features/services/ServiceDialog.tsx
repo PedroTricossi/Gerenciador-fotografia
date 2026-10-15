@@ -69,8 +69,13 @@ export function ServiceDialog({ service, onClose }: Props) {
     }
   };
 
+  // A save that finishes late would close whichever dialog is open by then.
+  const close = () => {
+    if (!busy) onClose();
+  };
+
   return (
-    <Dialog open title={service ? "Editar serviço" : "Novo serviço"} onClose={onClose}>
+    <Dialog open title={service ? "Editar serviço" : "Novo serviço"} onClose={close}>
       <form noValidate onSubmit={(event) => void submit(event)}>
         {banner && <Banner tone="error">{banner}</Banner>}
         <Field label="Nome" error={errors.name}>
@@ -102,7 +107,9 @@ export function ServiceDialog({ service, onClose }: Props) {
           onChange={(checked) => set({ isPrewedding: checked })}
         />
         <DialogActions>
-          <Button onClick={onClose}>Cancelar</Button>
+          <Button onClick={close} disabled={busy}>
+            Cancelar
+          </Button>
           <Button type="submit" variant="primary" busy={busy}>
             Salvar
           </Button>

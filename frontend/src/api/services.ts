@@ -39,6 +39,8 @@ export function useUpdateService() {
         }),
       ),
     onSuccess: refresh,
+    // A 412 or 404 means the cached row is stale; reopening it must not resend the old version.
+    onError: refresh,
   });
 }
 

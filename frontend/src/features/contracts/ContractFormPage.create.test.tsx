@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { IDS, makeContract, problem, servicesHandler } from "../../test/fixtures";
@@ -302,6 +302,33 @@ test("with no services, the form links to the catalog", async () => {
     "href",
     "/servicos",
   );
+});
+
+test("a failed first load of the services offers a retry", async () => {
+  server.use(http.get("/api/v1/services", () => problem(500, "boom")));
+  const { user } = renderApp("/contratos/novo");
+  expect(await screen.findByText(/Não foi possível carregar os serviços\./)).toBeInTheDocument();
+  server.use(servicesHandler());
+  await user.click(screen.getByRole("button", { name: "Tentar de novo" }));
+  expect(await screen.findByLabelText("Serviço do item 1")).toBeInTheDocument();
+});
+
+test("a failed refetch keeps the item rows on screen", async () => {
+  const { user, router } = renderApp("/contratos/novo");
+  await screen.findByLabelText("Serviço do item 1");
+  await user.click(screen.getByRole("link", { name: "Serviços" }));
+  await screen.findByRole("heading", { level: 1, name: "Serviços" });
+  let failed = false;
+  server.use(
+    http.get("/api/v1/services", () => {
+      failed = true;
+      return problem(500, "boom");
+    }),
+  );
+  await act(() => router.navigate("/contratos/novo"));
+  await waitFor(() => expect(failed).toBe(true));
+  expect(await screen.findByLabelText("Serviço do item 1")).toBeInTheDocument();
+  expect(screen.queryByText(/Não foi possível carregar os serviços/)).toBeNull();
 });
 
 test("a server error on a service lands on that row", async () => {

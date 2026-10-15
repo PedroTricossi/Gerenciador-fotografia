@@ -44,8 +44,13 @@ new contracts without changing those that already use it. Mark a service as
 
 The first start after upgrading creates one service for each distinct item
 description already in your contracts, priced at its most recent amount, and
-marks those whose name contains "pré-wedding" as pre-wedding shoots. Check the
-**Serviços** screen afterwards.
+marks those whose name contains "pré-wedding" (ignoring case and accents, so
+"Pre-Wedding" counts too) as pre-wedding shoots. Check the **Serviços** screen
+afterwards.
+
+If a contract has two items with the same description, that first start stops
+with an error naming the contract. To recover, start the previous version, give
+those items different descriptions (or merge them), then upgrade again.
 
 The app serves no documentation page and no schema. To get the OpenAPI schema
 as a file (the frontend needs it), run:

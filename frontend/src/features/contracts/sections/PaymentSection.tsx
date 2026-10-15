@@ -15,14 +15,14 @@ export function PaymentSection({ state, disabled, savedItems }: Props) {
   const { form, items } = state;
   const services = useServices(true);
 
-  if (services.isPending) {
+  if (services.data === undefined && services.isPending) {
     return (
       <FormSection title="Pagamento" disabled>
         <p className={styles.row}>Carregando serviços…</p>
       </FormSection>
     );
   }
-  if (services.isError) {
+  if (services.data === undefined) {
     return (
       <FormSection title="Pagamento" disabled={disabled}>
         <div className={styles.row}>
