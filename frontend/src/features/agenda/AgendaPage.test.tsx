@@ -106,6 +106,10 @@ test("the page works when storage is blocked", async () => {
   });
   const ranges = serveAgenda([]);
   const { user } = renderApp("/agenda");
+  expect(screen.getByRole("button", { name: "Próximos 30 dias" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await user.click(screen.getByRole("button", { name: "Próximos 90 dias" }));
   await waitFor(() => expect(ranges).toContain("2026-10-15..2027-01-13"));
 });

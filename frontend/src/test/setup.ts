@@ -47,13 +47,3 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 afterAll(() => server.close());
-
-// Newer Node versions define their own `localStorage` global, which stays unusable
-// without --localstorage-file and hides jsdom's (and warns when read). Use jsdom's.
-const jsdomWindow = (globalThis as unknown as { jsdom?: { window: Window } }).jsdom?.window;
-if (jsdomWindow) {
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    value: jsdomWindow.localStorage,
-  });
-}
