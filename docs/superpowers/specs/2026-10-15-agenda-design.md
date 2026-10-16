@@ -74,10 +74,12 @@ Errors (RFC 9457, 422 keyed by field, Portuguese messages as elsewhere):
 
 - `from` or `to` missing or not a date → 422 on that field (FastAPI
   validation).
-- `to` before `from` → 422 on `to`: "a data final não pode ser anterior à
-  inicial".
+- `to` before `from` → 422 on `query.to`: "a data final não pode ser
+  anterior à inicial".
 - Span longer than 120 days (`to - from > 119` days, i.e. more than 120 days
-  inclusive) → 422 on `to`: "o intervalo máximo é de 120 dias".
+  inclusive) → 422 on `query.to`: "o intervalo máximo é de 120 dias".
+- Field names follow FastAPI's query-parameter errors (`query.from`,
+  `query.to`), as the existing `query.limit` errors do.
 
 No pagination, no ETag, no audit entry. Past dates are allowed.
 
@@ -133,22 +135,25 @@ No pagination, no ETag, no audit entry. Past dates are allowed.
 - Requests `from` = first day shown, `to` = last day shown (28–42 days).
 - Each day shows up to 3 chips in the single shoot colour: time (if any), the
   couple, and "Pré" for a pre-wedding. Each chip links to the contract. With
-  more than 3 entries the third line becomes "+N mais", which opens a small
-  dialog listing that day's entries (same rows as the list view).
+  more than 3 entries a line "+N mais" follows the 3 chips (N = entries − 3).
+- Clicking a day's number, or its "+N mais", lists that day's entries below
+  the grid (same rows as the list view). This is the same on every screen
+  width; there is no separate dialog.
 - Narrow screens (below 640px wide; the app has no breakpoint yet, this
-  introduces one): days show a dot when
-  they have entries; tapping a day lists its entries below the grid.
+  introduces one): days show a dot instead of chips; tapping a day lists its
+  entries below the grid as above.
 - No empty-state message; empty days are blank.
 
 ### 3.5 Loading, errors, freshness
 
 - Loading shows "Carregando…", errors the usual banner with "Tentar de novo",
   as on the other list pages.
-- Queries are keyed by `["agenda", from, to]`; moving months or switching
-  ranges fetches again; data already fetched is reused.
-- Every mutation that already invalidates contract data (create, update,
-  delete, restore a contract; schedule or cancel a pre-wedding; anonymise a
-  client) also invalidates `["agenda"]`.
+- Queries are keyed by `["contracts", "agenda", from, to]`; moving months or
+  switching ranges fetches again; data already fetched is reused.
+- Because the key sits under `["contracts"]`, every mutation that already
+  invalidates contract data (create, update, delete, restore a contract;
+  schedule or cancel a pre-wedding; anonymise a client) refreshes the agenda
+  too, with no change to those mutations.
 
 ## 4. Edge cases
 
@@ -173,9 +178,10 @@ No pagination, no ETag, no audit entry. Past dates are allowed.
   range for 30 and 90 days, groups by day with Hoje/Amanhã, shows the empty
   message; a row links to its contract; calendar requests the right range for
   a month whose weeks spill over, ‹ › and Hoje work, a day with 4 entries
-  shows "+1 mais" and its dialog; narrow-screen day list; view and range are
+  shows 3 chips and "+1 mais", and opening it lists all 4; clicking a day lists
+  its entries; view and range are
   remembered and the page works when storage throws; error banner and retry;
-  saving a contract or the pré-wedding dialog invalidates the agenda.
+  the agenda's query key sits under the contracts key.
 - **E2E (Playwright):** create a contract dated within the next 30 days with a
   pre-wedding service and schedule its pre-wedding; open the app, land on the
   Agenda and see both entries in the list; switch to the calendar and see them
