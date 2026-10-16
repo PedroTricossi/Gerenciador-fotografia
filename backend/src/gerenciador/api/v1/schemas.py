@@ -2,7 +2,7 @@
 
 import datetime as dt
 import unicodedata
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
 from pydantic import (
@@ -17,6 +17,7 @@ from pydantic import (
 
 from gerenciador.db.models import AuditEvent
 from gerenciador.domain.cpf import format_cpf, mask_cpf, normalize_cpf
+from gerenciador.services.agenda_service import AgendaEntry
 from gerenciador.services.catalog_service import ServiceChanges, ServiceInput, ServiceView
 from gerenciador.services.client_service import ClientExport, ClientView
 from gerenciador.services.contract_service import (
@@ -361,6 +362,32 @@ class PreweddingOut(BaseModel):
             venue_address=view.venue_address,
             start_time=view.start_time,
             version=view.version,
+        )
+
+
+class AgendaPersonOut(BaseModel):
+    full_name: str | None
+
+
+class AgendaEntryOut(BaseModel):
+    contract_id: str
+    kind: Literal["wedding", "prewedding"]
+    date: dt.date
+    start_time: dt.time | None
+    venue_name: str
+    groom: AgendaPersonOut
+    bride: AgendaPersonOut
+
+    @classmethod
+    def from_entry(cls, entry: AgendaEntry) -> Self:
+        return cls(
+            contract_id=entry.contract_id,
+            kind=entry.kind,
+            date=entry.date,
+            start_time=entry.start_time,
+            venue_name=entry.venue_name,
+            groom=AgendaPersonOut(full_name=entry.groom_name),
+            bride=AgendaPersonOut(full_name=entry.bride_name),
         )
 
 

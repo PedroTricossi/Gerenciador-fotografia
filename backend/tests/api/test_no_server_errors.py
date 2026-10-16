@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 CONTRACTS = "/api/v1/contracts"
 CLIENTS = "/api/v1/clients"
 AUDIT = "/api/v1/audit-events"
+AGENDA = "/api/v1/agenda"
 EXTREMES = ("0001-01-01T00:00:00+14:00", "9999-12-31T23:59:59-14:00")
 
 
@@ -27,6 +28,8 @@ CASES: list[tuple[str, dict[str, Any]]] = [
         for timestamp in EXTREMES
     ],
     *[(AUDIT, {key: timestamp}) for key in ("from", "to") for timestamp in EXTREMES],
+    (AGENDA, {"from": "yesterday", "to": "2026-10-15"}),
+    (AGENDA, {"from": "0001-01-01", "to": "9999-12-31"}),
 ]
 
 
