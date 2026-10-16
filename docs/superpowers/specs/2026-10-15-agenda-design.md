@@ -1,7 +1,7 @@
 # Agenda — Design
 
 Date: 2026-10-15
-Status: draft
+Status: approved
 Branch: `feat/agenda` (based on `main`)
 
 ## 1. Purpose
