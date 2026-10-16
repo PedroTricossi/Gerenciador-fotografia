@@ -1,5 +1,5 @@
 import { HttpResponse, http } from "msw";
-import type { ClientOut, ContractOut, ServiceOut } from "../api/client";
+import type { AgendaEntryOut, ClientOut, ContractOut, ServiceOut } from "../api/client";
 
 export const IDS = {
   contract: "6f1c0a52-1111-4000-8000-000000000001",
@@ -106,6 +106,19 @@ export function makeContract(overrides: Partial<ContractOut> = {}): ContractOut 
     created_at: STAMP,
     updated_at: STAMP,
     deleted_at: null,
+    ...overrides,
+  };
+}
+
+export function makeAgendaEntry(overrides: Partial<AgendaEntryOut> = {}): AgendaEntryOut {
+  return {
+    contract_id: IDS.contract,
+    kind: "wedding",
+    date: "2026-10-24",
+    start_time: "16:00:00",
+    venue_name: "Igreja Matriz",
+    groom: { full_name: "João da Silva" },
+    bride: { full_name: "Ana Lima" },
     ...overrides,
   };
 }

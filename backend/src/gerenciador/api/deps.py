@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
+from gerenciador.services.agenda_service import AgendaService
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.catalog_service import CatalogService
 from gerenciador.services.client_service import ClientService
@@ -61,6 +62,10 @@ def get_prewedding_service(session: DbSession) -> PreweddingService:
     return PreweddingService(session, AuditService(session))
 
 
+def get_agenda_service(session: DbSession) -> AgendaService:
+    return AgendaService(session)
+
+
 def get_document_service(request: Request, session: DbSession) -> ContractDocumentService:
     audit = AuditService(session)
     clients = ClientService(session, request.app.state.cipher, audit)
@@ -79,5 +84,6 @@ Catalog = Annotated[CatalogService, Depends(get_catalog_service)]
 Clients = Annotated[ClientService, Depends(get_client_service)]
 Contracts = Annotated[ContractService, Depends(get_contract_service)]
 Preweddings = Annotated[PreweddingService, Depends(get_prewedding_service)]
+Agenda = Annotated[AgendaService, Depends(get_agenda_service)]
 Documents = Annotated[ContractDocumentService, Depends(get_document_service)]
 Limit = Annotated[int, Query(ge=1, le=100)]

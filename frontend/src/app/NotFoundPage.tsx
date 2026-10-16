@@ -5,7 +5,7 @@ export function NotFoundPage() {
   return (
     <PageLayout title="Página não encontrada">
       <p>
-        <Link to="/contratos">Ir para contratos</Link>
+        <Link to="/agenda">Ir para a agenda</Link>
       </p>
     </PageLayout>
   );
