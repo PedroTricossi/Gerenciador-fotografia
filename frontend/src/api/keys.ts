@@ -13,3 +13,9 @@ export const serviceKeys = {
   all: ["services"] as const,
   list: (includeArchived: boolean) => ["services", { includeArchived }] as const,
 };
+
+// Under "contracts" so every change to a contract, its pre-wedding or a client
+// (which all invalidate contractKeys.all) also refreshes the agenda.
+export const agendaKeys = {
+  range: (from: string, to: string) => ["contracts", "agenda", from, to] as const,
+};

@@ -1,4 +1,5 @@
 import { Navigate, Outlet, type RouteObject, useParams } from "react-router";
+import { AgendaPage } from "../features/agenda/AgendaPage";
 import { ClientListPage } from "../features/clients/ClientListPage";
 import { ContractFormPage } from "../features/contracts/ContractFormPage";
 import { ContractListPage } from "../features/contracts/ContractListPage";
@@ -7,6 +8,7 @@ import { Nav } from "../ui";
 import { NotFoundPage } from "./NotFoundPage";
 
 const LINKS = [
+  { to: "/agenda", label: "Agenda" },
   { to: "/contratos", label: "Contratos" },
   { to: "/clientes", label: "Clientes" },
   { to: "/servicos", label: "Serviços" },
@@ -30,7 +32,8 @@ export const routes: RouteObject[] = [
   {
     element: <AppShell />,
     children: [
-      { index: true, element: <Navigate to="/contratos" replace /> },
+      { index: true, element: <Navigate to="/agenda" replace /> },
+      { path: "agenda", element: <AgendaPage /> },
       { path: "contratos", element: <ContractListPage /> },
       { path: "contratos/novo", element: <ContractFormRoute /> },
       { path: "contratos/:id", element: <ContractFormRoute /> },
