@@ -1,5 +1,6 @@
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
@@ -89,6 +90,9 @@
 }
 /* 40rem = 640px: below it the grid shows a dot per busy day; tapping lists the day below. */
 @media (max-width: 40rem) {
+  .title {
+    min-width: 0;
+  }
   .day {
     height: 3rem;
   }

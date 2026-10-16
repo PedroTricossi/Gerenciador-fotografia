@@ -191,3 +191,22 @@ test("clicking a day lists its entries below the grid", async () => {
   expect(await screen.findByRole("region", { name: "sáb., 24/10/2026" })).toBeInTheDocument();
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
 });
+
+test("moving to another month or back to today closes the opened day", async () => {
+  serveAgenda([makeAgendaEntry()]);
+  localStorage.setItem("gerenciador.agenda.view", "calendar");
+  const { user } = renderApp("/agenda");
+
+  await within(cell("24 de outubro de 2026")).findByRole("link");
+  await user.click(screen.getByRole("button", { name: "24 de outubro de 2026" }));
+  expect(screen.getByRole("region", { name: "sáb., 24/10/2026" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Próximo mês" }));
+  expect(screen.queryByRole("region", { name: "sáb., 24/10/2026" })).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Hoje" }));
+  await within(cell("24 de outubro de 2026")).findByRole("link");
+  await user.click(screen.getByRole("button", { name: "24 de outubro de 2026" }));
+  expect(screen.getByRole("region", { name: "sáb., 24/10/2026" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Hoje" }));
+  expect(screen.queryByRole("region", { name: "sáb., 24/10/2026" })).not.toBeInTheDocument();
+});

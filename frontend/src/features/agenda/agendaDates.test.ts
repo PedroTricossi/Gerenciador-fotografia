@@ -48,3 +48,11 @@ test("months shift across years and have Portuguese titles", () => {
   expect(monthTitle({ year: 2026, month: 9 })).toBe("outubro de 2026");
   expect(dayLabel("2026-10-05")).toBe("5 de outubro de 2026");
 });
+
+test("a month grid has six weeks when needed and four when it fits exactly", () => {
+  const august = monthGrid({ year: 2026, month: 7 });
+  expect([august[0], august.at(-1), august.length]).toEqual(["2026-07-26", "2026-09-05", 42]);
+
+  const february = monthGrid({ year: 2026, month: 1 });
+  expect([february[0], february.at(-1), february.length]).toEqual(["2026-02-01", "2026-02-28", 28]);
+});
