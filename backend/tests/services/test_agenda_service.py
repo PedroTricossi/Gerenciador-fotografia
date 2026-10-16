@@ -159,6 +159,19 @@ def test_order_is_date_time_kind_then_contract(
     ]
 
 
+def test_an_untimed_wedding_comes_before_an_untimed_prewedding_on_the_same_day(
+    agenda: AgendaService, create: Callable[..., str], schedule: Callable[..., None]
+) -> None:
+    day = dt.date(2026, 10, 10)
+    contract_id = create(day, at=None)
+    schedule(contract_id, day)
+
+    assert _brief(agenda.between(day, day)) == [
+        (contract_id, "wedding"),
+        (contract_id, "prewedding"),
+    ]
+
+
 def test_an_anonymised_name_comes_back_as_none(
     agenda: AgendaService, session: Session, create: Callable[..., str]
 ) -> None:

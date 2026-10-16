@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { todayIso } from "../../domain/dates";
 import { PageLayout } from "../../ui";
 import styles from "./Agenda.module.css";
@@ -14,7 +15,19 @@ type View = (typeof VIEWS)[number]["value"];
 
 export function AgendaPage() {
   const [view, setView] = useChoice<View>("gerenciador.agenda.view", ["list", "calendar"], "list");
-  const today = todayIso();
+  const [today, setToday] = useState(todayIso);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") setToday(todayIso());
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
 
   return (
     <PageLayout title="Agenda">

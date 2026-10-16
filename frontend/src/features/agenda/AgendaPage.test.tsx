@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { AgendaEntryOut } from "../../api/client";
 import { IDS, makeAgendaEntry, problem } from "../../test/fixtures";
@@ -55,6 +55,19 @@ test("the list shows the next 30 days grouped by day", async () => {
     "aria-pressed",
     "true",
   );
+});
+
+test("coming back to the tab after midnight moves the list to the new today", async () => {
+  const ranges = serveAgenda([]);
+  renderApp("/agenda");
+  await screen.findByText("Nenhum ensaio ou casamento nos próximos 30 dias.");
+  expect(ranges).toEqual(["2026-10-15..2026-11-14"]);
+
+  vi.setSystemTime(new Date(2026, 9, 16, 10, 0));
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await waitFor(() => expect(ranges).toContain("2026-10-16..2026-11-15"));
 });
 
 test("late in the evening, today is still the local date", async () => {
@@ -171,15 +184,18 @@ test("a busy day shows three chips and +1 mais, and lists them all when opened",
 });
 
 test("clicking a day lists its entries below the grid", async () => {
+  const scrollIntoView = vi.fn();
+  Element.prototype.scrollIntoView = scrollIntoView;
   serveAgenda([makeAgendaEntry({ kind: "prewedding", start_time: null })]);
   localStorage.setItem("gerenciador.agenda.view", "calendar");
   const { user } = renderApp("/agenda");
 
   await within(cell("24 de outubro de 2026")).findByRole("link");
   expect(within(cell("24 de outubro de 2026")).getByRole("link")).toHaveTextContent(
-    "João & Ana · Pré",
+    "Pré · João & Ana",
   );
   await user.click(screen.getByRole("button", { name: "24 de outubro de 2026" }));
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
   expect(
     within(screen.getByRole("region", { name: "sáb., 24/10/2026" })).getByRole("link", {
       name: "João & Ana, Pré-wedding, sem horário, Igreja Matriz",

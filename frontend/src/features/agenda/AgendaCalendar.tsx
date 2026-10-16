@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useAgenda } from "../../api/agenda";
 import type { AgendaEntryOut } from "../../api/client";
@@ -65,10 +65,11 @@ function Day({ day, month, today, entries, onOpen }: DayProps) {
                 to={`/contratos/${entry.contract_id}`}
                 className={styles.chip}
                 aria-label={entryLabel(entry)}
+                title={entryLabel(entry)}
               >
+                {entry.kind === "prewedding" && "Pré · "}
                 {entry.start_time && `${timeLabel(entry.start_time)} `}
                 {coupleLabel(entry.groom, entry.bride)}
-                {entry.kind === "prewedding" && " · Pré"}
               </Link>
             </li>
           ))}
@@ -91,6 +92,12 @@ export function AgendaCalendar({ today }: { today: string }) {
   const byDate = new Map(groupByDate(agenda.data ?? []));
   const openedEntries = opened ? (byDate.get(opened) ?? []) : [];
   const title = monthTitle(month);
+  const selected = useRef<HTMLElement>(null);
+  const hasSelected = opened !== null && openedEntries.length > 0;
+
+  useEffect(() => {
+    if (hasSelected) selected.current?.scrollIntoView?.({ block: "nearest" });
+  }, [hasSelected, opened]);
 
   const show = (next: Month) => {
     setMonth(next);
@@ -138,7 +145,7 @@ export function AgendaCalendar({ today }: { today: string }) {
         </tbody>
       </table>
       {opened && openedEntries.length > 0 && (
-        <section aria-label={dayHeading(opened, today)} className={styles.selected}>
+        <section ref={selected} aria-label={dayHeading(opened, today)} className={styles.selected}>
           <h3 className={styles.selectedTitle}>{dayHeading(opened, today)}</h3>
           <EntryList entries={openedEntries} />
         </section>
