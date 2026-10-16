@@ -52,6 +52,16 @@ If a contract has two items with the same description, that first start stops
 with an error naming the contract. To recover, start the previous version, give
 those items different descriptions (or merge them), then upgrade again.
 
+### Agenda
+
+The app opens on the **Agenda**: every wedding and scheduled pre-wedding of
+the next 30 days (or 90, with the switch above the list), grouped by day.
+Click a shoot to open its contract. The **Calendário** view shows one month at
+a time; use ‹ and › to move and **Hoje** to come back, and click a day to list
+its shoots below the grid. Deleted contracts and pre-weddings that are not
+scheduled yet do not appear. The agenda remembers the view and range you used
+last on this computer.
+
 ### Pré-wedding
 
 A contract that includes a pre-wedding service can carry its pre-wedding
