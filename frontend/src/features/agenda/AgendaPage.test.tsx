@@ -113,3 +113,81 @@ test("the page works when storage is blocked", async () => {
   await user.click(screen.getByRole("button", { name: "Próximos 90 dias" }));
   await waitFor(() => expect(ranges).toContain("2026-10-15..2027-01-13"));
 });
+
+function cell(name: string): HTMLElement {
+  const td = screen.getByRole("button", { name }).closest("td");
+  if (!td) throw new Error(`no cell for ${name}`);
+  return td;
+}
+
+test("the calendar shows the month's whole weeks and moves between months", async () => {
+  const ranges = serveAgenda([makeAgendaEntry()]);
+  const { user } = renderApp("/agenda");
+  await user.click(screen.getByRole("button", { name: "Calendário" }));
+
+  expect(await screen.findByRole("table", { name: "outubro de 2026" })).toBeInTheDocument();
+  await waitFor(() => expect(ranges).toContain("2026-09-27..2026-10-31"));
+  expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+    "Dom",
+    "Seg",
+    "Ter",
+    "Qua",
+    "Qui",
+    "Sex",
+    "Sáb",
+  ]);
+  expect(cell("15 de outubro de 2026")).toHaveAttribute("aria-current", "date");
+  expect(
+    await within(cell("24 de outubro de 2026")).findByRole("link", {
+      name: "João & Ana, Casamento, às 16:00, Igreja Matriz",
+    }),
+  ).toHaveAttribute("href", `/contratos/${IDS.contract}`);
+
+  await user.click(screen.getByRole("button", { name: "Próximo mês" }));
+  expect(screen.getByRole("table", { name: "novembro de 2026" })).toBeInTheDocument();
+  await waitFor(() => expect(ranges).toContain("2026-11-01..2026-12-05"));
+
+  await user.click(screen.getByRole("button", { name: "Hoje" }));
+  expect(screen.getByRole("table", { name: "outubro de 2026" })).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Mês anterior" }));
+  expect(screen.getByRole("table", { name: "setembro de 2026" })).toBeInTheDocument();
+  await waitFor(() => expect(ranges).toContain("2026-08-30..2026-10-03"));
+});
+
+test("a busy day shows three chips and +1 mais, and lists them all when opened", async () => {
+  const day = "2026-10-20";
+  serveAgenda(
+    ["c1", "c2", "c3", "c4"].map((contract_id) => makeAgendaEntry({ date: day, contract_id })),
+  );
+  localStorage.setItem("gerenciador.agenda.view", "calendar");
+  const { user } = renderApp("/agenda");
+
+  const busy = await screen.findByRole("button", { name: "+1 mais" });
+  expect(within(cell("20 de outubro de 2026")).getAllByRole("link")).toHaveLength(3);
+  await user.click(busy);
+  const opened = screen.getByRole("region", { name: "ter., 20/10/2026" });
+  expect(within(opened).getAllByRole("link")).toHaveLength(4);
+});
+
+test("clicking a day lists its entries below the grid", async () => {
+  serveAgenda([makeAgendaEntry({ kind: "prewedding", start_time: null })]);
+  localStorage.setItem("gerenciador.agenda.view", "calendar");
+  const { user } = renderApp("/agenda");
+
+  await within(cell("24 de outubro de 2026")).findByRole("link");
+  expect(within(cell("24 de outubro de 2026")).getByRole("link")).toHaveTextContent(
+    "João & Ana · Pré",
+  );
+  await user.click(screen.getByRole("button", { name: "24 de outubro de 2026" }));
+  expect(
+    within(screen.getByRole("region", { name: "sáb., 24/10/2026" })).getByRole("link", {
+      name: "João & Ana, Pré-wedding, sem horário, Igreja Matriz",
+    }),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Lista" }));
+  expect(localStorage.getItem("gerenciador.agenda.view")).toBe("list");
+  expect(await screen.findByRole("region", { name: "sáb., 24/10/2026" })).toBeInTheDocument();
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+});
