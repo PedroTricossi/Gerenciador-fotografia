@@ -7,7 +7,13 @@ export function PageLayout({ title, actions, children }: Props) {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>{title}</h1>
+        <h1 className={styles.title}>
+          <span aria-hidden="true">&gt; </span>
+          {title}
+          <span aria-hidden="true" className={styles.cursor}>
+            _
+          </span>
+        </h1>
         {actions && <div className={styles.actions}>{actions}</div>}
       </header>
       {children}

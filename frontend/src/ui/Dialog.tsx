@@ -1,9 +1,16 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import styles from "./Dialog.module.css";
 
-type Props = { open: boolean; title: string; onClose: () => void; children: ReactNode };
+type Props = {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  /** When false, Escape is ignored (for example while a request is running). */
+  dismissable?: boolean;
+  children: ReactNode;
+};
 
-export function Dialog({ open, title, onClose, children }: Props) {
+export function Dialog({ open, title, onClose, dismissable = true, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -22,7 +29,7 @@ export function Dialog({ open, title, onClose, children }: Props) {
       onCancel={(event) => {
         // Escape: let the owner decide, so React state stays the source of truth.
         event.preventDefault();
-        onClose();
+        if (dismissable) onClose();
       }}
     >
       {open && (

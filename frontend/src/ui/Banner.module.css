@@ -1,12 +1,17 @@
 .banner {
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
   margin: var(--space-4) 0;
+  overflow-wrap: anywhere;
 }
 .info {
   background: var(--color-info-bg);
+  color: var(--color-text);
 }
 .error {
   background: var(--color-danger-bg);
   color: var(--color-danger);
+  border-color: var(--color-danger);
+  font-weight: var(--font-weight-strong);
 }

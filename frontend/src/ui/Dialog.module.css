@@ -1,11 +1,15 @@
 .dialog {
   width: min(var(--width-dialog), 100%);
-  border: none;
-  border-radius: var(--radius-md);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-box);
   padding: var(--space-6);
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--shadow-hard);
   background: var(--color-surface);
   color: var(--color-text);
+}
+.dialog:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 .dialog::backdrop {
   background: var(--color-backdrop);
@@ -13,6 +17,7 @@
 .title {
   margin: 0 0 var(--space-4);
   font-size: var(--font-size-lg);
+  overflow-wrap: anywhere;
 }
 .actions {
   display: flex;

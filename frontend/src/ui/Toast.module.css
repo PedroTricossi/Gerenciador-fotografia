@@ -14,8 +14,10 @@
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-raised);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-hard);
+  max-width: min(24rem, calc(100vw - 2 * var(--space-6)));
+  overflow-wrap: anywhere;
 }
 .error {
   border-color: var(--color-danger);

@@ -15,31 +15,33 @@ type Props<T> = {
 export function Table<T>({ label, columns, rows, rowKey, rowMuted, empty }: Props<T>) {
   if (rows.length === 0 && empty) return <div className={styles.empty}>{empty}</div>;
   return (
-    <table className={styles.table} aria-label={label}>
-      <thead>
-        <tr>
-          {columns.map((column) => (
-            <th
-              key={column.header}
-              scope="col"
-              className={column.align === "end" ? styles.end : undefined}
-            >
-              {column.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={rowKey(row)} className={rowMuted?.(row) ? styles.muted : undefined}>
+    <div className={styles.wrap}>
+      <table className={styles.table} aria-label={label}>
+        <thead>
+          <tr>
             {columns.map((column) => (
-              <td key={column.header} className={column.align === "end" ? styles.end : undefined}>
-                {column.cell(row)}
-              </td>
+              <th
+                key={column.header}
+                scope="col"
+                className={column.align === "end" ? styles.end : undefined}
+              >
+                {column.header}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)} className={rowMuted?.(row) ? styles.muted : undefined}>
+              {columns.map((column) => (
+                <td key={column.header} className={column.align === "end" ? styles.end : undefined}>
+                  {column.cell(row)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
