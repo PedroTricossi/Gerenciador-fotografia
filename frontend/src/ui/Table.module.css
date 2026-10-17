@@ -37,11 +37,3 @@
 .muted td {
   color: var(--color-text-muted);
 }
-.empty {
-  padding: var(--space-8);
-  text-align: center;
-  background: var(--color-surface);
-  border: var(--border-width) dashed var(--color-border);
-  border-radius: var(--radius-box);
-  overflow-wrap: anywhere;
-}

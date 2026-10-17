@@ -21,6 +21,8 @@ import {
   PageLayout,
   Table,
   useToast,
+  EmptyState,
+  Loading,
 } from "../../ui";
 import styles from "./ContractListPage.module.css";
 import { DELETE_CONFLICT, NOT_FOUND_IN_LIST, PDF_DELETED, RESTORE_CONFLICT } from "./messages";
@@ -134,7 +136,7 @@ export function ContractListPage() {
       <div className={styles.toolbar}>
         <Checkbox label="Mostrar excluídos" checked={showDeleted} onChange={setShowDeleted} />
       </div>
-      {contracts.isPending && <p>Carregando…</p>}
+      {contracts.isPending && <Loading />}
       {contracts.isError && (
         <Banner tone="error">
           Não foi possível carregar os contratos.{" "}
@@ -148,12 +150,7 @@ export function ContractListPage() {
           rows={rows}
           rowKey={(contract) => contract.id}
           rowMuted={(contract) => contract.deleted_at !== null}
-          empty={
-            <>
-              <p>Nenhum contrato ainda</p>
-              {newContract}
-            </>
-          }
+          empty={<EmptyState action={newContract}>Nenhum contrato ainda</EmptyState>}
         />
       )}
       {contracts.hasNextPage && (

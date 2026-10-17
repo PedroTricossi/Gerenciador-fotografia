@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import { ApiError, type ContractPatch } from "../../api/client";
 import {
   useContract,
@@ -11,12 +10,23 @@ import { useServices } from "../../api/services";
 import { describeUnexpected, isUnexpected } from "../../api/errors";
 import { formatIsoDate } from "../../domain/dates";
 import { changedSections } from "../../domain/patch";
-import { Banner, Button, ConfirmDialog, PageLayout, useToast } from "../../ui";
+import {
+  Banner,
+  Button,
+  ConfirmDialog,
+  Hint,
+  Loading,
+  PageLayout,
+  TextLink,
+  useToast,
+} from "../../ui";
 import { ContractForm } from "./ContractForm";
 import { type ContractFormValues, fromContract, toRequest } from "./formModel";
 import { CONTRACT_GONE, EDIT_CONFLICT_DELETED, PDF_DELETED, RESTORE_CONFLICT } from "./messages";
 import { coupleLabel } from "./names";
 import { preweddingServiceIds } from "./serviceOptions";
+
+const PDF_HINT_ID = "pdf-save-first-hint";
 
 export function EditContract({ id }: { id: string }) {
   const contract = useContract(id);
@@ -33,7 +43,7 @@ export function EditContract({ id }: { id: string }) {
     if (!contract.isError) {
       return (
         <PageLayout title="Editar contrato">
-          <p>Carregando…</p>
+          <Loading />
         </PageLayout>
       );
     }
@@ -41,9 +51,7 @@ export function EditContract({ id }: { id: string }) {
     return (
       <PageLayout title={missing ? "Contrato não encontrado" : "Editar contrato"}>
         {missing ? (
-          <p>
-            <Link to="/contratos">Voltar para contratos</Link>
-          </p>
+          <TextLink to="/contratos">Voltar para contratos</TextLink>
         ) : (
           <Banner tone="error">
             Não foi possível carregar o contrato.{" "}
@@ -137,10 +145,15 @@ export function EditContract({ id }: { id: string }) {
         prewedding={data.prewedding}
         actions={({ hasChanges }) => (
           <>
-            <Button onClick={downloadPdf} disabled={hasChanges} busy={pdf.isPending}>
+            <Button
+              onClick={downloadPdf}
+              disabled={hasChanges}
+              busy={pdf.isPending}
+              aria-describedby={hasChanges ? PDF_HINT_ID : undefined}
+            >
               Baixar PDF
             </Button>
-            {hasChanges && <span>Salve as alterações antes de baixar o PDF.</span>}
+            {hasChanges && <Hint id={PDF_HINT_ID}>Salve as alterações antes de baixar o PDF.</Hint>}
           </>
         )}
       />

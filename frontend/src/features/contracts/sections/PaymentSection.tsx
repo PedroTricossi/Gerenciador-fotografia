@@ -1,7 +1,6 @@
-import { Link } from "react-router";
 import { useServices } from "../../../api/services";
 import { formatBrl } from "../../../domain/money";
-import { Banner, Button, FormSection } from "../../../ui";
+import { Banner, Button, FormSection, Loading, TextLink } from "../../../ui";
 import styles from "../ContractForm.module.css";
 import { moneyText } from "../formModel";
 import { type SavedItem, serviceOptions } from "../serviceOptions";
@@ -18,7 +17,9 @@ export function PaymentSection({ state, disabled, savedItems }: Props) {
   if (services.data === undefined && services.isPending) {
     return (
       <FormSection title="Pagamento" disabled>
-        <p className={styles.row}>Carregando serviços…</p>
+        <div className={styles.row}>
+          <Loading>Carregando serviços…</Loading>
+        </div>
       </FormSection>
     );
   }
@@ -40,8 +41,8 @@ export function PaymentSection({ state, disabled, savedItems }: Props) {
     return (
       <FormSection title="Pagamento" disabled={disabled}>
         <p className={styles.row}>
-          Nenhum serviço cadastrado. <Link to="/servicos">Cadastre os serviços</Link> antes de criar
-          o contrato.
+          Nenhum serviço cadastrado. <TextLink to="/servicos">Cadastre os serviços</TextLink> antes
+          de criar o contrato.
         </p>
       </FormSection>
     );
@@ -67,7 +68,7 @@ export function PaymentSection({ state, disabled, savedItems }: Props) {
             format={moneyText}
           />
           <Button
-            variant="ghost"
+            variant="secondary"
             aria-label={`Remover item ${index + 1}`}
             disabled={items.fields.length === 1}
             onClick={() => state.removeItem(index)}
@@ -90,7 +91,7 @@ export function PaymentSection({ state, disabled, savedItems }: Props) {
         inputMode="decimal"
         format={moneyText}
       />
-      <p className={styles.row}>
+      <p className={styles.total}>
         Total: <strong>{state.total === null ? "—" : formatBrl(state.total)}</strong>
       </p>
     </FormSection>

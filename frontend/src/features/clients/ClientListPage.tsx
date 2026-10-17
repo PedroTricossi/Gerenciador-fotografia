@@ -5,7 +5,17 @@ import { useAnonymiseClient, useClients, useExportClient } from "../../api/clien
 import { clientKeys } from "../../api/keys";
 import { describeUnexpected, isUnexpected } from "../../api/errors";
 import { formatIsoDate } from "../../domain/dates";
-import { Banner, Button, type Column, ConfirmDialog, PageLayout, Table, useToast } from "../../ui";
+import {
+  Banner,
+  Button,
+  type Column,
+  ConfirmDialog,
+  EmptyState,
+  Loading,
+  PageLayout,
+  Table,
+  useToast,
+} from "../../ui";
 import styles from "./ClientListPage.module.css";
 
 const ANONYMISE_CONFLICT =
@@ -87,7 +97,7 @@ export function ClientListPage() {
 
   return (
     <PageLayout title="Clientes">
-      {clients.isPending && <p>Carregando…</p>}
+      {clients.isPending && <Loading />}
       {clients.isError && (
         <Banner tone="error">
           Não foi possível carregar os clientes.{" "}
@@ -101,7 +111,7 @@ export function ClientListPage() {
           rows={rows}
           rowKey={(client) => client.id}
           rowMuted={(client) => client.anonymised_at !== null}
-          empty={<p>Nenhum cliente ainda</p>}
+          empty={<EmptyState>Nenhum cliente ainda</EmptyState>}
         />
       )}
       {clients.hasNextPage && (
