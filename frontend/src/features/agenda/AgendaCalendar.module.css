@@ -69,6 +69,7 @@
 .chip {
   position: relative;
   display: flex;
+  gap: var(--space-1);
   max-width: 100%;
   padding: 0 var(--space-1);
   border-radius: var(--radius-sm);

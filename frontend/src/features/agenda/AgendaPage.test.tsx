@@ -194,7 +194,8 @@ test("clicking a day lists its entries below the grid", async () => {
   await within(cell("24 de outubro de 2026")).findByRole("link");
   const chip = within(cell("24 de outubro de 2026")).getByRole("link");
   expect(chip).toHaveTextContent("João & Ana");
-  expect(chip.closest("li")).toHaveTextContent("Pré · João & Ana");
+  expect(chip.closest("li")).toHaveTextContent("Pré ·");
+  expect(chip.closest("li")).toHaveTextContent("João & Ana");
   await user.click(screen.getByRole("button", { name: "24 de outubro de 2026" }));
   expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
   expect(

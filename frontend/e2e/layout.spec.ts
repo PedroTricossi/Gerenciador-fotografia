@@ -76,6 +76,20 @@ async function expectChipsInsideCells(page: Page, where: string) {
   expect(bad, `${where}: chips outside their day cell`).toEqual([]);
 }
 
+async function expectChipMetaGap(page: Page, where: string) {
+  const gaps = await page.evaluate(() =>
+    [...document.querySelectorAll("td li")].flatMap((chip) => {
+      const meta = chip.firstElementChild;
+      const link = chip.querySelector("a");
+      if (!meta || meta === link || !link) return [];
+      return [link.getBoundingClientRect().left - meta.getBoundingClientRect().right];
+    }),
+  );
+  expect(gaps.length, `${where}: a chip with meta text`).toBeGreaterThan(0);
+  for (const gap of gaps)
+    expect(gap, `${where}: gap between meta and couple`).toBeGreaterThanOrEqual(2);
+}
+
 async function checkAll(page: Page, tag: string, rootFont = false) {
   const go = async (path: string) => {
     await page.goto(path);
@@ -100,6 +114,7 @@ async function checkAll(page: Page, tag: string, rootFont = false) {
   if ((page.viewportSize()?.width ?? 0) > 640) {
     await expect(page.getByRole("table").getByRole("link").first()).toBeVisible();
     await expectChipsInsideCells(page, `${tag} /agenda calendar`);
+    await expectChipMetaGap(page, `${tag} /agenda calendar`);
   }
 }
 

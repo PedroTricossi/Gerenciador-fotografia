@@ -63,8 +63,12 @@ function Day({ day, month, today, entries, onOpen }: DayProps) {
             <li key={entryKey(entry)} className={styles.chip}>
               {(entry.kind === "prewedding" || entry.start_time) && (
                 <span className={styles.chipMeta}>
-                  {entry.kind === "prewedding" && "Pré · "}
-                  {entry.start_time && `${timeLabel(entry.start_time)} `}
+                  {[
+                    entry.kind === "prewedding" && "Pré ·",
+                    entry.start_time && timeLabel(entry.start_time),
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 </span>
               )}
               <Link
