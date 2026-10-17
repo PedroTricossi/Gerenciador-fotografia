@@ -10,8 +10,6 @@ import uuid
 import sqlalchemy as sa
 from alembic import op
 
-from gerenciador.domain.instalments import month_of
-
 revision = "0004"
 down_revision = "0003"
 branch_labels = None
@@ -51,7 +49,9 @@ def upgrade() -> None:
             " GROUP BY c.id, c.pix_discount_cents"
         )
     ).all()
-    month = month_of(dt.date.today())
+    # Computed inline, not imported: a migration never changes when app code does (see 0002).
+    today = dt.date.today()
+    month = f"{today.year:04d}-{today.month:02d}"
     for contract_id, total in rows:
         if total <= 0:
             # Cannot satisfy amount_cents > 0 (a contract with no items); it is still flagged
