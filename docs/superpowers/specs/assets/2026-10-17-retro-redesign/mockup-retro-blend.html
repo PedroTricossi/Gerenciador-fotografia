@@ -1,0 +1,93 @@
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=VT323&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<h2>Retro, with how much of C?</h2>
+<p class="subtitle">All three keep B's retro feel: pixel headings, cream and amber, outlines with hard shadows. They differ in which parts of C they borrow. Each shows the list and a bit of the form.</p>
+
+<div class="cards">
+
+  <!-- B1: retro, rounded -->
+  <div class="card" data-choice="b1-rounded" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f3ead7;padding:16px;font-family:'Space Mono',monospace;color:#2b2118">
+      <div style="border:2px solid #2b2118;border-radius:14px;background:#fffaf0;box-shadow:4px 4px 0 #2b2118;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#2b2118;color:#f3ead7;padding:6px 12px">
+          <span style="font-family:VT323,monospace;font-size:20px">▣ ESTÚDIO</span>
+          <span style="font-size:11px">CONTRATOS · clientes</span>
+        </div>
+        <div style="padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-family:VT323,monospace;font-size:26px">&gt; CONTRATOS_</span>
+            <span style="border:2px solid #2b2118;border-radius:10px;background:#ffb000;padding:4px 10px;font-size:11px;font-weight:700;box-shadow:2px 2px 0 #2b2118">+ NOVO</span>
+          </div>
+          <div style="font-size:12px;border:2px solid #2b2118;border-radius:10px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;padding:6px 8px;background:#e8dcc0;font-weight:700"><span>CASAL</span><span>EVENTO</span><span style="text-align:right">TOTAL</span></div>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;padding:6px 8px;border-top:2px dashed #2b2118"><span>Bruno &amp; Ana</span><span>14/03/2027</span><span style="text-align:right">R$ 1.400,00</span></div>
+          </div>
+          <div style="margin-top:12px;font-size:11px;font-weight:700">NOME DO NOIVO</div>
+          <div style="border:2px solid #2b2118;border-radius:8px;background:#fff;padding:6px 8px;font-size:12px;margin-top:4px">Bruno Costa</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B1 · Retro, rounded</h3>
+      <p>All retro, but every box gets C's rounded corners. Typewriter text everywhere.</p>
+    </div>
+  </div>
+
+  <!-- B2: retro + readable text + pills -->
+  <div class="card" data-choice="b2-readable" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f3ead7;padding:16px;font-family:Inter,system-ui,sans-serif;color:#2b2118">
+      <div style="border:2px solid #2b2118;border-radius:14px;background:#fffaf0;box-shadow:4px 4px 0 #2b2118;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#2b2118;color:#f3ead7;padding:6px 12px">
+          <span style="font-family:VT323,monospace;font-size:20px">▣ ESTÚDIO</span>
+          <span style="font-size:11px;font-family:'Space Mono',monospace">CONTRATOS · clientes</span>
+        </div>
+        <div style="padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-family:VT323,monospace;font-size:26px">&gt; CONTRATOS_</span>
+            <span style="border:2px solid #2b2118;border-radius:10px;background:#ffb000;padding:4px 10px;font-size:11px;font-weight:700;box-shadow:2px 2px 0 #2b2118">+ Novo contrato</span>
+          </div>
+          <div style="font-size:12px;border:2px solid #2b2118;border-radius:10px;overflow:hidden;background:#fff">
+            <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;padding:6px 8px;background:#e8dcc0;font-weight:700;font-family:'Space Mono',monospace;font-size:11px"><span>CASAL</span><span>EVENTO</span><span style="text-align:right">TOTAL</span></div>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;padding:7px 8px;border-top:1.5px solid #e8dcc0;align-items:center"><span>Bruno &amp; Ana</span><span style="background:#ffe7b3;border:1.5px solid #2b2118;border-radius:999px;padding:1px 7px;width:fit-content;font-size:11px">14 mar 2027</span><span style="text-align:right;font-family:'Space Mono',monospace;font-weight:700">R$ 1.400,00</span></div>
+          </div>
+          <div style="margin-top:12px;font-size:11px;font-weight:700;font-family:'Space Mono',monospace">NOME DO NOIVO</div>
+          <div style="border:2px solid #2b2118;border-radius:8px;background:#fff;padding:6px 8px;font-size:12px;margin-top:4px">Bruno Costa</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B2 · Retro, easier to read</h3>
+      <p>B1 plus C's clean text for names and fields, and rounded date tags. Typewriter style only for labels and money.</p>
+    </div>
+  </div>
+
+  <!-- B3: retro + side menu -->
+  <div class="card" data-choice="b3-sidebar" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f3ead7;padding:16px;font-family:Inter,system-ui,sans-serif;color:#2b2118">
+      <div style="display:flex;gap:12px">
+        <div style="width:104px;border:2px solid #2b2118;border-radius:14px;background:#2b2118;color:#f3ead7;padding:10px;box-shadow:4px 4px 0 #b88a2e">
+          <div style="font-family:VT323,monospace;font-size:20px;margin-bottom:10px">▣ ESTÚDIO</div>
+          <div style="font-size:12px;padding:5px 7px;border-radius:8px;background:#ffb000;color:#2b2118;font-weight:700">Contratos</div>
+          <div style="font-size:12px;padding:5px 7px">Clientes</div>
+        </div>
+        <div style="flex:1;border:2px solid #2b2118;border-radius:14px;background:#fffaf0;box-shadow:4px 4px 0 #2b2118;padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-family:VT323,monospace;font-size:26px">&gt; CONTRATOS_</span>
+            <span style="border:2px solid #2b2118;border-radius:10px;background:#ffb000;padding:4px 10px;font-size:11px;font-weight:700;box-shadow:2px 2px 0 #2b2118">+ Novo</span>
+          </div>
+          <div style="font-size:12px;border:2px solid #2b2118;border-radius:10px;overflow:hidden;background:#fff">
+            <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;padding:6px 8px;background:#e8dcc0;font-weight:700;font-family:'Space Mono',monospace;font-size:11px"><span>CASAL</span><span>EVENTO</span><span style="text-align:right">TOTAL</span></div>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;padding:7px 8px;border-top:1.5px solid #e8dcc0;align-items:center"><span>Bruno &amp; Ana</span><span style="background:#ffe7b3;border:1.5px solid #2b2118;border-radius:999px;padding:1px 7px;width:fit-content;font-size:11px">14 mar 2027</span><span style="text-align:right;font-family:'Space Mono',monospace;font-weight:700">R$ 1.400,00</span></div>
+          </div>
+          <div style="margin-top:12px;font-size:11px;font-weight:700;font-family:'Space Mono',monospace">NOME DO NOIVO</div>
+          <div style="border:2px solid #2b2118;border-radius:8px;background:#fff;padding:6px 8px;font-size:12px;margin-top:4px">Bruno Costa</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B3 · Retro, with a side menu</h3>
+      <p>B2 plus C's side menu, which has room for the calendar and instalment screens later.</p>
+    </div>
+  </div>
+
+</div>
