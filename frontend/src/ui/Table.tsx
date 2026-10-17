@@ -15,7 +15,7 @@ type Props<T> = {
 export function Table<T>({ label, columns, rows, rowKey, rowMuted, empty }: Props<T>) {
   if (rows.length === 0 && empty) return <div className={styles.empty}>{empty}</div>;
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} role="region" aria-label={label} tabIndex={0}>
       <table className={styles.table} aria-label={label}>
         <thead>
           <tr>

@@ -19,7 +19,12 @@
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
-.cursor {
+/* Decoration only: the empty alternative keeps it out of the accessible name. */
+.title::before {
+  content: "> " / "";
+}
+.title::after {
+  content: "_" / "";
   color: var(--color-text-muted);
 }
 .actions {

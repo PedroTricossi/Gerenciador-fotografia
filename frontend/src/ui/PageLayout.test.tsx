@@ -7,3 +7,8 @@ test("the heading's name is the plain title", () => {
   expect(heading).toBeInTheDocument();
   expect(heading).not.toHaveAccessibleName(/[>_]/);
 });
+
+test("the heading's text is exactly the title", () => {
+  render(<PageLayout title="Contratos" />);
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Contratos");
+});
