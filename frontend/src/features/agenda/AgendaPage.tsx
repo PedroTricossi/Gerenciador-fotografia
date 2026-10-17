@@ -4,6 +4,7 @@ import { PageLayout, SegmentedControl } from "../../ui";
 import styles from "./Agenda.module.css";
 import { AgendaCalendar } from "./AgendaCalendar";
 import { AgendaList } from "./AgendaList";
+import { Reminders } from "./Reminders";
 import { useChoice } from "./choices";
 
 const VIEWS = [
@@ -33,6 +34,7 @@ export function AgendaPage() {
       <div className={styles.toolbar}>
         <SegmentedControl label="Visualização" options={VIEWS} value={view} onChange={setView} />
       </div>
+      <Reminders today={today} />
       {view === "list" ? <AgendaList today={today} /> : <AgendaCalendar today={today} />}
     </PageLayout>
   );

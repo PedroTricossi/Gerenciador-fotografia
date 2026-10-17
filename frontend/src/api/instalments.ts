@@ -10,10 +10,11 @@ const path = ({ contractId, number }: MarkTarget) => ({
   path: { contract_id: contractId, number },
 });
 
-export function useInstalments(params: { unpaidThrough?: string } = {}) {
+export function useInstalments(params: { unpaidThrough?: string; enabled?: boolean } = {}) {
   const unpaidThrough = params.unpaidThrough ?? null;
   return useQuery({
     queryKey: instalmentKeys.list(unpaidThrough),
+    enabled: params.enabled ?? true,
     queryFn: () =>
       unwrap(
         api.GET("/api/v1/instalments", {
