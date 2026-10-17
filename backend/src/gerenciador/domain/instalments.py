@@ -10,7 +10,7 @@ from gerenciador.domain.contract import ContractRuleError
 MAX_INSTALMENTS = 4
 Month = str  # "YYYY-MM"
 
-_MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+_MONTH_RE = re.compile(r"[0-9]{4}-(0[1-9]|1[0-2])")
 
 
 def month_of(day: dt.date) -> Month:
@@ -55,7 +55,7 @@ def validate_plan(months: Sequence[str], amounts: Sequence[int], total_cents: in
     if not 1 <= len(amounts) <= MAX_INSTALMENTS or len(months) != len(amounts):
         raise ContractRuleError("instalments", "o plano deve ter de 1 a 4 parcelas")
     for i, month in enumerate(months):
-        if not _MONTH_RE.match(month):
+        if not _MONTH_RE.fullmatch(month):
             raise ContractRuleError(f"instalments.{i}.month", "mês inválido")
         if i > 0 and month <= months[i - 1]:
             raise ContractRuleError(

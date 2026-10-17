@@ -110,7 +110,9 @@ def test_validate_plan_rejects_a_non_positive_amount(amount: int) -> None:
     assert exc.value.message == "o valor de cada parcela deve ser maior que zero"
 
 
-@pytest.mark.parametrize("bad", ["2026-13", "26-10", "2026-00", "2026-1", "abcd-ef"])
+@pytest.mark.parametrize(
+    "bad", ["2026-13", "26-10", "2026-00", "2026-1", "abcd-ef", "2026-10\n", "٢٠٢٦-10"]
+)
 def test_validate_plan_rejects_a_malformed_month(bad: str) -> None:
     with pytest.raises(ContractRuleError) as exc:
         validate_plan(["2026-09", bad], [500, 500], 1000)
@@ -132,3 +134,11 @@ def test_validate_plan_rejects_a_malformed_month(bad: str) -> None:
 )
 def test_in_reminder_window(day: dt.date, expected: bool) -> None:
     assert in_reminder_window(day) is expected
+
+
+@pytest.mark.parametrize("bad", ["2026-13", "2026-10\n", "٢٠٢٦-10"])
+def test_validate_plan_rejects_a_malformed_first_month(bad: str) -> None:
+    with pytest.raises(ContractRuleError) as exc:
+        validate_plan([bad, "2026-12"], [500, 500], 1000)
+    assert exc.value.field == "instalments.0.month"
+    assert exc.value.message == "mês inválido"
