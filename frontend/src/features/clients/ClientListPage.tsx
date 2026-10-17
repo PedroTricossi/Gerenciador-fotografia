@@ -77,6 +77,7 @@ export function ClientListPage() {
     { header: "Situação", cell: (client) => (client.anonymised_at ? "Anonimizado" : "Ativo") },
     {
       header: "Ações",
+      actions: true,
       align: "end",
       cell: (client) =>
         client.anonymised_at ? null : (

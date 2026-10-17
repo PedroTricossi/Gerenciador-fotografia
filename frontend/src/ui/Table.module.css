@@ -15,7 +15,7 @@
 .table th,
 .table td {
   text-align: start;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-2);
   overflow-wrap: normal;
   white-space: nowrap;
 }
@@ -23,6 +23,10 @@
 .table td.wrapText {
   white-space: normal;
   overflow-wrap: anywhere;
+  min-width: calc(11ch + 2 * var(--space-2));
+}
+.table td.actionsCell {
+  white-space: normal;
 }
 .caption {
   position: absolute;
@@ -50,4 +54,10 @@
 }
 .muted td {
   color: var(--color-text-muted);
+}
+/* Row actions are compact so a row of them fits beside the data at large text sizes. */
+.table td button {
+  font-size: var(--font-size-sm);
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
 }

@@ -101,6 +101,7 @@ export function ContractListPage() {
     { header: "Total", align: "end", cell: (contract) => formatBrl(contract.payment.total_cents) },
     {
       header: "Ações",
+      actions: true,
       align: "end",
       cell: (contract) =>
         contract.deleted_at ? (

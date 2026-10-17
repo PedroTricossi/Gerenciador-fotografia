@@ -144,6 +144,45 @@ async function expectTableTextOnOneLine(page: Page, where: string) {
   expect(multiline.out, `${where}: text broken over several lines`).toEqual([]);
 }
 
+async function expectWrapCellsAndButtonsFit(page: Page, where: string) {
+  const result = await page.evaluate(() => {
+    const problems: string[] = [];
+    const region = document
+      .querySelector("main [role='region'][tabindex='0']")!
+      .getBoundingClientRect();
+    let wrapCells = 0;
+    for (const td of document.querySelectorAll("main table td")) {
+      const style = getComputedStyle(td);
+      if (style.overflowWrap !== "anywhere") continue; // only the free-text columns wrap
+      wrapCells += 1;
+      const room =
+        td.getBoundingClientRect().width -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight);
+      for (const word of (td.textContent ?? "").split(/\s+/)) {
+        if (word.length === 0 || word.length > 20) continue;
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";
+        probe.textContent = word;
+        td.appendChild(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        if (width > room + 0.5) problems.push(`"${word}" needs ${width}px, cell has ${room}px`);
+      }
+    }
+    for (const button of document.querySelectorAll("main table button")) {
+      const rect = button.getBoundingClientRect();
+      if (rect.left < region.left - 0.5 || rect.right > region.right + 0.5)
+        problems.push(
+          `button "${(button.textContent ?? "").trim()}" ${rect.left}-${rect.right} outside table ${region.left}-${region.right}`,
+        );
+    }
+    return { problems, wrapCells };
+  });
+  expect(result.wrapCells, `${where}: free-text cells found`).toBeGreaterThan(0);
+  expect(result.problems, `${where}: split words or buttons outside the table`).toEqual([]);
+}
+
 for (const rootFont of [false, true]) {
   test(`table headers, buttons, dates and money stay on one line at 1280px${rootFont ? " with a 20px root font" : ""}`, async ({
     page,
@@ -160,6 +199,7 @@ for (const rootFont of [false, true]) {
       await expect(page.getByRole("table")).toBeVisible();
       await page.waitForLoadState("networkidle");
       await expectTableTextOnOneLine(page, `${rootFont ? "20px " : ""}${path}`);
+      await expectWrapCellsAndButtonsFit(page, `${rootFont ? "20px " : ""}${path}`);
     }
   });
 }

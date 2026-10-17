@@ -62,6 +62,7 @@ export function ServiceListPage() {
     { header: "Pré-wedding", cell: (service) => (service.is_prewedding ? "Sim" : "Não") },
     {
       header: "Ações",
+      actions: true,
       align: "end",
       cell: (service) =>
         service.archived_at ? (

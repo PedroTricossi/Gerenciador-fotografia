@@ -7,6 +7,8 @@ export type Column<T> = {
   align?: "start" | "end";
   /** Free text may break anywhere to fit its cell; everything else keeps its words whole. */
   wrap?: boolean;
+  /** A column of buttons: the cell lets them wrap onto another line instead of overflowing. */
+  actions?: boolean;
 };
 
 type Props<T> = {
@@ -44,7 +46,11 @@ export function Table<T>({ label, columns, rows, rowKey, rowMuted, empty }: Prop
                 <td
                   key={column.header}
                   className={
-                    [column.align === "end" && styles.end, column.wrap && styles.wrapText]
+                    [
+                      column.align === "end" && styles.end,
+                      column.wrap && styles.wrapText,
+                      column.actions && styles.actionsCell,
+                    ]
                       .filter(Boolean)
                       .join(" ") || undefined
                   }
