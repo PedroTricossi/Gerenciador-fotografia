@@ -164,6 +164,7 @@ def test_a_service_made_through_the_api_can_be_used_in_a_contract(
     service = _create(api, name="Drone", default_price_cents=40000)
     body = payload()
     body["payment"]["items"].append({"service_id": service["id"], "amount_cents": 45000})
+    body["instalments"][0]["amount_cents"] += 45000  # the plan follows the total
     response = api.post("/api/v1/contracts", json=body)
     assert response.status_code == 201
     assert response.json()["payment"]["items"][-1] == {

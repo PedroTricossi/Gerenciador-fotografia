@@ -23,6 +23,7 @@ from gerenciador.services.client_service import ClientExport, ClientView
 from gerenciador.services.contract_service import (
     ContractInput,
     ContractView,
+    InstalmentInput,
     ItemInput,
     PersonInput,
 )
@@ -113,7 +114,14 @@ class PreweddingIn(StrictModel):
         return PreweddingInput(self.date, self.venue_name, self.venue_address, self.start_time)
 
 
-class ContractCreate(StrictModel):
+class InstalmentIn(StrictModel):
+    month: Annotated[str, Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
+    amount_cents: Cents
+
+
+class ContractBody(StrictModel):
+    """The contract fields shared by a create and a patched contract; the plan differs."""
+
     groom: PersonIn
     bride: PersonIn
     couple_address: Address
@@ -123,7 +131,7 @@ class ContractCreate(StrictModel):
     signing: SigningIn = Field(default_factory=SigningIn)
     prewedding: PreweddingIn | None = None
 
-    def to_input(self) -> ContractInput:
+    def _input(self, instalments: list[InstalmentIn] | None) -> ContractInput:
         return ContractInput(
             groom=PersonInput(self.groom.full_name, self.groom.cpf),
             bride=PersonInput(self.bride.full_name, self.bride.cpf),
@@ -142,7 +150,28 @@ class ContractCreate(StrictModel):
             signing_city=self.signing.city,
             signing_date=self.signing.date,
             prewedding=self.prewedding.to_input() if self.prewedding is not None else None,
+            instalments=(
+                [InstalmentInput(i.month, i.amount_cents) for i in instalments]
+                if instalments is not None
+                else None
+            ),
         )
+
+
+class ContractCreate(ContractBody):
+    instalments: list[InstalmentIn] = Field(min_length=1, max_length=4)
+
+    def to_input(self) -> ContractInput:
+        return self._input(self.instalments)
+
+
+class PatchedContract(ContractBody):
+    """A contract after a patch. `instalments` is None when the plan was not sent."""
+
+    instalments: list[InstalmentIn] | None = None
+
+    def to_input(self) -> ContractInput:
+        return self._input(self.instalments)
 
 
 class PersonPatch(StrictModel):
@@ -216,9 +245,10 @@ class ContractPatch(StrictModel):
     photographer_count: PhotographerCount | None = None
     payment: PaymentPatch | None = None
     signing: SigningPatch | None = None
+    instalments: list[InstalmentIn] | None = Field(default=None, min_length=1, max_length=4)
     cancel_prewedding: Flag = False
 
-    def apply_to(self, view: ContractView) -> ContractCreate:
+    def apply_to(self, view: ContractView) -> PatchedContract:
         """The contract as it would be after this patch, validated as a whole.
 
         Raises pydantic.ValidationError if the result is not a valid contract.
@@ -227,7 +257,7 @@ class ContractPatch(StrictModel):
             _as_request(view),
             self.model_dump(exclude_unset=True, exclude={"cancel_prewedding"}),
         )
-        return ContractCreate.model_validate(merged)
+        return PatchedContract.model_validate(merged)
 
 
 class ClientPatch(StrictModel):
@@ -342,6 +372,13 @@ class PaymentOut(BaseModel):
     total_cents: int
 
 
+class InstalmentOut(BaseModel):
+    number: int
+    month: str
+    amount_cents: int
+    paid_on: dt.date | None
+
+
 class SigningOut(BaseModel):
     city: str
     date: dt.date
@@ -400,6 +437,8 @@ class ContractOut(BaseModel):
     photographer_count: int
     payment: PaymentOut
     signing: SigningOut
+    instalments: list[InstalmentOut]
+    plan_needs_review: bool
     has_prewedding: bool
     prewedding: PreweddingOut | None
     version: int
@@ -436,6 +475,13 @@ class ContractOut(BaseModel):
                 total_cents=view.total_cents,
             ),
             signing=SigningOut(city=view.signing_city, date=view.signing_date),
+            instalments=[
+                InstalmentOut(
+                    number=i.number, month=i.month, amount_cents=i.amount_cents, paid_on=i.paid_on
+                )
+                for i in view.instalments
+            ],
+            plan_needs_review=view.plan_needs_review,
             has_prewedding=view.has_prewedding,
             prewedding=PreweddingOut.from_view(view.prewedding)
             if view.prewedding is not None

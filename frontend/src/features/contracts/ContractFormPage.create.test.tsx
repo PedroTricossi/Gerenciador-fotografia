@@ -31,6 +31,7 @@ const EXPECTED_REQUEST = {
     pix_discount_cents: 30000,
   },
   signing: { city: "Curitiba", date: "2026-10-14" },
+  instalments: [{ month: "2026-10", amount_cents: 140000 }],
 };
 
 // Date and time inputs take a whole value at once.

@@ -436,6 +436,8 @@ export interface components {
             payment: components["schemas"]["PaymentIn"];
             signing?: components["schemas"]["SigningIn"];
             prewedding?: components["schemas"]["PreweddingIn"] | null;
+            /** Instalments */
+            instalments: components["schemas"]["InstalmentIn"][];
         };
         /** ContractOut */
         ContractOut: {
@@ -450,6 +452,10 @@ export interface components {
             photographer_count: number;
             payment: components["schemas"]["PaymentOut"];
             signing: components["schemas"]["SigningOut"];
+            /** Instalments */
+            instalments: components["schemas"]["InstalmentOut"][];
+            /** Plan Needs Review */
+            plan_needs_review: boolean;
             /** Has Prewedding */
             has_prewedding: boolean;
             prewedding: components["schemas"]["PreweddingOut"] | null;
@@ -482,6 +488,8 @@ export interface components {
             photographer_count?: number | null;
             payment?: components["schemas"]["PaymentPatch"] | null;
             signing?: components["schemas"]["SigningPatch"] | null;
+            /** Instalments */
+            instalments?: components["schemas"]["InstalmentIn"][] | null;
             /**
              * Cancel Prewedding
              * @default false
@@ -543,6 +551,24 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InstalmentIn */
+        InstalmentIn: {
+            /** Month */
+            month: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** InstalmentOut */
+        InstalmentOut: {
+            /** Number */
+            number: number;
+            /** Month */
+            month: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Paid On */
+            paid_on: string | null;
         };
         /** ItemIn */
         ItemIn: {

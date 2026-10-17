@@ -8,10 +8,11 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
-from sqlalchemy import select
+from sqlalchemy import Engine, select, update
 
 from gerenciador.api.v1.versioning import expected_version
-from gerenciador.db.models import AuditEvent
+from gerenciador.db.models import AuditEvent, Contract, Instalment
+from gerenciador.db.session import create_session_factory
 from gerenciador.services.exceptions import StaleVersionError
 
 URL = "/api/v1/contracts"
@@ -79,6 +80,7 @@ def test_create_applies_defaults(api: TestClient, payload: Payload) -> None:
     del data["photographer_count"]
     del data["signing"]
     del data["payment"]["pix_discount_cents"]
+    data["instalments"][0]["amount_cents"] = 230000  # the plan follows the total
     response = api.post(URL, json=data)
     assert response.status_code == 201
     body = response.json()
@@ -424,3 +426,141 @@ def test_control_characters_are_refused_when_editing(api: TestClient, payload: P
 def test_surrounding_whitespace_is_still_trimmed(api: TestClient, payload: Payload) -> None:
     body = _create(api, lambda: _with(payload(), "groom.full_name", "  João da Silva\n"))
     assert body["groom"]["full_name"] == "João da Silva"
+
+
+# ---- payment plan ------------------------------------------------------------
+
+
+def _mark_paid(engine: Engine, contract_id: str, *numbers: int) -> None:
+    with create_session_factory(engine)() as session:
+        for row in session.scalars(select(Instalment).where(Instalment.contract_id == contract_id)):
+            if row.number in numbers:
+                row.paid_on = dt.date(2026, 10, 1)
+        session.commit()
+
+
+def _patch(api: TestClient, created: dict[str, Any], body: dict[str, Any]) -> Any:
+    return api.patch(f"{URL}/{created['id']}", json=body, headers={"If-Match": '"1"'})
+
+
+def test_create_stores_a_custom_plan(api: TestClient, payload: Payload) -> None:
+    plan = [
+        {"month": "2026-10", "amount_cents": 60000},
+        {"month": "2026-11", "amount_cents": 60000},
+        {"month": "2027-01", "amount_cents": 80000},
+    ]
+    body = _create(api, payload, instalments=plan)
+    assert body["instalments"] == [
+        {"number": n, **item, "paid_on": None} for n, item in enumerate(plan, start=1)
+    ]
+    assert body["plan_needs_review"] is False
+
+
+def test_create_refuses_a_plan_that_does_not_add_up(api: TestClient, payload: Payload) -> None:
+    plan = [{"month": "2026-10", "amount_cents": 100000}, {"month": "2026-11", "amount_cents": 1}]
+    response = api.post(URL, json=payload(instalments=plan))
+    assert response.status_code == 422
+    assert _fields(response) == ["instalments"]
+
+
+def test_create_requires_a_plan(api: TestClient, payload: Payload) -> None:
+    data = payload()
+    del data["instalments"]
+    response = api.post(URL, json=data)
+    assert response.status_code == 422
+    assert "instalments" in _fields(response)
+
+
+def test_patch_without_a_plan_spreads_the_change_over_unpaid_instalments(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    plan = [
+        {"month": "2026-10", "amount_cents": 50000},
+        {"month": "2026-11", "amount_cents": 75000},
+        {"month": "2026-12", "amount_cents": 75000},
+    ]
+    created = _create(api, payload, instalments=plan)
+    _mark_paid(engine, created["id"], 1)
+    items = [{"service_id": SERVICE_ID_CEREMONY, "amount_cents": 220000}]
+    response = _patch(api, created, {"payment": {"items": items}})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["version"] == 2
+    assert [i["amount_cents"] for i in body["instalments"]] == [50000, 70000, 70000]
+    assert body["instalments"][0]["paid_on"] == "2026-10-01"
+    with create_session_factory(engine)() as session:
+        event = session.scalars(
+            select(AuditEvent).where(AuditEvent.action == "contract.updated")
+        ).one()
+    assert event.details is not None
+    assert "instalments" in event.details["fields"]
+
+
+def test_patch_that_changes_the_total_of_a_fully_paid_plan_is_refused(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    created = _create(api, payload)
+    _mark_paid(engine, created["id"], 1)
+    items = [{"service_id": SERVICE_ID_CEREMONY, "amount_cents": 220000}]
+    response = _patch(api, created, {"payment": {"items": items}})
+    assert response.status_code == 422
+    assert _fields(response) == ["instalments"]
+
+
+def test_patch_cannot_change_a_paid_instalment(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    plan = [
+        {"month": "2026-10", "amount_cents": 50000},
+        {"month": "2026-11", "amount_cents": 150000},
+    ]
+    created = _create(api, payload, instalments=plan)
+    _mark_paid(engine, created["id"], 1)
+    changed = [
+        {"month": "2026-10", "amount_cents": 60000},
+        {"month": "2026-11", "amount_cents": 140000},
+    ]
+    response = _patch(api, created, {"instalments": changed})
+    assert response.status_code == 422
+    errors = response.json()["errors"]
+    assert errors == [
+        {"field": "instalments.0.amount_cents", "message": "parcela já paga não pode ser alterada"}
+    ]
+
+
+def test_patch_with_a_plan_clears_the_review_flag_and_other_patches_keep_it(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    created = _create(api, payload)
+    with create_session_factory(engine)() as session:
+        session.execute(update(Contract).values(plan_needs_review=True))
+        session.commit()
+    renamed = _patch(api, created, {"event": {"venue_name": "Catedral"}})
+    assert renamed.json()["plan_needs_review"] is True
+    plan = [
+        {"month": "2026-10", "amount_cents": 100000},
+        {"month": "2026-11", "amount_cents": 100000},
+    ]
+    response = api.patch(
+        f"{URL}/{created['id']}", json={"instalments": plan}, headers={"If-Match": '"2"'}
+    )
+    assert response.status_code == 200
+    assert response.json()["plan_needs_review"] is False
+    assert len(response.json()["instalments"]) == 2
+
+
+def test_delete_and_restore_keep_the_instalments(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    plan = [
+        {"month": "2026-10", "amount_cents": 50000},
+        {"month": "2026-11", "amount_cents": 150000},
+    ]
+    created = _create(api, payload, instalments=plan)
+    _mark_paid(engine, created["id"], 1)
+    before = api.get(f"{URL}/{created['id']}").json()["instalments"]
+    assert api.delete(f"{URL}/{created['id']}").status_code == 204
+    assert api.post(f"{URL}/{created['id']}/restore").status_code == 200
+    after = api.get(f"{URL}/{created['id']}").json()["instalments"]
+    assert after == before
+    assert after[0]["paid_on"] == "2026-10-01"

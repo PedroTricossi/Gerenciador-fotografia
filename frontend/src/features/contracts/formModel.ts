@@ -98,7 +98,7 @@ export function fromContract(contract: ContractOut): ContractFormValues {
 const optional = (value: string) => (value.trim() === "" ? null : value.trim());
 const cpf = (value: string) => cpfDigits(value) ?? value.trim();
 
-export function toRequest(values: ContractFormValues): ContractCreate {
+export function toRequest(values: ContractFormValues): Omit<ContractCreate, "instalments"> {
   return {
     groom: { full_name: values.groom.full_name.trim(), cpf: cpf(values.groom.cpf) },
     bride: { full_name: values.bride.full_name.trim(), cpf: cpf(values.bride.cpf) },

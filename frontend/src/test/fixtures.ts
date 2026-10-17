@@ -100,6 +100,8 @@ export function makeContract(overrides: Partial<ContractOut> = {}): ContractOut 
       total_cents: 140000,
     },
     signing: { city: "Curitiba", date: "2026-10-13" },
+    instalments: [{ number: 1, month: "2026-10", amount_cents: 140000, paid_on: null }],
+    plan_needs_review: false,
     has_prewedding: false,
     prewedding: null,
     version: 1,
