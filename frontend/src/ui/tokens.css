@@ -1,28 +1,34 @@
-/* Every visual value the interface uses. A redesign starts here. */
 :root {
+  color-scheme: light;
   --width-field-min: 16rem;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-pixel: "VT323", "IBM Plex Mono", ui-monospace, monospace;
+  --font-body: var(--font-mono);
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.75rem;
+  --font-size-title: 2rem;
   --font-weight-regular: 400;
-  --font-weight-strong: 600;
+  --font-weight-strong: 700;
   --line-height: 1.5;
 
-  --color-bg: #f7f6f3;
-  --color-surface: #ffffff;
-  --color-text: #1f1f1f;
-  --color-text-muted: #6b6b6b;
-  --color-border: #d9d6cf;
-  --color-primary: #2f5d50;
-  --color-primary-text: #ffffff;
+  --color-bg: #f3ead7;
+  --color-surface: #fffaf0;
+  --color-text: #2b2118;
+  --color-text-muted: #6b5e4a;
+  --color-border: #2b2118;
+  --color-primary: #ffb000;
+  --color-primary-text: #2b2118;
   --color-danger: #a33a2c;
-  --color-danger-text: #ffffff;
-  --color-danger-bg: #fbecea;
-  --color-info-bg: #eaf1ee;
-  --color-focus: #3b82f6;
-  --color-backdrop: rgb(0 0 0 / 40%);
+  --color-danger-text: #fffaf0;
+  --color-danger-bg: #f8e1db;
+  --color-info-bg: #f6e4b8;
+  --color-focus: #2060d8;
+  --color-backdrop: rgb(43 33 24 / 55%);
+  --color-band: #e8dcc0;
+  --color-menu-bg: #1d1a16;
+  --color-menu-text: #f3e6c4;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -31,15 +37,64 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
 
-  --border-width: 1px;
+  --border-width: 2px;
   --opacity-disabled: 0.55;
   --z-toast: 10;
-  --focus-ring-width: 2px;
+  --focus-ring-width: 3px;
   --focus-ring-offset: 2px;
 
   --radius-sm: 4px;
   --radius-md: 8px;
-  --shadow-raised: 0 4px 16px rgb(0 0 0 / 12%);
+  --radius-control: 8px;
+  --radius-box: 14px;
+  --shadow-raised: 4px 4px 0 var(--color-border);
+  --shadow-hard: 4px 4px 0 var(--color-border);
+  --shadow-hard-sm: 2px 2px 0 var(--color-border);
   --width-page: 72rem;
   --width-dialog: 32rem;
+}
+
+/* Dark values follow the system unless the person chose Claro. The same values
+   repeat under [data-theme="dark"] for an explicit choice; tokens.test.ts keeps
+   the two copies identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #1d1a16;
+    --color-surface: #2a251e;
+    --color-text: #f3e6c4;
+    --color-text-muted: #a8987a;
+    --color-border: #f3e6c4;
+    --color-primary: #ffc640;
+    --color-primary-text: #1d1a16;
+    --color-danger: #ff8a7a;
+    --color-danger-text: #1d1a16;
+    --color-danger-bg: #3d211b;
+    --color-info-bg: #3a3329;
+    --color-focus: #4860f8;
+    --color-backdrop: rgb(0 0 0 / 65%);
+    --color-band: #3a3329;
+    --color-menu-bg: #12100d;
+    --color-menu-text: #f3e6c4;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #1d1a16;
+  --color-surface: #2a251e;
+  --color-text: #f3e6c4;
+  --color-text-muted: #a8987a;
+  --color-border: #f3e6c4;
+  --color-primary: #ffc640;
+  --color-primary-text: #1d1a16;
+  --color-danger: #ff8a7a;
+  --color-danger-text: #1d1a16;
+  --color-danger-bg: #3d211b;
+  --color-info-bg: #3a3329;
+  --color-focus: #4860f8;
+  --color-backdrop: rgb(0 0 0 / 65%);
+  --color-band: #3a3329;
+  --color-menu-bg: #12100d;
+  --color-menu-text: #f3e6c4;
 }

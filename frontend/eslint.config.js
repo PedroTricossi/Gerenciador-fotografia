@@ -19,6 +19,11 @@ export default tseslint.config(
     },
   },
   {
+    // Plain browser scripts copied as-is by Vite.
+    files: ["public/**/*.js"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
     // Layering: domain and ui stay independent of the app around them.
     files: ["src/domain/**/*.{ts,tsx}"],
     rules: {
