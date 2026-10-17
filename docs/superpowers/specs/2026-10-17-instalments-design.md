@@ -1,7 +1,7 @@
 # Instalments — Design
 
 Date: 2026-10-17
-Status: awaiting review
+Status: approved
 Branch: `feat/instalments` (based on `main`)
 
 ## 1. Purpose
