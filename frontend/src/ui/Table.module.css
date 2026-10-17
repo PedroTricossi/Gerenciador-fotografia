@@ -39,7 +39,9 @@
 .table td {
   border-top: var(--border-width) dashed var(--color-border);
 }
+/* Headers may wrap between words (never inside one) so large text doesn't force the table wider. */
 .table th {
+  white-space: normal;
   font-size: var(--font-size-sm);
   background: var(--color-band);
   color: var(--color-text);
@@ -55,8 +57,10 @@
 .muted td {
   color: var(--color-text-muted);
 }
-/* Row actions are compact so a row of them fits beside the data at large text sizes. */
+/* Row actions are compact so a row of them fits beside the data at large text sizes; a
+   multi-word label may wrap between words when there is no room. */
 .table td button {
+  white-space: normal;
   font-size: var(--font-size-sm);
   min-height: 2rem;
   padding: var(--space-1) var(--space-3);

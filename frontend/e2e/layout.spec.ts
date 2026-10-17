@@ -118,10 +118,39 @@ async function checkAll(page: Page, tag: string, rootFont = false) {
   }
 }
 
-async function expectTableTextOnOneLine(page: Page, where: string) {
+async function expectTableWordsWhole(page: Page, where: string) {
+  // Headers and buttons may wrap between words when text is large, but never inside a word.
+  const split = await page.evaluate(() => {
+    const out: string[] = [];
+    const elements = [...document.querySelectorAll("main table th, main table button")];
+    for (const el of elements) {
+      const style = getComputedStyle(el);
+      const room =
+        el.getBoundingClientRect().width -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight) -
+        parseFloat(style.borderLeftWidth) -
+        parseFloat(style.borderRightWidth);
+      for (const word of (el.textContent ?? "").split(/[\s-]+/)) {
+        if (word.length === 0) continue;
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";
+        probe.textContent = word;
+        el.appendChild(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        if (width > room + 0.5)
+          out.push(`${el.tagName.toLowerCase()} word "${word}" needs ${width}px, has ${room}px`);
+      }
+    }
+    return { out, count: elements.length };
+  });
+  expect(split.count, `${where}: found headers and buttons`).toBeGreaterThan(0);
+  expect(split.out, `${where}: a header or button word split`).toEqual([]);
+
   const multiline = await page.evaluate(() => {
     const out: string[] = [];
-    const cells = [...document.querySelectorAll("main table th, main table button")];
+    const cells: Element[] = [];
     // The seeded row's date and money cells: formatted as dd/mm/yyyy or R$ 1.234,56.
     for (const td of document.querySelectorAll("main table td")) {
       const text = (td.textContent ?? "").trim();
@@ -140,8 +169,8 @@ async function expectTableTextOnOneLine(page: Page, where: string) {
     }
     return { out, count: cells.length };
   });
-  expect(multiline.count, `${where}: found headers and buttons`).toBeGreaterThan(0);
-  expect(multiline.out, `${where}: text broken over several lines`).toEqual([]);
+  expect(multiline.count, `${where}: found date and money cells`).toBeGreaterThan(0);
+  expect(multiline.out, `${where}: a date or amount broken over several lines`).toEqual([]);
 }
 
 async function expectWrapCellsAndButtonsFit(page: Page, where: string) {
@@ -170,6 +199,18 @@ async function expectWrapCellsAndButtonsFit(page: Page, where: string) {
         if (width > room + 0.5) problems.push(`"${word}" needs ${width}px, cell has ${room}px`);
       }
     }
+    // Text measures a few percent wider on some platforms (Linux rounds glyph advances), so the
+    // table's narrowest layout must leave room to spare, not fit by a hair.
+    const table = document.querySelector("main table") as HTMLElement;
+    const wrapBox = table.parentElement as HTMLElement;
+    table.style.width = "min-content";
+    const minWidth = table.getBoundingClientRect().width;
+    table.style.width = "";
+    const SAFETY = 32;
+    if (minWidth > wrapBox.clientWidth - SAFETY)
+      problems.push(
+        `table needs ${minWidth}px at its narrowest, box has ${wrapBox.clientWidth}px (want ${SAFETY}px spare)`,
+      );
     for (const button of document.querySelectorAll("main table button")) {
       const rect = button.getBoundingClientRect();
       if (rect.left < region.left - 0.5 || rect.right > region.right + 0.5)
@@ -198,7 +239,7 @@ for (const rootFont of [false, true]) {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await expect(page.getByRole("table")).toBeVisible();
       await page.waitForLoadState("networkidle");
-      await expectTableTextOnOneLine(page, `${rootFont ? "20px " : ""}${path}`);
+      await expectTableWordsWhole(page, `${rootFont ? "20px " : ""}${path}`);
       await expectWrapCellsAndButtonsFit(page, `${rootFont ? "20px " : ""}${path}`);
     }
   });
