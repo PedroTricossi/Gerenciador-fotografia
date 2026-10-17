@@ -1,13 +1,15 @@
 .select {
   font: inherit;
   width: 100%;
+  min-height: 2.25rem;
   padding: var(--space-2) var(--space-3);
   border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
 }
 .select[aria-invalid="true"] {
+  border-width: 3px;
   border-color: var(--color-danger);
 }
 .select:disabled {

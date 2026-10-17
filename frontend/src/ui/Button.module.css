@@ -1,8 +1,10 @@
 .button {
   font: inherit;
   font-weight: var(--font-weight-strong);
+  min-height: 2.25rem;
+  min-width: 1.5rem;
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   border: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
@@ -11,19 +13,25 @@
 .button:disabled {
   opacity: var(--opacity-disabled);
   cursor: not-allowed;
+  box-shadow: none;
 }
 .primary {
   background: var(--color-primary);
-  border-color: var(--color-primary);
   color: var(--color-primary-text);
+  box-shadow: var(--shadow-hard-sm);
 }
 .danger {
   background: var(--color-danger);
-  border-color: var(--color-danger);
   color: var(--color-danger-text);
 }
 .ghost {
   background: transparent;
   border-color: transparent;
   padding: var(--space-1) var(--space-2);
+}
+.ghost:hover:not(:disabled),
+.ghost:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  border-color: var(--color-border);
 }

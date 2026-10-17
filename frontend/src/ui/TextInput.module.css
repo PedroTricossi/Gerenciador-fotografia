@@ -1,13 +1,15 @@
 .input {
   font: inherit;
   width: 100%;
+  min-height: 2.25rem;
   padding: var(--space-2) var(--space-3);
   border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
 }
 .input[aria-invalid="true"] {
+  border-width: 3px;
   border-color: var(--color-danger);
 }
 .input:disabled {
@@ -18,7 +20,41 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding-left: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.group:has(.input[aria-invalid="true"]) {
+  border-width: 3px;
+  border-color: var(--color-danger);
+}
+.group:focus-within {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+.group:has(.input:disabled) {
+  background: var(--color-bg);
+}
+/* The wrapper owns the outline and the focus ring, so the inner input is bare. */
+.inGroup,
+.inGroup[aria-invalid="true"] {
+  border: 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: transparent;
+  padding-left: 0;
+  outline: none;
 }
 .adornment {
   color: var(--color-text-muted);
+  font-weight: var(--font-weight-strong);
+}
+.spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
