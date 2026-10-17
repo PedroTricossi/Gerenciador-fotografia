@@ -4,7 +4,7 @@ import { ClientListPage } from "../features/clients/ClientListPage";
 import { ContractFormPage } from "../features/contracts/ContractFormPage";
 import { ContractListPage } from "../features/contracts/ContractListPage";
 import { ServiceListPage } from "../features/services/ServiceListPage";
-import { Nav } from "../ui";
+import { AppFrame, Nav } from "../ui";
 import { NotFoundPage } from "./NotFoundPage";
 
 const LINKS = [
@@ -16,10 +16,9 @@ const LINKS = [
 
 function AppShell() {
   return (
-    <>
-      <Nav links={LINKS} />
+    <AppFrame nav={<Nav links={LINKS} />}>
       <Outlet />
-    </>
+    </AppFrame>
   );
 }
 
