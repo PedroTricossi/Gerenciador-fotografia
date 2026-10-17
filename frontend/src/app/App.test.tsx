@@ -25,7 +25,7 @@ test("the agenda comes first in the nav", () => {
     within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent),
-  ).toEqual(["Agenda", "Contratos", "Clientes", "Serviços"]);
+  ).toEqual(["Agenda", "Contratos", "Clientes", "Serviços", "Negócio"]);
 });
 
 test("the nav moves between contracts and clients", async () => {

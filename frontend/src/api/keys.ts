@@ -19,3 +19,8 @@ export const serviceKeys = {
 export const agendaKeys = {
   range: (from: string, to: string) => ["contracts", "agenda", from, to] as const,
 };
+
+export const instalmentKeys = {
+  all: ["instalments"] as const,
+  list: (unpaidThrough: string | null) => ["instalments", { unpaidThrough }] as const,
+};
