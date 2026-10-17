@@ -23,6 +23,8 @@ type Props = {
   requireChanges?: boolean;
   /** Absent while creating. When editing, the stored pre-wedding, shown read-only. */
   prewedding?: PreweddingOut | null;
+  /** The plan came from the migration and waits for Pedro's confirmation. */
+  planNeedsReview?: boolean;
   actions?: (state: { hasChanges: boolean }) => ReactNode;
 };
 
@@ -33,6 +35,7 @@ export function ContractForm({
   savedItems = [],
   requireChanges = false,
   prewedding,
+  planNeedsReview = false,
   actions,
 }: Props) {
   const state = useContractForm(initialValues, onSubmit);
@@ -57,7 +60,7 @@ export function ContractForm({
       <EventSection form={form} disabled={readOnly} />
       <PhotographersSection form={form} disabled={readOnly} />
       <PaymentSection state={state} disabled={readOnly} savedItems={savedItems} />
-      <PlanSection state={state} disabled={readOnly} />
+      <PlanSection state={state} disabled={readOnly} needsReview={planNeedsReview} />
       {/* A deleted contract reports no pre-wedding; it comes back on restore. */}
       {!readOnly && <PreweddingSection state={state} disabled={readOnly} summary={prewedding} />}
       <SigningSection form={form} disabled={readOnly} />

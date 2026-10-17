@@ -8,6 +8,7 @@ import {
 } from "react-hook-form";
 import { ApiError } from "../../api/client";
 import { describeUnexpected, isUnexpected } from "../../api/errors";
+import { parseBrl } from "../../domain/money";
 import { changedSections } from "../../domain/patch";
 import { splitFieldErrors } from "../../domain/problems";
 import {
@@ -79,7 +80,25 @@ export function useContractForm(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [total]);
 
+  // A message the server gave about the plan describes the plan as it was sent.
+  const planKey = JSON.stringify(values.plan);
+  useEffect(() => {
+    const error = form.getFieldState("plan.sum" as FieldPath<ContractFormValues>).error;
+    if (error?.type === "server") form.clearErrors("plan.sum" as FieldPath<ContractFormValues>);
+    // Runs when the plan changes, not when the error does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planKey]);
+
   const paidCount = values.plan.rows.filter((row) => row.paidOn !== null).length;
+
+  const paidSum = values.plan.rows.reduce(
+    (sum, row) => sum + (row.paidOn === null ? 0 : (parseBrl(row.amount) ?? 0)),
+    0,
+  );
+  // With paid instalments, one instalment is only possible if the paid one already is the total.
+  const singleBlocked =
+    paidCount > 1 ||
+    (paidCount === 1 && total !== null && !Number.isNaN(total) && paidSum !== total);
 
   const setPlanCount = (count: number) => {
     const resized = resizePlan(form.getValues("plan.rows") as PlanRow[], count);
@@ -91,7 +110,7 @@ export function useContractForm(
   const setPlanMode = (mode: "single" | "split") => {
     const current = form.getValues("plan.rows").length;
     if (mode === "single") {
-      if (paidCount <= 1) setPlanCount(1);
+      if (!singleBlocked) setPlanCount(1);
     } else if (current > 1) {
       form.setValue("plan.mode", "split", { shouldDirty: true });
     } else {
@@ -135,6 +154,7 @@ export function useContractForm(
     values,
     total,
     paidCount,
+    singleBlocked,
     setPlanCount,
     setPlanMode,
     markPlanEdited: () => {

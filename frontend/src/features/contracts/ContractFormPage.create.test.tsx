@@ -471,7 +471,40 @@ describe("Parcelas", () => {
     expect(screen.getByLabelText("Valor da parcela 3")).toHaveValue("566,67");
   });
 
-  test("an amount that breaks the sum shows the message and blocks Salvar", async () => {
+  test("the difference against the total shows live and goes away when the sum matches", async () => {
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    expect(plan().queryByText(/Faltam|Excede/)).not.toBeInTheDocument();
+    const first = screen.getByLabelText("Valor da parcela 1");
+    await user.clear(first);
+    await user.type(first, "100");
+    expect(plan().getByText("Faltam R$ 600,00")).toBeInTheDocument();
+    await user.clear(first);
+    await user.type(first, "800");
+    expect(plan().getByText("Excede em R$ 100,00")).toBeInTheDocument();
+    await user.clear(first);
+    await user.type(first, "700");
+    expect(plan().queryByText(/Faltam|Excede/)).not.toBeInTheDocument();
+  });
+
+  test("a server message about the plan clears when the plan is edited", async () => {
+    server.use(
+      http.post("/api/v1/contracts", () =>
+        problem(422, "Request validation failed", {
+          errors: [{ field: "instalments", message: "plano recusado" }],
+        }),
+      ),
+    );
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(await plan().findByText("plano recusado")).toBeInTheDocument();
+    setInput(screen.getByLabelText("Mês da parcela 1"), "2026-11");
+    expect(plan().queryByText("plano recusado")).not.toBeInTheDocument();
+  });
+
+  test("an amount that breaks the sum shows the difference and blocks Salvar", async () => {
     const posted = vi.fn();
     server.use(
       http.post("/api/v1/contracts", () => {
@@ -488,7 +521,7 @@ describe("Parcelas", () => {
     await user.tab();
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
-    expect(await plan().findByText("a soma das parcelas deve ser igual ao total")).toBeVisible();
+    expect(await plan().findByText(/Faltam R\$ 600,00/)).toBeVisible();
     expect(posted).not.toHaveBeenCalled();
   });
 

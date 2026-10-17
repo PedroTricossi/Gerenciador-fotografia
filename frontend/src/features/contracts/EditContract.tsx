@@ -146,7 +146,9 @@ export function EditContract({ id }: { id: string }) {
         onSubmit={submit}
         readOnly={deleted}
         savedItems={data.payment.items}
-        requireChanges
+        // A plan waiting for review can be confirmed as it is.
+        requireChanges={!data.plan_needs_review}
+        planNeedsReview={data.plan_needs_review}
         prewedding={data.prewedding}
         actions={({ hasChanges }) => (
           <>

@@ -493,4 +493,33 @@ describe("Parcelas", () => {
       instalments: [{ month: "2026-10", amount_cents: 140000 }],
     });
   });
+
+  test("a plan flagged for review shows a notice and can be saved as it is", async () => {
+    serveContract(makeContract({ plan_needs_review: true }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    expect(
+      await screen.findByText("Revise o plano de parcelas e salve para confirmar."),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).toEqual({ instalments: [{ month: "2026-10", amount_cents: 140000 }] });
+  });
+
+  test("À vista is unavailable while a paid instalment differs from the total", async () => {
+    serveContract(makeContract({ instalments: PAID_PLAN }));
+    renderApp(URL_PATH);
+    const plan = within(await screen.findByRole("group", { name: "Parcelas" }));
+    expect(plan.getByRole("button", { name: /À vista/ })).toBeDisabled();
+    expect(plan.getByText(/À vista indisponível/)).toBeInTheDocument();
+  });
+
+  test("a paid row is a group whose inputs are described by when it was paid", async () => {
+    serveContract(makeContract({ instalments: PAID_PLAN }));
+    renderApp(URL_PATH);
+    const row = within(await screen.findByRole("group", { name: "Parcela 1" }));
+    expect(row.getByLabelText("Mês da parcela 1")).toHaveAccessibleDescription(/paga em 05\/10/);
+    expect(row.getByLabelText("Valor da parcela 1")).toHaveAccessibleDescription(/paga em 05\/10/);
+    expect(screen.getByRole("group", { name: "Parcela 2" })).toBeInTheDocument();
+  });
 });

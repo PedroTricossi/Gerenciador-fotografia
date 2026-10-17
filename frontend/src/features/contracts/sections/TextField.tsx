@@ -15,6 +15,8 @@ type Props = {
   /** Tidies the typed text when the input loses focus. */
   format?: (text: string) => string;
   disabled?: boolean;
+  /** Id of a note that also describes the input. */
+  describedBy?: string;
   /** Called when the person changes the value. */
   onEdit?: () => void;
 };
@@ -30,6 +32,7 @@ export function TextField({
   inputMode,
   format,
   disabled,
+  describedBy,
   onEdit,
 }: Props) {
   const error = (get(form.formState.errors, name) as { message?: string } | undefined)?.message;
@@ -47,6 +50,9 @@ export function TextField({
       {(control) => (
         <TextInput
           {...control}
+          aria-describedby={
+            [control["aria-describedby"], describedBy].filter(Boolean).join(" ") || undefined
+          }
           {...registration}
           type={type}
           adornment={adornment}

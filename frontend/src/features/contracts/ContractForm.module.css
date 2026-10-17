@@ -49,3 +49,8 @@
 .paidOn {
   margin: 0;
 }
+@media (max-width: 30rem) {
+  .instalment {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
