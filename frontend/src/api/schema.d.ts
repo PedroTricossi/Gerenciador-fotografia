@@ -111,6 +111,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contracts/{contract_id}/instalments/{number}/paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Paid */
+        post: operations["mark_paid_api_v1_contracts__contract_id__instalments__number__paid_post"];
+        /** Mark Unpaid */
+        delete: operations["mark_unpaid_api_v1_contracts__contract_id__instalments__number__paid_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/instalments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Instalments */
+        get: operations["list_instalments_api_v1_instalments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agenda": {
         parameters: {
             query?: never;
@@ -559,6 +594,27 @@ export interface components {
             /** Amount Cents */
             amount_cents: number;
         };
+        /** InstalmentListItem */
+        InstalmentListItem: {
+            /** Contract Id */
+            contract_id: string;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Number */
+            number: number;
+            /** Count */
+            count: number;
+            /** Month */
+            month: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Paid On */
+            paid_on: string | null;
+            /** Plan Needs Review */
+            plan_needs_review: boolean;
+        };
         /** InstalmentOut */
         InstalmentOut: {
             /** Number */
@@ -588,6 +644,14 @@ export interface components {
             description: string;
             /** Amount Cents */
             amount_cents: number;
+        };
+        /** MarkPaidIn */
+        MarkPaidIn: {
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
         };
         /** PageOut[AuditEventOut] */
         PageOut_AuditEventOut_: {
@@ -1111,6 +1175,105 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_paid_api_v1_contracts__contract_id__instalments__number__paid_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkPaidIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstalmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_unpaid_api_v1_contracts__contract_id__instalments__number__paid_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstalmentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_instalments_api_v1_instalments_get: {
+        parameters: {
+            query?: {
+                unpaid_through?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstalmentListItem"][];
+                };
             };
             /** @description Validation Error */
             422: {

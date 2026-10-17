@@ -2,6 +2,7 @@
 
 import datetime as dt
 import unicodedata
+from dataclasses import asdict
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
@@ -24,9 +25,11 @@ from gerenciador.services.contract_service import (
     ContractInput,
     ContractView,
     InstalmentInput,
+    InstalmentView,
     ItemInput,
     PersonInput,
 )
+from gerenciador.services.instalment_service import InstalmentListEntry
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
 
 
@@ -378,6 +381,35 @@ class InstalmentOut(BaseModel):
     amount_cents: int
     paid_on: dt.date | None
 
+    @classmethod
+    def from_view(cls, view: InstalmentView) -> Self:
+        return cls(
+            number=view.number,
+            month=view.month,
+            amount_cents=view.amount_cents,
+            paid_on=view.paid_on,
+        )
+
+
+class MarkPaidIn(StrictModel):
+    paid_on: dt.date
+
+
+class InstalmentListItem(BaseModel):
+    contract_id: str
+    groom_name: str | None
+    bride_name: str | None
+    number: int
+    count: int
+    month: str
+    amount_cents: int
+    paid_on: dt.date | None
+    plan_needs_review: bool
+
+    @classmethod
+    def from_entry(cls, entry: InstalmentListEntry) -> Self:
+        return cls(**asdict(entry))
+
 
 class SigningOut(BaseModel):
     city: str
@@ -475,12 +507,7 @@ class ContractOut(BaseModel):
                 total_cents=view.total_cents,
             ),
             signing=SigningOut(city=view.signing_city, date=view.signing_date),
-            instalments=[
-                InstalmentOut(
-                    number=i.number, month=i.month, amount_cents=i.amount_cents, paid_on=i.paid_on
-                )
-                for i in view.instalments
-            ],
+            instalments=[InstalmentOut.from_view(i) for i in view.instalments],
             plan_needs_review=view.plan_needs_review,
             has_prewedding=view.has_prewedding,
             prewedding=PreweddingOut.from_view(view.prewedding)
