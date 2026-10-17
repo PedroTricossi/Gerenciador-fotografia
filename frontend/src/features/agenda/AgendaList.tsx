@@ -1,7 +1,7 @@
 import { useAgenda } from "../../api/agenda";
+import { EmptyState, SegmentedControl } from "../../ui";
 import styles from "./Agenda.module.css";
 import { addDays, dayHeading } from "./agendaDates";
-import { Choice } from "./Choice";
 import { useChoice } from "./choices";
 import { EntryList } from "./EntryList";
 import { groupByDate } from "./entries";
@@ -20,11 +20,11 @@ export function AgendaList({ today }: { today: string }) {
   return (
     <>
       <div className={styles.toolbar}>
-        <Choice label="Período" options={RANGES} value={range} onChange={setRange} />
+        <SegmentedControl label="Período" options={RANGES} value={range} onChange={setRange} />
       </div>
       <LoadState query={agenda} />
       {agenda.isSuccess && agenda.data.length === 0 && (
-        <p>Nenhum ensaio ou casamento nos próximos {range} dias.</p>
+        <EmptyState>Nenhum ensaio ou casamento nos próximos {range} dias.</EmptyState>
       )}
       {agenda.isSuccess &&
         groupByDate(agenda.data).map(([date, entries]) => (

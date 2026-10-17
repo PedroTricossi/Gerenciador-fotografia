@@ -26,6 +26,8 @@
 .day {
   vertical-align: top;
   height: 6rem;
+  min-width: 0;
+  overflow: hidden;
   padding: var(--space-1);
   border: var(--border-width) solid var(--color-border);
 }
@@ -59,9 +61,14 @@
   padding: 0;
   display: grid;
   gap: var(--space-1);
+  min-width: 0;
+}
+.chips > li {
+  min-width: 0;
 }
 .chip {
   display: block;
+  max-width: 100%;
   padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
   background: var(--color-primary);

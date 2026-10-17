@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { todayIso } from "../../domain/dates";
-import { PageLayout } from "../../ui";
+import { PageLayout, SegmentedControl } from "../../ui";
 import styles from "./Agenda.module.css";
 import { AgendaCalendar } from "./AgendaCalendar";
 import { AgendaList } from "./AgendaList";
-import { Choice } from "./Choice";
 import { useChoice } from "./choices";
 
 const VIEWS = [
@@ -32,7 +31,7 @@ export function AgendaPage() {
   return (
     <PageLayout title="Agenda">
       <div className={styles.toolbar}>
-        <Choice label="Visualização" options={VIEWS} value={view} onChange={setView} />
+        <SegmentedControl label="Visualização" options={VIEWS} value={view} onChange={setView} />
       </div>
       {view === "list" ? <AgendaList today={today} /> : <AgendaCalendar today={today} />}
     </PageLayout>
