@@ -427,3 +427,136 @@ test("hidden pre-wedding values are not sent", async () => {
   await waitFor(() => expect(router.state.location.pathname).toBe(`/contratos/${IDS.contract}`));
   expect(body).toEqual(EXPECTED_REQUEST);
 });
+
+describe("Parcelas", () => {
+  const plan = () => within(screen.getByRole("group", { name: "Parcelas" }));
+
+  test("starts as À vista with one row in the current month for the whole total", async () => {
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    expect(plan().getByRole("button", { name: /À vista/ })).toHaveAttribute("aria-pressed", "true");
+    expect(plan().getByText("R$ 1.400,00")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mês da parcela 1")).toHaveValue("2026-10");
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("1.400,00");
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveAccessibleDescription(/em reais/);
+    expect(screen.queryByLabelText("Nº de parcelas")).not.toBeInTheDocument();
+  });
+
+  test("Parcelado with 4 rows splits the total equally across consecutive months", async () => {
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.clear(screen.getByLabelText("Valor do item 1"));
+    await user.type(screen.getByLabelText("Valor do item 1"), "3760");
+    await user.tab();
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    await user.selectOptions(screen.getByLabelText("Nº de parcelas"), "4");
+
+    expect(plan().getByText("R$ 3.960,00")).toBeInTheDocument();
+    ["2026-10", "2026-11", "2026-12", "2027-01"].forEach((month, index) => {
+      expect(screen.getByLabelText(`Mês da parcela ${index + 1}`)).toHaveValue(month);
+      expect(screen.getByLabelText(`Valor da parcela ${index + 1}`)).toHaveValue("990,00");
+    });
+  });
+
+  test("a total that does not divide evenly leaves the extra centavos on the last row", async () => {
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.clear(screen.getByLabelText("Desconto PIX"));
+    await user.type(screen.getByLabelText("Desconto PIX"), "0,01");
+    await user.tab();
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    await user.selectOptions(screen.getByLabelText("Nº de parcelas"), "3");
+    // 1.699,99 in 3
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("566,66");
+    expect(screen.getByLabelText("Valor da parcela 3")).toHaveValue("566,67");
+  });
+
+  test("an amount that breaks the sum shows the message and blocks Salvar", async () => {
+    const posted = vi.fn();
+    server.use(
+      http.post("/api/v1/contracts", () => {
+        posted();
+        return HttpResponse.json(makeContract(), { status: 201 });
+      }),
+    );
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    const first = screen.getByLabelText("Valor da parcela 1");
+    await user.clear(first);
+    await user.type(first, "100");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(await plan().findByText("a soma das parcelas deve ser igual ao total")).toBeVisible();
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  test("a hand-edited amount stops the automatic split when the total changes", async () => {
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    const first = screen.getByLabelText("Valor da parcela 1");
+    await user.clear(first);
+    await user.type(first, "100");
+    await user.tab();
+    await user.clear(screen.getByLabelText("Desconto PIX"));
+    await user.tab();
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("100,00");
+  });
+
+  test("months must increase", async () => {
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    setInput(screen.getByLabelText("Mês da parcela 2"), "2026-10");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(screen.getByLabelText("Mês da parcela 2")).toHaveAccessibleDescription(
+      "os meses das parcelas devem ser crescentes",
+    );
+  });
+
+  test("saving sends the plan in the POST body", async () => {
+    let body: { instalments?: unknown } = {};
+    server.use(
+      http.post("/api/v1/contracts", async ({ request }) => {
+        body = (await request.json()) as typeof body;
+        return HttpResponse.json(makeContract(), { status: 201 });
+      }),
+    );
+    const { user, router } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/contratos/${IDS.contract}`));
+    expect(body.instalments).toEqual([
+      { month: "2026-10", amount_cents: 70000 },
+      { month: "2026-11", amount_cents: 70000 },
+    ]);
+  });
+
+  test("server errors on the plan land on the section and on the rows", async () => {
+    server.use(
+      http.post("/api/v1/contracts", () =>
+        problem(422, "Request validation failed", {
+          errors: [
+            { field: "instalments", message: "a soma das parcelas deve ser igual ao total" },
+            { field: "instalments.1.month", message: "mês recusado" },
+            { field: "instalments.1.amount_cents", message: "valor recusado" },
+          ],
+        }),
+      ),
+    );
+    const { user } = renderApp("/contratos/novo");
+    await fillValidContract(user);
+    await user.click(plan().getByRole("button", { name: /Parcelado/ }));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(
+      await plan().findByText("a soma das parcelas deve ser igual ao total"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Mês da parcela 2")).toHaveAccessibleDescription("mês recusado");
+    expect(screen.getByLabelText("Valor da parcela 2")).toHaveAccessibleDescription(
+      expect.stringContaining("valor recusado"),
+    );
+  });
+});

@@ -9,11 +9,14 @@ type Props = {
   label: string;
   hint?: string;
   size?: "short" | "wide";
-  type?: "text" | "date" | "time" | "number";
+  type?: "text" | "date" | "time" | "month" | "number";
   adornment?: string;
   inputMode?: "text" | "decimal" | "numeric";
   /** Tidies the typed text when the input loses focus. */
   format?: (text: string) => string;
+  disabled?: boolean;
+  /** Called when the person changes the value. */
+  onEdit?: () => void;
 };
 
 export function TextField({
@@ -26,9 +29,12 @@ export function TextField({
   adornment,
   inputMode,
   format,
+  disabled,
+  onEdit,
 }: Props) {
   const error = (get(form.formState.errors, name) as { message?: string } | undefined)?.message;
   const registration = form.register(name, {
+    onChange: onEdit,
     onBlur: format
       ? (event: { target: { value: string } }) => {
           const tidy = format(event.target.value);
@@ -45,6 +51,7 @@ export function TextField({
           type={type}
           adornment={adornment}
           inputMode={inputMode}
+          disabled={disabled}
           autoComplete="off"
         />
       )}

@@ -21,7 +21,7 @@ import {
   useToast,
 } from "../../ui";
 import { ContractForm } from "./ContractForm";
-import { type ContractFormValues, fromContract, toRequest } from "./formModel";
+import { type ContractFormValues, fromContract, planFollowsTotal, toRequest } from "./formModel";
 import { CONTRACT_GONE, EDIT_CONFLICT_DELETED, PDF_DELETED, RESTORE_CONFLICT } from "./messages";
 import { coupleLabel } from "./names";
 import { preweddingServiceIds } from "./serviceOptions";
@@ -84,7 +84,12 @@ export function EditContract({ id }: { id: string }) {
 
   const submit = async (values: ContractFormValues) => {
     // Sections are compared as API requests, so only real changes are sent.
-    const body = changedSections(toRequest(fromContract(data)), toRequest(values)) as ContractPatch;
+    const changed = changedSections(toRequest(fromContract(data)), toRequest(values));
+    // Sending the plan clears "Revisar plano". Otherwise a plan that only follows a new total
+    // is left out, because the server spreads the total over the unpaid instalments the same way.
+    if (data.plan_needs_review) changed.instalments = toRequest(values).instalments;
+    else if (changed.instalments && planFollowsTotal(data, values)) delete changed.instalments;
+    const body = changed as ContractPatch;
     const ids = preweddingServiceIds(services.data ?? []);
     const removesLast =
       data.payment.items.some((item) => ids.has(item.service_id)) &&

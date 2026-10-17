@@ -4,8 +4,13 @@ import {
   defaultValues,
   formTotal,
   fromContract,
+  formPath,
   isFormField,
   moneyText,
+  planFollowsTotal,
+  resizePlan,
+  respreadForTotal,
+  splitUnpaid,
   toRequest,
   validate,
 } from "./formModel";
@@ -32,6 +37,7 @@ function valid(): ContractFormValues {
       ],
       pix_discount_cents: "300",
     },
+    plan: { mode: "single", rows: [{ month: "2026-10", amount: "1.400,00", paidOn: null }] },
     signing: { city: "Curitiba", date: "2026-10-13" },
     prewedding: emptyPrewedding(),
   };
@@ -65,6 +71,7 @@ test("toRequest converts text to the API's types", () => {
       ],
       pix_discount_cents: 30000,
     },
+    instalments: [{ month: "2026-10", amount_cents: 140000 }],
     signing: { city: "Curitiba", date: "2026-10-13" },
   });
 });
@@ -107,6 +114,7 @@ test("fromContract fills the form, and converting back gives the same request", 
       ],
       pix_discount_cents: 30000,
     },
+    instalments: [{ month: "2026-10", amount_cents: 140000 }],
     signing: { city: "Curitiba", date: "2026-10-13" },
   });
 });
@@ -326,4 +334,122 @@ test("a filled pre-wedding is sent and needs a date and a place", () => {
 test("pre-wedding fields are form fields for server errors", () => {
   expect(isFormField("prewedding.venue_name", 1)).toBe(true);
   expect(isFormField("prewedding", 1)).toBe(false);
+});
+
+test("defaults: one À vista row in the current month", () => {
+  expect(defaultValues("2026-10-14").plan).toEqual({
+    mode: "single",
+    rows: [{ month: "2026-10", amount: "", paidOn: null }],
+  });
+});
+
+test("fromContract fills the plan, with paid dates", () => {
+  const contract = makeContract({
+    instalments: [
+      { number: 1, month: "2026-10", amount_cents: 70000, paid_on: "2026-10-05" },
+      { number: 2, month: "2026-11", amount_cents: 70000, paid_on: null },
+    ],
+  });
+  expect(fromContract(contract).plan).toEqual({
+    mode: "split",
+    rows: [
+      { month: "2026-10", amount: "700,00", paidOn: "2026-10-05" },
+      { month: "2026-11", amount: "700,00", paidOn: null },
+    ],
+  });
+  expect(toRequest(fromContract(contract)).instalments).toEqual([
+    { month: "2026-10", amount_cents: 70000 },
+    { month: "2026-11", amount_cents: 70000 },
+  ]);
+});
+
+describe("plan validation", () => {
+  const withRows = (rows: { month: string; amount: string }[]) => {
+    const values = valid();
+    values.plan = { mode: "split", rows: rows.map((row) => ({ ...row, paidOn: null })) };
+    return values;
+  };
+
+  test("the sum must equal the total", () => {
+    const errors = validate(
+      withRows([
+        { month: "2026-10", amount: "100" },
+        { month: "2026-11", amount: "1.000" },
+      ]),
+    );
+    expect(errors).toEqual({ "plan.sum": "a soma das parcelas deve ser igual ao total" });
+  });
+
+  test("months must strictly increase and amounts be above zero", () => {
+    const errors = validate(
+      withRows([
+        { month: "2026-11", amount: "1.400,00" },
+        { month: "2026-11", amount: "0" },
+      ]),
+    );
+    expect(errors["plan.rows.1.month"]).toBe("os meses das parcelas devem ser crescentes");
+    expect(errors["plan.rows.1.amount"]).toBe("o valor deve ser maior que zero");
+    expect(errors["plan.sum"]).toBeUndefined();
+  });
+
+  test("an empty month is required", () => {
+    expect(validate(withRows([{ month: "", amount: "1.400,00" }]))["plan.rows.0.month"]).toBe(
+      "campo obrigatório",
+    );
+  });
+});
+
+describe("plan arithmetic", () => {
+  const row = (month: string, amount: string, paidOn: string | null = null) => ({
+    month,
+    amount,
+    paidOn,
+  });
+
+  test("resizePlan adds consecutive months across a year end and drops unpaid rows", () => {
+    const grown = resizePlan([row("2026-12", "")], 3);
+    expect(grown.map((r) => r.month)).toEqual(["2026-12", "2027-01", "2027-02"]);
+    expect(resizePlan(grown, 2).map((r) => r.month)).toEqual(["2026-12", "2027-01"]);
+    expect(resizePlan([row("2026-10", "1", "2026-10-05"), row("2026-11", "")], 1)).toHaveLength(1);
+  });
+
+  test("splitUnpaid shares what the paid rows leave, extra centavos on the last", () => {
+    const rows = [row("2026-10", "100,00", "2026-10-05"), row("2026-11", ""), row("2026-12", "")];
+    expect(splitUnpaid(rows, 20001)?.map((r) => r.amount)).toEqual(["100,00", "50,00", "50,01"]);
+    expect(splitUnpaid(rows, 100)).toBeNull();
+  });
+
+  test("respreadForTotal leaves a plan that adds up and spreads one that does not", () => {
+    const plan = {
+      mode: "split" as const,
+      rows: [row("2026-10", "30,00"), row("2026-11", "70,00")],
+    };
+    expect(respreadForTotal(plan, 10000)).toBe(plan.rows);
+    expect(respreadForTotal(plan, 20000)?.map((r) => r.amount)).toEqual(["100,00", "100,00"]);
+  });
+
+  test("planFollowsTotal tells the server's own spread from a hand-made plan", () => {
+    const contract = makeContract({
+      instalments: [
+        { number: 1, month: "2026-10", amount_cents: 70000, paid_on: "2026-10-05" },
+        { number: 2, month: "2026-11", amount_cents: 70000, paid_on: null },
+      ],
+    });
+    const values = fromContract(contract);
+    values.payment.items[0]!.amount_cents = "1.400,00";
+    values.plan.rows[1]!.amount = "900,00";
+    expect(planFollowsTotal(contract, values)).toBe(true);
+    values.plan.rows[1]!.month = "2026-12";
+    expect(planFollowsTotal(contract, values)).toBe(false);
+  });
+});
+
+test("server plan paths map onto the plan's form fields", () => {
+  expect(isFormField("instalments", 1)).toBe(true);
+  expect(isFormField("instalments.1.month", 1, 2)).toBe(true);
+  expect(isFormField("instalments.2.amount_cents", 1, 2)).toBe(false);
+  expect(formPath("instalments")).toBe("plan.sum");
+  expect(formPath("instalments.1.month")).toBe("plan.rows.1.month");
+  expect(formPath("instalments.0.amount_cents")).toBe("plan.rows.0.amount");
+  expect(formPath("groom.cpf")).toBe("groom.cpf");
 });

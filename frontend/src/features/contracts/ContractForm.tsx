@@ -7,6 +7,7 @@ import { EventSection } from "./sections/EventSection";
 import type { SavedItem } from "./serviceOptions";
 import type { PreweddingOut } from "../../api/client";
 import { PaymentSection } from "./sections/PaymentSection";
+import { PlanSection } from "./sections/PlanSection";
 import { PreweddingSection } from "./sections/PreweddingSection";
 import { PhotographersSection } from "./sections/PhotographersSection";
 import { SigningSection } from "./sections/SigningSection";
@@ -56,6 +57,7 @@ export function ContractForm({
       <EventSection form={form} disabled={readOnly} />
       <PhotographersSection form={form} disabled={readOnly} />
       <PaymentSection state={state} disabled={readOnly} savedItems={savedItems} />
+      <PlanSection state={state} disabled={readOnly} />
       {/* A deleted contract reports no pre-wedding; it comes back on restore. */}
       {!readOnly && <PreweddingSection state={state} disabled={readOnly} summary={prewedding} />}
       <SigningSection form={form} disabled={readOnly} />
