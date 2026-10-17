@@ -146,6 +146,40 @@ test("a double click sends one POST", async () => {
   await user.dblClick(await screen.findByRole("button", { name: "Marcar como paga" }));
   await waitFor(() => expect(posted).toHaveBeenCalled());
   expect(posted).toHaveBeenCalledTimes(1);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Marcar como paga" })).toBeEnabled(),
+  );
+  expect(posted).toHaveBeenCalledTimes(1);
+});
+
+test("two rows clicked in quick succession both settle, and a 409 on the first is calm", async () => {
+  const second = { ...OPEN, number: 3, month: "2026-12" };
+  let listed = 0;
+  server.use(
+    http.get("/api/v1/instalments", () => {
+      listed += 1;
+      return HttpResponse.json([OPEN, second]);
+    }),
+    http.post("/api/v1/contracts/:id/instalments/:number/paid", async ({ params }) => {
+      if (params.number === "2") {
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        return problem(409, "Instalment already paid");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return HttpResponse.json({ ...second, paid_on: "2026-12-15" });
+    }),
+  );
+  const { user } = renderApp("/negocio");
+  const buttons = await screen.findAllByRole("button", { name: "Marcar como paga" });
+  await user.click(buttons[0]!);
+  await user.click(buttons[1]!);
+  expect(await screen.findByText("Esta parcela já estava atualizada.")).toBeInTheDocument();
+  await waitFor(() => expect(listed).toBeGreaterThanOrEqual(2));
+  await waitFor(() =>
+    screen
+      .getAllByRole("button", { name: "Marcar como paga" })
+      .forEach((button) => expect(button).toBeEnabled()),
+  );
 });
 
 test("rows of contracts to review carry the Revisar plano badge", async () => {

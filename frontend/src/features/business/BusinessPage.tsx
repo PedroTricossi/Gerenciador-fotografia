@@ -104,23 +104,25 @@ export function BusinessPage() {
     }
   };
 
-  const run = (item: InstalmentItem, start: (target: MarkTarget, done: () => void) => void) => {
+  const run = async (item: InstalmentItem, call: (target: MarkTarget) => Promise<unknown>) => {
     const key = rowKey(item);
     if (inFlight.current.has(key)) return;
     inFlight.current.add(key);
     setBusyKeys(new Set(inFlight.current));
-    start({ contractId: item.contract_id, number: item.number }, () => {
+    try {
+      await call({ contractId: item.contract_id, number: item.number });
+    } catch (error) {
+      onError(error);
+    } finally {
       inFlight.current.delete(key);
       setBusyKeys(new Set(inFlight.current));
-    });
+    }
   };
 
   const onMark = (item: InstalmentItem) =>
-    run(item, (target, done) =>
-      markPaid.mutate({ ...target, paidOn: todayIso() }, { onError, onSettled: done }),
-    );
+    void run(item, (target) => markPaid.mutateAsync({ ...target, paidOn: todayIso() }));
   const onUndo = (item: InstalmentItem) =>
-    run(item, (target, done) => markUnpaid.mutate(target, { onError, onSettled: done }));
+    void run(item, (target) => markUnpaid.mutateAsync(target));
 
   const month = currentMonth();
   const groups = instalments.data ? groupInstalments(instalments.data, month) : null;
