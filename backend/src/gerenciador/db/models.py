@@ -5,12 +5,14 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.engine import Dialect
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -87,6 +89,7 @@ class Contract(Base):
     pix_discount_cents: Mapped[int | None]
     signing_city: Mapped[str] = mapped_column(String(100))
     signing_date: Mapped[dt.date]
+    plan_needs_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     version: Mapped[int]
     created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
     updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
@@ -100,6 +103,9 @@ class Contract(Base):
     # One-to-one: setting this to None deletes the row.
     prewedding: Mapped["PreweddingEvent | None"] = relationship(
         cascade="all, delete-orphan", lazy="selectin"
+    )
+    instalments: Mapped[list["Instalment"]] = relationship(
+        order_by="Instalment.number", cascade="all, delete-orphan", lazy="selectin"
     )
 
 
@@ -136,6 +142,24 @@ class PreweddingEvent(Base):
     version: Mapped[int]
     created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
     updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+
+
+class Instalment(Base):
+    __tablename__ = "instalments"
+    __table_args__ = (
+        UniqueConstraint("contract_id", "number", name="uq_instalments_contract_number"),
+        CheckConstraint("amount_cents > 0", name="ck_instalments_amount_positive"),
+        CheckConstraint("number BETWEEN 1 AND 4", name="ck_instalments_number_range"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    contract_id: Mapped[str] = mapped_column(
+        ForeignKey("contracts.id", name="fk_instalments_contract_id_contracts")
+    )
+    number: Mapped[int]
+    month: Mapped[str] = mapped_column(String(7))
+    amount_cents: Mapped[int]
+    paid_on: Mapped[dt.date | None]
 
 
 class AuditEvent(Base):
