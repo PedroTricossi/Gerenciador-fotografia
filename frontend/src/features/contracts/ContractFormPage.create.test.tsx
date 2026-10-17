@@ -102,11 +102,13 @@ test("an empty form is not sent and every required input says so", async () => {
   );
   const { user } = renderApp("/contratos/novo");
   await user.click(screen.getByRole("button", { name: "Salvar" }));
-  for (const label of ["Nome do noivo", "CPF do noivo", "Data do evento", "Valor do item 1"]) {
-    expect(screen.getByLabelText(label)).toHaveAccessibleDescription(
-      expect.stringContaining("campo obrigatório"),
-    );
+  for (const label of ["Nome do noivo", "CPF do noivo", "Data do evento"]) {
+    expect(screen.getByLabelText(label)).toHaveAccessibleDescription("campo obrigatório");
   }
+  // The money input is also described as "em reais".
+  expect(screen.getByLabelText("Valor do item 1")).toHaveAccessibleDescription(
+    expect.stringContaining("campo obrigatório"),
+  );
   // This input also has a hint, which is part of its description.
   expect(screen.getByLabelText("Endereço do casal")).toHaveAccessibleDescription(
     /campo obrigatório/,
