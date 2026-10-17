@@ -16,7 +16,21 @@
 .table td {
   text-align: start;
   padding: var(--space-3) var(--space-4);
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+/* Free-text columns opt in: they wrap, and may break inside a very long word. */
+.table td.wrapText {
+  white-space: normal;
   overflow-wrap: anywhere;
+}
+.caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .table td {
   border-top: var(--border-width) dashed var(--color-border);

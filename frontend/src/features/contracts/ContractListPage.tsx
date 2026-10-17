@@ -18,11 +18,11 @@ import {
   Checkbox,
   type Column,
   ConfirmDialog,
+  EmptyState,
+  Loading,
   PageLayout,
   Table,
   useToast,
-  EmptyState,
-  Loading,
 } from "../../ui";
 import styles from "./ContractListPage.module.css";
 import { DELETE_CONFLICT, NOT_FOUND_IN_LIST, PDF_DELETED, RESTORE_CONFLICT } from "./messages";
@@ -88,6 +88,7 @@ export function ContractListPage() {
   const columns: Column<ContractOut>[] = [
     {
       header: "Casal",
+      wrap: true,
       cell: (contract) => (
         <>
           {coupleLabel(contract.groom, contract.bride)}
@@ -96,7 +97,7 @@ export function ContractListPage() {
       ),
     },
     { header: "Data do evento", cell: (contract) => formatIsoDate(contract.event.date) },
-    { header: "Local", cell: (contract) => contract.event.venue_name },
+    { header: "Local", wrap: true, cell: (contract) => contract.event.venue_name },
     { header: "Total", align: "end", cell: (contract) => formatBrl(contract.payment.total_cents) },
     {
       header: "Ações",

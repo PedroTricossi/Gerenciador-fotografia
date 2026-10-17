@@ -9,6 +9,7 @@
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
+  white-space: nowrap;
 }
 .button:disabled {
   opacity: var(--opacity-disabled);

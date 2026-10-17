@@ -118,6 +118,52 @@ async function checkAll(page: Page, tag: string, rootFont = false) {
   }
 }
 
+async function expectTableTextOnOneLine(page: Page, where: string) {
+  const multiline = await page.evaluate(() => {
+    const out: string[] = [];
+    const cells = [...document.querySelectorAll("main table th, main table button")];
+    // The seeded row's date and money cells: formatted as dd/mm/yyyy or R$ 1.234,56.
+    for (const td of document.querySelectorAll("main table td")) {
+      const text = (td.textContent ?? "").trim();
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(text) || /^R\$\s?[\d.]+,\d{2}$/.test(text)) cells.push(td);
+    }
+    for (const el of cells) {
+      // Measure the text itself: a cell is as tall as its row, which a wrapping neighbour can stretch.
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const height = range.getBoundingClientRect().height;
+      const line = parseFloat(getComputedStyle(el).lineHeight);
+      if (height >= 2 * line - 1)
+        out.push(
+          `${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim()}" text is ${height}px tall`,
+        );
+    }
+    return { out, count: cells.length };
+  });
+  expect(multiline.count, `${where}: found headers and buttons`).toBeGreaterThan(0);
+  expect(multiline.out, `${where}: text broken over several lines`).toEqual([]);
+}
+
+for (const rootFont of [false, true]) {
+  test(`table headers, buttons, dates and money stay on one line at 1280px${rootFont ? " with a 20px root font" : ""}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    for (const path of ["/contratos", "/clientes", "/servicos"]) {
+      await page.goto(path);
+      if (rootFont) {
+        await page.evaluate(() => {
+          document.documentElement.style.fontSize = "20px";
+        });
+      }
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByRole("table")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expectTableTextOnOneLine(page, `${rootFont ? "20px " : ""}${path}`);
+    }
+  });
+}
+
 for (const width of WIDTHS) {
   test(`nothing overflows at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });

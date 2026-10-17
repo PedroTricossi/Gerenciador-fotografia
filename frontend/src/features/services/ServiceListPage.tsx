@@ -46,6 +46,7 @@ export function ServiceListPage() {
   const columns: Column<ServiceOut>[] = [
     {
       header: "Nome",
+      wrap: true,
       cell: (service) => (
         <>
           {service.name}

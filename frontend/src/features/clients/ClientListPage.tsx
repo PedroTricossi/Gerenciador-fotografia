@@ -71,7 +71,7 @@ export function ClientListPage() {
   };
 
   const columns: Column<ClientOut>[] = [
-    { header: "Nome", cell: (client) => client.full_name ?? ANONYMISED_NAME },
+    { header: "Nome", wrap: true, cell: (client) => client.full_name ?? ANONYMISED_NAME },
     { header: "CPF", cell: (client) => client.cpf ?? "—" },
     { header: "Cadastrado em", cell: (client) => formatIsoDate(client.created_at) },
     { header: "Situação", cell: (client) => (client.anonymised_at ? "Anonimizado" : "Ativo") },

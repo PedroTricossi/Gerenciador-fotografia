@@ -1,7 +1,13 @@
 import type { ReactNode } from "react";
 import styles from "./Table.module.css";
 
-export type Column<T> = { header: string; cell: (row: T) => ReactNode; align?: "start" | "end" };
+export type Column<T> = {
+  header: string;
+  cell: (row: T) => ReactNode;
+  align?: "start" | "end";
+  /** Free text may break anywhere to fit its cell; everything else keeps its words whole. */
+  wrap?: boolean;
+};
 
 type Props<T> = {
   label: string;
@@ -16,7 +22,8 @@ export function Table<T>({ label, columns, rows, rowKey, rowMuted, empty }: Prop
   if (rows.length === 0 && empty) return <>{empty}</>;
   return (
     <div className={styles.wrap} role="region" aria-label={label} tabIndex={0}>
-      <table className={styles.table} aria-label={label}>
+      <table className={styles.table}>
+        <caption className={styles.caption}>{label}</caption>
         <thead>
           <tr>
             {columns.map((column) => (
@@ -34,7 +41,14 @@ export function Table<T>({ label, columns, rows, rowKey, rowMuted, empty }: Prop
           {rows.map((row) => (
             <tr key={rowKey(row)} className={rowMuted?.(row) ? styles.muted : undefined}>
               {columns.map((column) => (
-                <td key={column.header} className={column.align === "end" ? styles.end : undefined}>
+                <td
+                  key={column.header}
+                  className={
+                    [column.align === "end" && styles.end, column.wrap && styles.wrapText]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                >
                   {column.cell(row)}
                 </td>
               ))}
