@@ -95,6 +95,12 @@
   font-size: var(--font-size-md);
   margin: 0 0 var(--space-2);
 }
+/* The cell clips overflow, so in-cell controls draw the focus ring inside their own box. */
+.number:focus-visible,
+.chip:focus-visible,
+.more:focus-visible {
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
 /* 40rem = 640px: below it the grid shows a dot per busy day; tapping lists the day below. */
 @media (max-width: 40rem) {
   .title {
