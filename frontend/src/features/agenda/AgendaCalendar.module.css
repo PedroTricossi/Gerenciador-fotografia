@@ -67,17 +67,33 @@
   min-width: 0;
 }
 .chip {
-  display: block;
+  position: relative;
+  display: flex;
   max-width: 100%;
   padding: 0 var(--space-1);
   border-radius: var(--radius-sm);
   background: var(--color-primary);
   color: var(--color-primary-text);
   font-size: var(--font-size-sm);
-  text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
+}
+.chipMeta {
+  flex: none;
+}
+/* The link holds only the couple; its ::after makes the whole chip the target. */
+.chipLink {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  color: inherit;
+  text-decoration: none;
+}
+.chipLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
 }
 .more {
   padding: 0;
@@ -97,8 +113,14 @@
 }
 /* The cell clips overflow, so in-cell controls draw the focus ring inside their own box. */
 .number:focus-visible,
-.chip:focus-visible,
 .more:focus-visible {
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
+.chipLink:focus-visible {
+  outline: none;
+}
+.chipLink:focus-visible::after {
+  outline: var(--focus-ring-width) solid var(--color-focus);
   outline-offset: calc(-1 * var(--focus-ring-width));
 }
 /* 40rem = 640px: below it the grid shows a dot per busy day; tapping lists the day below. */

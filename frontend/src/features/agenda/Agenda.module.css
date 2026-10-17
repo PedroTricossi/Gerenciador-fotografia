@@ -20,6 +20,7 @@
   gap: var(--space-1);
 }
 .entry {
+  position: relative;
   display: grid;
   grid-template-columns: 4rem minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-3);
@@ -27,10 +28,8 @@
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-control);
-  color: inherit;
-  text-decoration: none;
 }
-.entries > li {
+.entry {
   min-width: 0;
 }
 .entry:hover {
@@ -42,6 +41,22 @@
 .couple {
   overflow-wrap: anywhere;
   font-weight: var(--font-weight-strong);
+  color: inherit;
+  text-decoration: none;
+}
+/* The whole row is the target; the ring is drawn on the row, not on the couple's text. */
+.couple::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.couple:focus-visible {
+  outline: none;
+}
+.couple:focus-visible::after {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 .kind {
   color: var(--color-text-muted);

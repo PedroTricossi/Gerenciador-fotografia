@@ -60,15 +60,19 @@ function Day({ day, month, today, entries, onOpen }: DayProps) {
       {shown.length > 0 && (
         <ul className={styles.chips}>
           {shown.map((entry) => (
-            <li key={entryKey(entry)}>
+            <li key={entryKey(entry)} className={styles.chip}>
+              {(entry.kind === "prewedding" || entry.start_time) && (
+                <span className={styles.chipMeta}>
+                  {entry.kind === "prewedding" && "Pré · "}
+                  {entry.start_time && `${timeLabel(entry.start_time)} `}
+                </span>
+              )}
               <Link
                 to={`/contratos/${entry.contract_id}`}
-                className={styles.chip}
+                className={styles.chipLink}
                 aria-label={entryLabel(entry)}
                 title={entryLabel(entry)}
               >
-                {entry.kind === "prewedding" && "Pré · "}
-                {entry.start_time && `${timeLabel(entry.start_time)} `}
                 {coupleLabel(entry.groom, entry.bride)}
               </Link>
             </li>
