@@ -564,3 +564,143 @@ def test_delete_and_restore_keep_the_instalments(
     after = api.get(f"{URL}/{created['id']}").json()["instalments"]
     assert after == before
     assert after[0]["paid_on"] == "2026-10-01"
+
+
+# ---- payment plan: locks, totals and refusals --------------------------------
+
+LOCKED = "parcela já paga não pode ser alterada"
+
+
+def _plan(*pairs: tuple[str, int]) -> list[dict[str, Any]]:
+    return [{"month": month, "amount_cents": amount} for month, amount in pairs]
+
+
+def _updated_events(engine: Engine) -> list[AuditEvent]:
+    with create_session_factory(engine)() as session:
+        return list(
+            session.scalars(select(AuditEvent).where(AuditEvent.action == "contract.updated"))
+        )
+
+
+def test_plan_cannot_have_fewer_instalments_than_are_paid(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    plan = _plan(("2026-10", 50000), ("2026-11", 50000), ("2026-12", 100000))
+    created = _create(api, payload, instalments=plan)
+    _mark_paid(engine, created["id"], 3)
+    shorter = _plan(("2026-10", 100000), ("2026-11", 100000))
+    response = _patch(api, created, {"instalments": shorter})
+    assert response.status_code == 422
+    assert _fields(response) == ["instalments"]
+    assert response.json()["errors"][0]["message"] == LOCKED
+
+
+def test_plan_cannot_move_a_paid_instalment_to_another_month(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    created = _create(api, payload, instalments=_plan(("2026-10", 50000), ("2026-11", 150000)))
+    _mark_paid(engine, created["id"], 1)
+    moved = _plan(("2026-09", 50000), ("2026-11", 150000))
+    response = _patch(api, created, {"instalments": moved})
+    assert response.status_code == 422
+    assert response.json()["errors"] == [{"field": "instalments.0.month", "message": LOCKED}]
+
+
+def test_plan_is_checked_against_the_new_total(api: TestClient, payload: Payload) -> None:
+    created = _create(api, payload)
+    items = [{"service_id": SERVICE_ID_CEREMONY, "amount_cents": 250000}]  # total 220000
+    old_total = _patch(
+        api,
+        created,
+        {"payment": {"items": items}, "instalments": _plan(("2026-10", 200000))},
+    )
+    assert old_total.status_code == 422
+    assert _fields(old_total) == ["instalments"]
+    new_total = _patch(
+        api,
+        created,
+        {"payment": {"items": items}, "instalments": _plan(("2026-10", 220000))},
+    )
+    assert new_total.status_code == 200
+    assert new_total.json()["instalments"][0]["amount_cents"] == 220000
+
+
+def test_sending_the_stored_plan_clears_the_review_flag_without_a_new_version(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    plan = _plan(("2026-10", 100000), ("2026-11", 100000))
+    created = _create(api, payload, instalments=plan)
+    with create_session_factory(engine)() as session:
+        session.execute(update(Contract).values(plan_needs_review=True))
+        session.commit()
+    response = _patch(api, created, {"instalments": plan})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["plan_needs_review"] is False
+    # Nothing but the flag changed, so the version and the audit trail stay put.
+    assert body["version"] == 1
+    assert _updated_events(engine) == []
+
+
+def test_plan_keeps_a_paid_instalment_and_changes_the_rest(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    created = _create(
+        api, payload, instalments=_plan(("2026-10", 50000), ("2026-11", 75000), ("2026-12", 75000))
+    )
+    _mark_paid(engine, created["id"], 1)
+    new_plan = _plan(("2026-10", 50000), ("2027-01", 150000))
+    response = _patch(api, created, {"instalments": new_plan})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["version"] == 2
+    assert [(i["number"], i["month"], i["amount_cents"]) for i in body["instalments"]] == [
+        (1, "2026-10", 50000),
+        (2, "2027-01", 150000),
+    ]
+    assert body["instalments"][0]["paid_on"] == "2026-10-01"
+    assert body["instalments"][1]["paid_on"] is None
+    (event,) = _updated_events(engine)
+    assert event.details is not None
+    assert event.details["fields"] == ["instalments"]
+    # The same plan again changes nothing: no new version, no new audit row.
+    again = api.patch(
+        f"{URL}/{created['id']}", json={"instalments": new_plan}, headers={"If-Match": '"2"'}
+    )
+    assert again.status_code == 200
+    assert again.json()["version"] == 2
+    assert len(_updated_events(engine)) == 1
+
+
+def _snapshot(api: TestClient, created: dict[str, Any]) -> dict[str, Any]:
+    body: dict[str, Any] = api.get(f"{URL}/{created['id']}").json()
+    return {key: body[key] for key in ("version", "payment", "instalments", "updated_at")}
+
+
+def test_a_refused_fully_paid_total_change_stores_nothing(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    created = _create(api, payload)
+    _mark_paid(engine, created["id"], 1)
+    before = _snapshot(api, created)
+    items = [{"service_id": SERVICE_ID_CEREMONY, "amount_cents": 250000}]
+    response = _patch(
+        api, created, {"event": {"venue_name": "Catedral"}, "payment": {"items": items}}
+    )
+    assert response.status_code == 422
+    assert _snapshot(api, created) == before
+    assert api.get(f"{URL}/{created['id']}").json()["event"]["venue_name"] == "Igreja Matriz"
+    assert _updated_events(engine) == []
+
+
+def test_a_spread_that_empties_an_unpaid_instalment_is_refused_and_stores_nothing(
+    api: TestClient, payload: Payload, engine: Engine
+) -> None:
+    created = _create(api, payload, instalments=_plan(("2026-10", 150000), ("2026-11", 50000)))
+    _mark_paid(engine, created["id"], 1)
+    before = _snapshot(api, created)
+    items = [{"service_id": SERVICE_ID_CEREMONY, "amount_cents": 130000}]  # total 100000 < paid
+    response = _patch(api, created, {"payment": {"items": items}})
+    assert response.status_code == 422
+    assert _fields(response) == ["instalments"]
+    assert _snapshot(api, created) == before
