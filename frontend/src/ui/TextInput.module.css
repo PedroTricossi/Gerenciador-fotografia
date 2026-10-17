@@ -9,7 +9,7 @@
   color: var(--color-text);
 }
 .input[aria-invalid="true"] {
-  border-width: 3px;
+  border-width: var(--border-width-strong);
   border-color: var(--color-danger);
 }
 .input:disabled {
@@ -27,7 +27,7 @@
   color: var(--color-text);
 }
 .group:has(.input[aria-invalid="true"]) {
-  border-width: 3px;
+  border-width: var(--border-width-strong);
   border-color: var(--color-danger);
 }
 .group:focus-within {

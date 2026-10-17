@@ -7,16 +7,18 @@ type Props = {
   label: string;
   error?: string;
   hint?: string;
+  /** In a form section: "short" fits a short value, "wide" takes a whole row. */
+  size?: "short" | "wide";
   children: (control: ControlProps) => ReactNode;
 };
 
-export function Field({ label, error, hint, children }: Props) {
+export function Field({ label, error, hint, size, children }: Props) {
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ");
   return (
-    <div className={styles.field}>
+    <div className={size ? `${styles.field} ${styles[size]}` : styles.field}>
       <label htmlFor={id} className={styles.label}>
         {label}
       </label>

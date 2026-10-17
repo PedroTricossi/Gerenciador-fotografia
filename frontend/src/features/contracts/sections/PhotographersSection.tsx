@@ -12,6 +12,7 @@ export function PhotographersSection({ form, disabled }: Props) {
         form={form}
         name="photographer_count"
         label="Número de fotógrafos"
+        size="short"
         type="number"
         inputMode="numeric"
       />

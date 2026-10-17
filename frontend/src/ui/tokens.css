@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --width-field-min: 16rem;
+  --width-field-short: 12rem;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --font-pixel: "VT323", "IBM Plex Mono", ui-monospace, monospace;
   --font-body: var(--font-mono);
@@ -38,6 +39,7 @@
   --space-8: 2rem;
 
   --border-width: 2px;
+  --border-width-strong: 3px;
   --opacity-disabled: 0.55;
   --z-toast: 10;
   --focus-ring-width: 3px;

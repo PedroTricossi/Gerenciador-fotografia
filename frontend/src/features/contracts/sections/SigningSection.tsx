@@ -9,7 +9,13 @@ export function SigningSection({ form, disabled }: Props) {
   return (
     <FormSection title="Assinatura" disabled={disabled}>
       <TextField form={form} name="signing.city" label="Cidade da assinatura" />
-      <TextField form={form} name="signing.date" label="Data da assinatura" type="date" />
+      <TextField
+        form={form}
+        name="signing.date"
+        label="Data da assinatura"
+        type="date"
+        size="short"
+      />
     </FormSection>
   );
 }

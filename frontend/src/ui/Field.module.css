@@ -3,6 +3,13 @@
   flex-direction: column;
   gap: var(--space-1);
 }
+/* A short value (a count, a date, a CPF) is sized to its content instead of a full column. */
+.field.short {
+  flex: 0 1 var(--width-field-short);
+}
+.field.wide {
+  flex-basis: 100%;
+}
 .label {
   font-weight: var(--font-weight-strong);
   font-size: var(--font-size-sm);

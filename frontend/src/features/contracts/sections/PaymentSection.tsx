@@ -82,18 +82,21 @@ export function PaymentSection({ state, disabled, savedItems }: Props) {
           Adicionar item
         </Button>
       </div>
-      <TextField
-        form={form}
-        name="payment.pix_discount_cents"
-        label="Desconto PIX"
-        hint="Opcional"
-        adornment="R$"
-        inputMode="decimal"
-        format={moneyText}
-      />
-      <p className={styles.total}>
-        Total: <strong>{state.total === null ? "—" : formatBrl(state.total)}</strong>
-      </p>
+      <div className={styles.summary}>
+        <TextField
+          form={form}
+          name="payment.pix_discount_cents"
+          label="Desconto PIX"
+          hint="Opcional"
+          size="short"
+          adornment="R$"
+          inputMode="decimal"
+          format={moneyText}
+        />
+        <p className={styles.total}>
+          Total: <strong>{state.total === null ? "—" : formatBrl(state.total)}</strong>
+        </p>
+      </div>
     </FormSection>
   );
 }

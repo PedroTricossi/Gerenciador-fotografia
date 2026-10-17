@@ -23,9 +23,15 @@
 .legend + .body {
   clear: both;
 }
+/* Children share a row and grow to fill it; a feature class or a field's size can override this. */
+:where(.body > *) {
+  flex: 1 1 min(var(--width-field-min), 100%);
+  min-width: 0;
+}
 .body {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(var(--width-field-min), 100%), 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-6) var(--space-6);
 }

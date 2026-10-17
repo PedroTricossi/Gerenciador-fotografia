@@ -21,9 +21,7 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
             className={`${styles.option} ${selected ? styles.selected : ""}`}
             onClick={() => onChange(option.value)}
           >
-            <span aria-hidden="true" className={styles.indicator}>
-              {selected ? "●" : "○"}
-            </span>
+            <span aria-hidden="true">{selected ? "●" : "○"}</span>
             {option.label}
           </button>
         );

@@ -16,6 +16,6 @@
   background: color-mix(in srgb, var(--color-menu-text) 14%, transparent);
 }
 .switch:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-primary);
+  outline: var(--focus-ring-width) solid var(--color-focus);
   outline-offset: var(--focus-ring-offset);
 }

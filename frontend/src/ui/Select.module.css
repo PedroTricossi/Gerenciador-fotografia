@@ -9,7 +9,7 @@
   color: var(--color-text);
 }
 .select[aria-invalid="true"] {
-  border-width: 3px;
+  border-width: var(--border-width-strong);
   border-color: var(--color-danger);
 }
 .select:disabled {

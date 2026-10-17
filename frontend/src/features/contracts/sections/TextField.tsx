@@ -8,6 +8,7 @@ type Props = {
   name: FieldPathByValue<ContractFormValues, string>;
   label: string;
   hint?: string;
+  size?: "short" | "wide";
   type?: "text" | "date" | "time" | "number";
   adornment?: string;
   inputMode?: "text" | "decimal" | "numeric";
@@ -20,6 +21,7 @@ export function TextField({
   name,
   label,
   hint,
+  size,
   type = "text",
   adornment,
   inputMode,
@@ -35,7 +37,7 @@ export function TextField({
       : undefined,
   });
   return (
-    <Field label={label} hint={hint} error={error}>
+    <Field label={label} hint={hint} error={error} size={size}>
       {(control) => (
         <TextInput
           {...control}

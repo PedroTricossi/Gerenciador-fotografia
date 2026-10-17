@@ -28,8 +28,6 @@
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-control);
-}
-.entry {
   min-width: 0;
 }
 .entry:hover {

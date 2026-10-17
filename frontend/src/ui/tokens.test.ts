@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { contrastRatio } from "./contrast";
@@ -81,6 +81,18 @@ describe("theme tokens", () => {
     const amber = light["--color-primary"] ?? "";
     for (const [name, value] of Object.entries(light)) {
       if (name.endsWith("-text")) expect(value, name).not.toBe(amber);
+    }
+  });
+
+  test("no stylesheet uses amber as text colour", () => {
+    const root = join(__dirname, "..");
+    const sheets = (readdirSync(root, { recursive: true }) as string[]).filter((f) =>
+      f.endsWith(".module.css"),
+    );
+    expect(sheets.length).toBeGreaterThan(5);
+    for (const sheet of sheets) {
+      const text = readFileSync(join(root, sheet), "utf8");
+      expect(text, sheet).not.toMatch(/(^|[;{\s])color\s*:\s*var\(--color-primary\)/);
     }
   });
 

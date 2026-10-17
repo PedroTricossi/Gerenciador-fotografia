@@ -37,6 +37,16 @@ test.beforeAll(async ({ browser, baseURL }) => {
     headers: { Origin: baseURL! },
   });
   contractId = (await createLongNamedContract(page)).id;
+  // Three more events today, so today's calendar cell overflows into a "+N mais" button.
+  for (let n = 0; n < 3; n += 1) {
+    await page.goto("/contratos/novo");
+    await fillContract(page, freshCouple());
+    await page.getByLabel("Data do evento").fill(localIso(new Date()));
+    const saved = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Salvar" }).click();
+    await saved;
+    await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
+  }
   await page.goto("/contratos/novo");
   await fillContract(page, freshCouple());
   await page.getByRole("button", { name: "Adicionar item" }).click();
@@ -84,6 +94,10 @@ for (const colorScheme of ["light", "dark"] as const) {
         await page.goto("/agenda");
         await page.getByRole("button", { name: "Calendário" }).click();
         await expect(page.getByRole("table")).toBeVisible();
+        // Four or more entries on one day show the "+N mais" button; it is only drawn on wide screens.
+        if (viewport.width > 640) {
+          await expect(page.getByRole("button", { name: /^\+\d+ mais$/ }).first()).toBeVisible();
+        }
         await audit(page);
       });
 

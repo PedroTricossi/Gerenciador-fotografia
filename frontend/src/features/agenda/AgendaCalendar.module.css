@@ -11,17 +11,27 @@
   min-width: 12rem;
   text-align: center;
 }
+/* A rounded outlined box like the tables; the grid's own outer cell borders are clipped by it. */
+.gridBox {
+  overflow: hidden;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-box);
+  box-shadow: var(--shadow-hard);
+  background: var(--color-surface);
+}
 .grid {
-  width: 100%;
+  width: calc(100% + 2 * var(--border-width));
+  margin: calc(-1 * var(--border-width));
   table-layout: fixed;
   border-collapse: collapse;
-  background: var(--color-surface);
 }
 .grid th {
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-regular);
-  color: var(--color-text-muted);
+  font-weight: var(--font-weight-strong);
+  color: var(--color-text);
+  background: var(--color-band);
   padding: var(--space-1);
+  border: var(--border-width) solid var(--color-border);
 }
 .day {
   vertical-align: top;
@@ -34,9 +44,18 @@
 .outside {
   opacity: var(--opacity-disabled);
 }
+/* Today: an ink outline on the cell plus the day number as an amber pill, so it is not colour alone. */
 .today {
-  outline: var(--focus-ring-width) solid var(--color-primary);
-  outline-offset: calc(-1 * var(--focus-ring-width));
+  outline: var(--border-width-strong) solid var(--color-border);
+  outline-offset: calc(-1 * var(--border-width-strong));
+}
+.today .numeral {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: var(--font-weight-strong);
 }
 .number {
   display: flex;
@@ -53,7 +72,7 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--color-text);
 }
 .chips {
   list-style: none;
@@ -102,7 +121,10 @@
   background: none;
   font: inherit;
   font-size: var(--font-size-sm);
-  color: var(--color-primary);
+  color: var(--color-text);
+  font-weight: var(--font-weight-strong);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
   cursor: pointer;
 }
 .selected {
