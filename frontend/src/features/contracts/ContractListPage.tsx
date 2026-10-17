@@ -18,6 +18,8 @@ import {
   Checkbox,
   type Column,
   ConfirmDialog,
+  EmptyState,
+  Loading,
   PageLayout,
   Table,
   useToast,
@@ -86,6 +88,7 @@ export function ContractListPage() {
   const columns: Column<ContractOut>[] = [
     {
       header: "Casal",
+      wrap: true,
       cell: (contract) => (
         <>
           {coupleLabel(contract.groom, contract.bride)}
@@ -94,10 +97,11 @@ export function ContractListPage() {
       ),
     },
     { header: "Data do evento", cell: (contract) => formatIsoDate(contract.event.date) },
-    { header: "Local", cell: (contract) => contract.event.venue_name },
+    { header: "Local", wrap: true, cell: (contract) => contract.event.venue_name },
     { header: "Total", align: "end", cell: (contract) => formatBrl(contract.payment.total_cents) },
     {
       header: "Ações",
+      actions: true,
       align: "end",
       cell: (contract) =>
         contract.deleted_at ? (
@@ -134,7 +138,7 @@ export function ContractListPage() {
       <div className={styles.toolbar}>
         <Checkbox label="Mostrar excluídos" checked={showDeleted} onChange={setShowDeleted} />
       </div>
-      {contracts.isPending && <p>Carregando…</p>}
+      {contracts.isPending && <Loading />}
       {contracts.isError && (
         <Banner tone="error">
           Não foi possível carregar os contratos.{" "}
@@ -148,12 +152,7 @@ export function ContractListPage() {
           rows={rows}
           rowKey={(contract) => contract.id}
           rowMuted={(contract) => contract.deleted_at !== null}
-          empty={
-            <>
-              <p>Nenhum contrato ainda</p>
-              {newContract}
-            </>
-          }
+          empty={<EmptyState action={newContract}>Nenhum contrato ainda</EmptyState>}
         />
       )}
       {contracts.hasNextPage && (

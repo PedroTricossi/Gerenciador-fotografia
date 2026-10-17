@@ -54,21 +54,29 @@ function Day({ day, month, today, entries, onOpen }: DayProps) {
         aria-label={dayLabel(day)}
         onClick={() => onOpen(day)}
       >
-        {Number(day.slice(8, 10))}
+        <span className={styles.numeral}>{Number(day.slice(8, 10))}</span>
         {entries.length > 0 && <span className={styles.dot} aria-hidden="true" />}
       </button>
       {shown.length > 0 && (
         <ul className={styles.chips}>
           {shown.map((entry) => (
-            <li key={entryKey(entry)}>
+            <li key={entryKey(entry)} className={styles.chip}>
+              {(entry.kind === "prewedding" || entry.start_time) && (
+                <span className={styles.chipMeta}>
+                  {[
+                    entry.kind === "prewedding" && "Pré ·",
+                    entry.start_time && timeLabel(entry.start_time),
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                </span>
+              )}
               <Link
                 to={`/contratos/${entry.contract_id}`}
-                className={styles.chip}
+                className={styles.chipLink}
                 aria-label={entryLabel(entry)}
                 title={entryLabel(entry)}
               >
-                {entry.kind === "prewedding" && "Pré · "}
-                {entry.start_time && `${timeLabel(entry.start_time)} `}
                 {coupleLabel(entry.groom, entry.bride)}
               </Link>
             </li>
@@ -117,33 +125,35 @@ export function AgendaCalendar({ today }: { today: string }) {
         <Button onClick={() => show(monthOf(today))}>Hoje</Button>
       </div>
       <LoadState query={agenda} />
-      <table className={styles.grid} aria-label={title}>
-        <thead>
-          <tr>
-            {WEEKDAYS.map((name) => (
-              <th key={name} scope="col">
-                {name}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {weeksOf(days).map((week) => (
-            <tr key={week[0]}>
-              {week.map((day) => (
-                <Day
-                  key={day}
-                  day={day}
-                  month={month}
-                  today={today}
-                  entries={byDate.get(day) ?? []}
-                  onOpen={setOpened}
-                />
+      <div className={styles.gridBox}>
+        <table className={styles.grid} aria-label={title}>
+          <thead>
+            <tr>
+              {WEEKDAYS.map((name) => (
+                <th key={name} scope="col">
+                  {name}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {weeksOf(days).map((week) => (
+              <tr key={week[0]}>
+                {week.map((day) => (
+                  <Day
+                    key={day}
+                    day={day}
+                    month={month}
+                    today={today}
+                    entries={byDate.get(day) ?? []}
+                    onOpen={setOpened}
+                  />
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {opened && openedEntries.length > 0 && (
         <section ref={selected} aria-label={dayHeading(opened, today)} className={styles.selected}>
           <h3 className={styles.selectedTitle}>{dayHeading(opened, today)}</h3>

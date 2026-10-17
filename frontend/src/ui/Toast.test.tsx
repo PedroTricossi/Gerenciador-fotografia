@@ -60,3 +60,43 @@ test("useToast outside the provider fails loudly", () => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   expect(() => render(<Trigger />)).toThrow("useToast needs a ToastProvider");
 });
+
+describe("a toast with an action", () => {
+  async function setup() {
+    vi.useFakeTimers();
+    vi.stubGlobal("jest", { advanceTimersByTime: vi.advanceTimersByTime });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(
+      <ToastProvider>
+        <Trigger onUndo={vi.fn()} />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "disparar" }));
+    return user;
+  }
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  test("does not close while hovered", async () => {
+    const user = await setup();
+    await user.hover(screen.getByText("Contrato excluído"));
+    act(() => vi.advanceTimersByTime(11_000));
+    expect(screen.getByText("Contrato excluído")).toBeInTheDocument();
+    await user.unhover(screen.getByText("Contrato excluído"));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.queryByText("Contrato excluído")).not.toBeInTheDocument();
+  });
+
+  test("does not close while it has focus", async () => {
+    await setup();
+    const action = screen.getByRole("button", { name: "Desfazer" });
+    act(() => action.focus());
+    act(() => vi.advanceTimersByTime(11_000));
+    expect(screen.getByText("Contrato excluído")).toBeInTheDocument();
+    act(() => action.blur());
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.queryByText("Contrato excluído")).not.toBeInTheDocument();
+  });
+});

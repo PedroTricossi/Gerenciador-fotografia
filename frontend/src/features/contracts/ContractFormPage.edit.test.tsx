@@ -374,3 +374,16 @@ test("a schedule made elsewhere is caught by the server and asked the same way",
     { service_id: IDS.serviceCeremony, amount_cents: 120000 },
   ]);
 });
+
+test("the Baixar PDF button is described by the save-first hint while there are changes", async () => {
+  serveContract();
+  const { user } = renderApp(URL_PATH);
+  const download = await screen.findByRole("button", { name: "Baixar PDF" });
+  expect(download).not.toHaveAccessibleDescription();
+
+  await user.type(screen.getByLabelText("Local do evento"), "!");
+  expect(download).toHaveAccessibleDescription("Salve as alterações antes de baixar o PDF.");
+
+  await user.type(screen.getByLabelText("Local do evento"), "{Backspace}");
+  expect(download).not.toHaveAccessibleDescription();
+});

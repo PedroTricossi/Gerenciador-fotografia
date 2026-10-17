@@ -5,7 +5,17 @@ import { describeUnexpected, isUnexpected } from "../../api/errors";
 import { serviceKeys } from "../../api/keys";
 import { useArchiveService, useRestoreService, useServices } from "../../api/services";
 import { formatBrl } from "../../domain/money";
-import { Banner, Button, Checkbox, type Column, PageLayout, Table, useToast } from "../../ui";
+import {
+  Banner,
+  Button,
+  Checkbox,
+  type Column,
+  EmptyState,
+  Loading,
+  PageLayout,
+  Table,
+  useToast,
+} from "../../ui";
 import { ServiceDialog } from "./ServiceDialog";
 import styles from "./ServiceListPage.module.css";
 import { ARCHIVE_CONFLICT, RESTORE_CONFLICT, SERVICE_GONE } from "./messages";
@@ -36,6 +46,7 @@ export function ServiceListPage() {
   const columns: Column<ServiceOut>[] = [
     {
       header: "Nome",
+      wrap: true,
       cell: (service) => (
         <>
           {service.name}
@@ -51,6 +62,7 @@ export function ServiceListPage() {
     { header: "Pré-wedding", cell: (service) => (service.is_prewedding ? "Sim" : "Não") },
     {
       header: "Ações",
+      actions: true,
       align: "end",
       cell: (service) =>
         service.archived_at ? (
@@ -89,7 +101,7 @@ export function ServiceListPage() {
       <div className={styles.toolbar}>
         <Checkbox label="Mostrar arquivados" checked={showArchived} onChange={setShowArchived} />
       </div>
-      {services.isPending && <p>Carregando…</p>}
+      {services.isPending && <Loading />}
       {services.isError && (
         <Banner tone="error">
           Não foi possível carregar os serviços.{" "}
@@ -103,12 +115,7 @@ export function ServiceListPage() {
           rows={services.data}
           rowKey={(service) => service.id}
           rowMuted={(service) => service.archived_at !== null}
-          empty={
-            <>
-              <p>Nenhum serviço ainda</p>
-              {newService}
-            </>
-          }
+          empty={<EmptyState action={newService}>Nenhum serviço ainda</EmptyState>}
         />
       )}
       {editing !== null && (

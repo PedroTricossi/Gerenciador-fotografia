@@ -1,26 +1,76 @@
+/* Compact wrapping top bar by default; the side menu starts at 900px. */
 .nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-8);
-  padding: var(--space-3) var(--space-6);
-  background: var(--color-surface);
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  color: var(--color-menu-text);
+  background: var(--color-menu-bg);
   border-bottom: var(--border-width) solid var(--color-border);
 }
 .brand {
-  font-weight: var(--font-weight-strong);
+  font-family: var(--font-pixel);
+  font-size: var(--font-size-xl);
+  line-height: 1;
 }
 .links {
   display: flex;
-  gap: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 .link {
-  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-menu-text);
   text-decoration: none;
+  border-radius: var(--radius-control);
+  overflow-wrap: anywhere;
+}
+.link:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 .active {
-  color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
   font-weight: var(--font-weight-strong);
+}
+.footer {
+  margin-left: auto;
+}
+
+@media (min-width: 900px) {
+  .nav {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: var(--space-4);
+    position: sticky;
+    top: var(--space-6);
+    flex: 0 0 13rem;
+    width: 13rem;
+    padding: var(--space-4);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-box);
+    box-shadow: var(--shadow-hard);
+  }
+  .links {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+  .footer {
+    margin-left: 0;
+    margin-top: var(--space-4);
+  }
 }

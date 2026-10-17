@@ -21,7 +21,7 @@ type Props = {
 
 export function ConfirmDialog({ open, title, onCancel, ...body }: Props) {
   return (
-    <Dialog open={open} title={title} onClose={onCancel}>
+    <Dialog open={open} title={title} onClose={onCancel} dismissable={!body.busy}>
       {/* Mounted only while open, so the typed text starts empty every time. */}
       <ConfirmBody onCancel={onCancel} {...body} />
     </Dialog>

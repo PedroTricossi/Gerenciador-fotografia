@@ -1,22 +1,55 @@
+.wrap {
+  overflow-x: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-box);
+  background: var(--color-surface);
+}
+.wrap:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
 .table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
 }
 .table th,
 .table td {
   text-align: start;
-  padding: var(--space-3) var(--space-4);
-  border-bottom: var(--border-width) solid var(--color-border);
+  padding: var(--space-3) var(--space-2);
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
+/* Free-text columns opt in: they wrap, and may break inside a very long word. */
+.table td.wrapText {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: calc(11ch + 2 * var(--space-2));
+}
+.table td.actionsCell {
+  white-space: normal;
+}
+.caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.table td {
+  border-top: var(--border-width) dashed var(--color-border);
+}
+/* Headers may wrap between words (never inside one) so large text doesn't force the table wider. */
 .table th {
+  white-space: normal;
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  background: var(--color-band);
+  color: var(--color-text);
 }
-.end {
-  text-align: end;
+.table tbody tr:first-child td {
+  border-top: var(--border-width) solid var(--color-border);
 }
+.end,
 .table th.end,
 .table td.end {
   text-align: end;
@@ -24,9 +57,11 @@
 .muted td {
   color: var(--color-text-muted);
 }
-.empty {
-  padding: var(--space-8);
-  text-align: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
+/* Row actions are compact so a row of them fits beside the data at large text sizes; a
+   multi-word label may wrap between words when there is no room. */
+.table td button {
+  white-space: normal;
+  font-size: var(--font-size-sm);
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
 }

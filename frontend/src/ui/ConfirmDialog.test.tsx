@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -70,4 +70,46 @@ test("shows an error and a busy confirm button", () => {
   );
   expect(screen.getByRole("alert")).toHaveTextContent("Falhou");
   expect(screen.getByRole("button", { name: "Excluir" })).toBeDisabled();
+});
+
+function cancelEvent(dialog: HTMLElement) {
+  const event = new Event("cancel", { cancelable: true });
+  fireEvent(dialog, event);
+  return event;
+}
+
+test("Escape while busy keeps the dialog open", () => {
+  const onCancel = vi.fn();
+  render(
+    <ConfirmDialog
+      open
+      title="Excluir"
+      confirmLabel="Excluir"
+      busy
+      onConfirm={vi.fn()}
+      onCancel={onCancel}
+    >
+      <p>Excluir este contrato?</p>
+    </ConfirmDialog>,
+  );
+  const event = cancelEvent(screen.getByRole("dialog", { name: "Excluir" }));
+  expect(event.defaultPrevented).toBe(true);
+  expect(onCancel).not.toHaveBeenCalled();
+});
+
+test("Escape when not busy cancels", () => {
+  const onCancel = vi.fn();
+  render(
+    <ConfirmDialog
+      open
+      title="Excluir"
+      confirmLabel="Excluir"
+      onConfirm={vi.fn()}
+      onCancel={onCancel}
+    >
+      <p>Excluir este contrato?</p>
+    </ConfirmDialog>,
+  );
+  cancelEvent(screen.getByRole("dialog", { name: "Excluir" }));
+  expect(onCancel).toHaveBeenCalledOnce();
 });

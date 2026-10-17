@@ -1,7 +1,15 @@
 import type { ReactNode } from "react";
 import styles from "./Table.module.css";
 
-export type Column<T> = { header: string; cell: (row: T) => ReactNode; align?: "start" | "end" };
+export type Column<T> = {
+  header: string;
+  cell: (row: T) => ReactNode;
+  align?: "start" | "end";
+  /** Free text may break anywhere to fit its cell; everything else keeps its words whole. */
+  wrap?: boolean;
+  /** A column of buttons: the cell lets them wrap onto another line instead of overflowing. */
+  actions?: boolean;
+};
 
 type Props<T> = {
   label: string;
@@ -13,33 +21,47 @@ type Props<T> = {
 };
 
 export function Table<T>({ label, columns, rows, rowKey, rowMuted, empty }: Props<T>) {
-  if (rows.length === 0 && empty) return <div className={styles.empty}>{empty}</div>;
+  if (rows.length === 0 && empty) return <>{empty}</>;
   return (
-    <table className={styles.table} aria-label={label}>
-      <thead>
-        <tr>
-          {columns.map((column) => (
-            <th
-              key={column.header}
-              scope="col"
-              className={column.align === "end" ? styles.end : undefined}
-            >
-              {column.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={rowKey(row)} className={rowMuted?.(row) ? styles.muted : undefined}>
+    <div className={styles.wrap} role="region" aria-label={label} tabIndex={0}>
+      <table className={styles.table}>
+        <caption className={styles.caption}>{label}</caption>
+        <thead>
+          <tr>
             {columns.map((column) => (
-              <td key={column.header} className={column.align === "end" ? styles.end : undefined}>
-                {column.cell(row)}
-              </td>
+              <th
+                key={column.header}
+                scope="col"
+                className={column.align === "end" ? styles.end : undefined}
+              >
+                {column.header}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)} className={rowMuted?.(row) ? styles.muted : undefined}>
+              {columns.map((column) => (
+                <td
+                  key={column.header}
+                  className={
+                    [
+                      column.align === "end" && styles.end,
+                      column.wrap && styles.wrapText,
+                      column.actions && styles.actionsCell,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                >
+                  {column.cell(row)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -115,3 +115,37 @@ export async function sha256(download: Download): Promise<string> {
     .update(await readFile(path))
     .digest("hex");
 }
+
+function localIso(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Creates a contract dated today (so it shows on the current month's calendar) whose
+ * couple names are 40+ unbreakable characters and whose venue has 60.
+ */
+export async function createLongNamedContract(page: Page): Promise<{ id: string; label: string }> {
+  const suffix = uniqueSuffix();
+  const groomFirst = `Pneumoultramicroscopico${suffix}silicovulcano`;
+  const brideFirst = `Anticonstitucionalissimamente${suffix}rara`;
+  const couple: Couple = {
+    groom: `${groomFirst} Albuquerque Cavalcanti de Souza Neto`,
+    bride: `${brideFirst} Albuquerque Cavalcanti de Souza Lima`,
+    groomCpf: freshCpf(),
+    brideCpf: freshCpf(),
+    label: `${groomFirst} & ${brideFirst}`,
+  };
+  await page.goto("/contratos/novo");
+  await fillContract(page, couple);
+  await page.getByLabel("Data do evento").fill(localIso(new Date()));
+  await page
+    .getByLabel("Local do evento")
+    .fill("Igreja Matriz de Nossa Senhora da Conceição dos Aflitos e Desvalidos");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await download;
+  await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
+  return { id: page.url().split("/").pop()!, label: couple.label };
+}

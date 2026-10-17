@@ -4,6 +4,7 @@ import type { AgendaEntryOut } from "../../api/client";
 import { IDS, makeAgendaEntry, problem } from "../../test/fixtures";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
+import { entryLabel } from "./entries";
 
 function serveAgenda(entries: AgendaEntryOut[]) {
   const ranges: string[] = [];
@@ -191,9 +192,10 @@ test("clicking a day lists its entries below the grid", async () => {
   const { user } = renderApp("/agenda");
 
   await within(cell("24 de outubro de 2026")).findByRole("link");
-  expect(within(cell("24 de outubro de 2026")).getByRole("link")).toHaveTextContent(
-    "Pré · João & Ana",
-  );
+  const chip = within(cell("24 de outubro de 2026")).getByRole("link");
+  expect(chip).toHaveTextContent("João & Ana");
+  expect(chip.closest("li")).toHaveTextContent("Pré ·");
+  expect(chip.closest("li")).toHaveTextContent("João & Ana");
   await user.click(screen.getByRole("button", { name: "24 de outubro de 2026" }));
   expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
   expect(
@@ -225,4 +227,19 @@ test("moving to another month or back to today closes the opened day", async () 
   expect(screen.getByRole("region", { name: "sáb., 24/10/2026" })).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Hoje" }));
   expect(screen.queryByRole("region", { name: "sáb., 24/10/2026" })).not.toBeInTheDocument();
+});
+
+test("a long couple name keeps its full label as the chip's name", async () => {
+  const groom = { full_name: "Bartolomeumaximilianodealbuquerqueevasconcelos Neto" };
+  const bride = { full_name: "Anastaciagenovevacristinademontenegroefigueiredo Lima" };
+  const entry = makeAgendaEntry({ groom, bride, venue_name: "Igreja Matriz" });
+  serveAgenda([entry]);
+  localStorage.setItem("gerenciador.agenda.view", "calendar");
+  renderApp("/agenda");
+
+  const chip = await within(cell("24 de outubro de 2026")).findByRole("link");
+  const label = entryLabel(entry);
+  expect(label.length).toBeGreaterThan(80);
+  expect(chip).toHaveAccessibleName(label);
+  expect(chip).toHaveAttribute("title", label);
 });

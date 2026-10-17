@@ -1,4 +1,5 @@
 @import "./tokens.css";
+@import "./fonts.css";
 
 *,
 *::before,
@@ -10,7 +11,7 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-body);
+  font-family: var(--font-mono);
   font-size: var(--font-size-md);
   line-height: var(--line-height);
 }
@@ -18,4 +19,33 @@ body {
 :focus-visible {
   outline: var(--focus-ring-width) solid var(--color-focus);
   outline-offset: var(--focus-ring-offset);
+}
+
+main p {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text);
+}
+
+main strong {
+  font-weight: var(--font-weight-strong);
+}
+
+main ul {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-6);
+}
+
+main a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }

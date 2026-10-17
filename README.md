@@ -35,6 +35,10 @@ sources have changed. The API is at <http://127.0.0.1:8000/api/v1>. The server
 refuses to start on any address other than `127.0.0.1` or `localhost`, because
 it has no login.
 
+The interface follows the Mac's light or dark setting. The **Tema** button in
+the menu cycles Automático, Claro and Escuro, and the choice is remembered in
+this browser.
+
 Contract items are picked from the services on the **Serviços** screen, so
 add your services there before creating the first contract. Each contract keeps
 its own copy of an item's name and price: renaming a service or changing its

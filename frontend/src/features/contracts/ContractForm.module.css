@@ -1,16 +1,40 @@
 .item {
-  grid-column: 1 / -1;
+  flex: 1 1 100%;
   display: grid;
-  grid-template-columns: 2fr 1fr auto;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
   gap: var(--space-3);
   align-items: end;
 }
 .row {
-  grid-column: 1 / -1;
+  flex: 1 1 100%;
   margin: 0;
+}
+/* A name and its CPF share a row; the name takes what the CPF leaves. */
+.pair {
+  display: flex;
+  flex: 1 1 26rem;
+  gap: var(--space-4);
+}
+.pair > :first-child {
+  flex: 1 1 var(--width-field-short);
+}
+/* The PIX discount on the left, the total on the right. */
+.summary {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3) var(--space-6);
+}
+.total {
+  margin: 0;
+  /* Lines the total up with the discount's input, below its label. */
+  padding-top: var(--space-6);
 }
 .actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
 }
