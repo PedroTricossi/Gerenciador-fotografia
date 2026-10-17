@@ -46,10 +46,10 @@ describe("ThemeSwitch", () => {
   test("the accessible name describes the next choice", async () => {
     const user = userEvent.setup();
     render(<ThemeSwitch />);
-    await user.click(screen.getByRole("button", { name: "Mudar tema para Claro" }));
-    await user.click(screen.getByRole("button", { name: "Mudar tema para Escuro" }));
+    await user.click(screen.getByRole("button", { name: "Tema: Automático. Mudar para Claro" }));
+    await user.click(screen.getByRole("button", { name: "Tema: Claro. Mudar para Escuro" }));
     expect(
-      screen.getByRole("button", { name: "Mudar tema para Automático (segue o Mac)" }),
+      screen.getByRole("button", { name: "Tema: Escuro. Mudar para Automático (segue o Mac)" }),
     ).toBeInTheDocument();
   });
 

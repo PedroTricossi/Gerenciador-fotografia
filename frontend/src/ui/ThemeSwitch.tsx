@@ -25,7 +25,7 @@ export function ThemeSwitch() {
       type="button"
       className={styles.switch}
       onClick={cycle}
-      aria-label={`Mudar tema para ${ACTION[next]}`}
+      aria-label={`Tema: ${LABEL[choice]}. Mudar para ${ACTION[next]}`}
     >
       Tema: {LABEL[choice]}
     </button>
