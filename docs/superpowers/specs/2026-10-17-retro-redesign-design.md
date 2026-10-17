@@ -1,7 +1,7 @@
 # Retro Redesign — Design
 
 Date: 2026-10-17
-Status: awaiting review
+Status: approved
 Branch: `feat/retro-redesign` (based on `main`)
 
 ## 1. Purpose
