@@ -62,6 +62,11 @@ export function useContractForm(
   const planRows = useFieldArray({ control: form.control, name: "plan.rows" });
   // Once an amount is typed by hand, the form stops re-splitting the plan on its own.
   const planEdited = useRef(false);
+  // A new contract starts with an empty amount; its plan is re-split equally, never spread.
+  // The rows the total is applied to: spreading from here, not from the last keystroke's result,
+  // keeps the plan equal to what the server makes of the final total (floors don't compose).
+  const baseRows = useRef(initialValues.plan.rows);
+  const newPlan = useRef(initialValues.plan.rows.every((row) => row.amount === ""));
   const [baseline] = useState(() => toRequest(initialValues));
   const [serverMessages, setServerMessages] = useState<string[]>([]);
   const inFlight = useRef(false);
@@ -74,8 +79,8 @@ export function useContractForm(
   useEffect(() => {
     if (planEdited.current || total === null || Number.isNaN(total)) return;
     const plan = form.getValues("plan");
-    const next = respreadForTotal(plan, total);
-    if (next !== null && next !== plan.rows) planRows.replace(next);
+    const next = respreadForTotal({ ...plan, rows: baseRows.current }, total, !newPlan.current);
+    if (next !== null && JSON.stringify(next) !== JSON.stringify(plan.rows)) planRows.replace(next);
     // Only a new total re-splits; the plan itself is read fresh from the form.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [total]);
@@ -104,7 +109,8 @@ export function useContractForm(
     const resized = resizePlan(form.getValues("plan.rows") as PlanRow[], count);
     const split = total === null || Number.isNaN(total) ? null : splitUnpaid(resized, total);
     planEdited.current = false;
-    planRows.replace(split ?? resized);
+    baseRows.current = split ?? resized;
+    planRows.replace(baseRows.current);
     form.setValue("plan.mode", count > 1 ? "split" : "single", { shouldDirty: true });
   };
   const setPlanMode = (mode: "single" | "split") => {

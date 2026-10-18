@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { currentMonth } from "../../domain/instalments";
 import { IDS, makeContract, page, problem } from "../../test/fixtures";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
@@ -460,6 +461,46 @@ describe("Parcelas", () => {
         ],
         pix_discount_cents: 30000,
       },
+    });
+  });
+
+  test("a custom plan keeps its shape on a total change and the save leaves the plan out", async () => {
+    const shaped = [
+      { number: 1, month: "2026-10", amount_cents: 40000, paid_on: null },
+      { number: 2, month: "2026-11", amount_cents: 40000, paid_on: null },
+      { number: 3, month: "2026-12", amount_cents: 60000, paid_on: null },
+    ];
+    serveContract(makeContract({ instalments: shaped }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    const amount = await screen.findByLabelText("Valor do item 1");
+    await user.clear(amount);
+    await user.type(amount, "1500");
+    await user.tab();
+
+    // Total 1.400 -> 1.700: R$ 100,00 more on each unpaid instalment, the shape kept.
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("500,00");
+    expect(screen.getByLabelText("Valor da parcela 2")).toHaveValue("500,00");
+    expect(screen.getByLabelText("Valor da parcela 3")).toHaveValue("700,00");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).not.toHaveProperty("instalments");
+  });
+
+  test("a contract with no instalments can be repaired by choosing À vista", async () => {
+    serveContract(makeContract({ instalments: [], plan_needs_review: true }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    expect(
+      await screen.findByText("Revise o plano de parcelas e salve para confirmar."),
+    ).toBeVisible();
+    const plan = within(screen.getByRole("group", { name: "Parcelas" }));
+    await user.click(plan.getByRole("button", { name: /À vista/ }));
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("1.400,00");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).toEqual({
+      instalments: [{ month: currentMonth(), amount_cents: 140000 }],
     });
   });
 

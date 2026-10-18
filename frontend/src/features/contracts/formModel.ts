@@ -2,7 +2,13 @@ import type { ContractCreate, ContractOut } from "../../api/client";
 import { discountError, totalCents } from "../../domain/contract";
 import { cpfDigits, formatCpf } from "../../domain/cpf";
 import { REQUIRED, amountError, textError } from "../../domain/fieldRules";
-import { MAX_INSTALMENTS, addMonths, spreadChange, splitEqually } from "../../domain/instalments";
+import {
+  MAX_INSTALMENTS,
+  addMonths,
+  currentMonth,
+  spreadChange,
+  splitEqually,
+} from "../../domain/instalments";
 import { formatBrlAmount, parseBrl } from "../../domain/money";
 import {
   type PreweddingValues,
@@ -262,7 +268,13 @@ export function resizePlan(rows: PlanRow[], count: number): PlanRow[] {
   const next = [...rows];
   while (next.length > count && next[next.length - 1]!.paidOn === null) next.pop();
   while (next.length < Math.min(count, MAX_INSTALMENTS)) {
-    next.push({ month: addMonths(next[next.length - 1]!.month, 1), amount: "", paidOn: null });
+    const last = next[next.length - 1];
+    // An empty plan (a contract with no instalments) starts from the current month.
+    next.push({
+      month: last ? addMonths(last.month, 1) : currentMonth(),
+      amount: "",
+      paidOn: null,
+    });
   }
   return next;
 }
@@ -282,11 +294,20 @@ export function splitUnpaid(rows: PlanRow[], total: number): PlanRow[] | null {
   return next;
 }
 
-/** The plan after the total changed: the unpaid rows share what is left, the paid ones stay. */
-export function respreadForTotal(plan: PlanValues, total: number): PlanRow[] | null {
+/**
+ * The plan after the total changed. By default the unpaid rows are split equally (a new contract
+ * whose amounts were never typed). With `keepShape` (an existing plan) the difference is added
+ * equally to the unpaid rows, exactly as the server does, so the plan keeps its shape.
+ * Paid rows always stay.
+ */
+export function respreadForTotal(
+  plan: PlanValues,
+  total: number,
+  keepShape = false,
+): PlanRow[] | null {
   if (planSum(plan) === total) return plan.rows;
   const amounts = plan.rows.map((row) => parseBrl(row.amount));
-  if (amounts.every((cents) => cents !== null && !Number.isNaN(cents))) {
+  if (keepShape && amounts.every((cents) => cents !== null && !Number.isNaN(cents))) {
     const spread = spreadChange(
       amounts as number[],
       plan.rows.map((row) => row.paidOn !== null),

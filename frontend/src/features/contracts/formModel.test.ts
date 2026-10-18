@@ -1,3 +1,4 @@
+import { currentMonth } from "../../domain/instalments";
 import { IDS, makeContract } from "../../test/fixtures";
 import {
   type ContractFormValues,
@@ -426,6 +427,21 @@ describe("plan arithmetic", () => {
     };
     expect(respreadForTotal(plan, 10000)).toBe(plan.rows);
     expect(respreadForTotal(plan, 20000)?.map((r) => r.amount)).toEqual(["100,00", "100,00"]);
+  });
+
+  test("respreadForTotal with keepShape adds the difference equally to the unpaid rows", () => {
+    const plan = {
+      mode: "split" as const,
+      rows: [row("2026-10", "30,00"), row("2026-11", "30,00"), row("2026-12", "40,00")],
+    };
+    const amounts = (total: number) => respreadForTotal(plan, total, true)?.map((r) => r.amount);
+    expect(amounts(10300)).toEqual(["31,00", "31,00", "41,00"]);
+    expect(amounts(9700)).toEqual(["29,00", "29,00", "39,00"]);
+    expect(amounts(10304)).toEqual(["31,01", "31,01", "41,02"]);
+  });
+
+  test("resizePlan starts an empty plan from the current month", () => {
+    expect(resizePlan([], 1)).toEqual([{ month: currentMonth(), amount: "", paidOn: null }]);
   });
 
   test("planFollowsTotal tells the server's own spread from a hand-made plan", () => {
