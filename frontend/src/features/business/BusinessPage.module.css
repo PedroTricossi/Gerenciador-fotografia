@@ -12,6 +12,7 @@
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
 }
 .row {
@@ -24,6 +25,10 @@
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-box);
   background: var(--color-surface);
+}
+.main {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .main,
 .status {

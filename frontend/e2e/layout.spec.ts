@@ -1,8 +1,15 @@
 import { type Page } from "@playwright/test";
-import { createLongNamedContract, expect, test, uniqueSuffix } from "./helpers";
+import {
+  createLongNamedContract,
+  createSplitContract,
+  expect,
+  freshCouple,
+  test,
+  uniqueSuffix,
+} from "./helpers";
 
 const WIDTHS = [400, 800, 1024, 1280, 1440];
-const SCREENS = ["/agenda", "/contratos", "/contratos/novo", "/clientes", "/servicos"];
+const SCREENS = ["/agenda", "/contratos", "/contratos/novo", "/clientes", "/servicos", "/negocio"];
 
 let contractId = "";
 
@@ -24,6 +31,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
   });
   expect(longService.status()).toBe(201);
   contractId = (await createLongNamedContract(page)).id;
+  await createSplitContract(page, freshCouple());
   await page.close();
 });
 

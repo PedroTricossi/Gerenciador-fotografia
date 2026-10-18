@@ -66,6 +66,17 @@ its shoots below the grid. Deleted contracts and pre-weddings that are not
 scheduled yet do not appear. The agenda remembers the view and range you used
 last on this computer.
 
+### Parcelas e Negócio
+
+The contract form has a **Parcelas** section: **À vista** (the default) or
+**Parcelado** in 2 to 4 instalments, each with a month and an amount; the
+amounts must add up to the total after the PIX discount, and the form shows
+how much is missing or in excess. The **Negócio** page lists every
+instalment (late ones, this month's and the coming months') with **Marcar
+como paga** and **Desfazer**; marking one never changes the contract or its
+PDF. In the last 7 days of each month the Agenda shows a **Cobranças** box
+listing the instalments still unpaid.
+
 ### Pré-wedding
 
 A contract that includes a pre-wedding service can carry its pre-wedding
