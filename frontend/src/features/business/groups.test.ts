@@ -1,4 +1,4 @@
-import { groupInstalments, monthName, shortDate, type InstalmentItem } from "./groups";
+import { groupInstalments, monthLabel, monthName, shortDate, type InstalmentItem } from "./groups";
 
 function item(number: number, month: string, paid_on: string | null = null): InstalmentItem {
   return {
@@ -39,4 +39,10 @@ test("empty groups when nothing matches", () => {
 test("month names and short dates", () => {
   expect(monthName("2026-10")).toBe("Outubro");
   expect(shortDate("2026-10-07")).toBe("07/10");
+});
+
+test("monthLabel adds the year outside the current year", () => {
+  expect(monthLabel("2026-10", "2026-10")).toBe("Outubro");
+  expect(monthLabel("2025-12", "2026-10")).toBe("Dezembro 2025");
+  expect(monthLabel("2027-01", "2026-10")).toBe("Janeiro 2027");
 });

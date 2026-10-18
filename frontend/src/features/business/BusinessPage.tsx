@@ -15,7 +15,7 @@ import { formatBrl } from "../../domain/money";
 import { Banner, Button, EmptyState, Loading, PageLayout, TextLink, useToast } from "../../ui";
 import { coupleLabel } from "../contracts/names";
 import styles from "./BusinessPage.module.css";
-import { type InstalmentItem, groupInstalments, monthName, shortDate } from "./groups";
+import { type InstalmentItem, groupInstalments, monthLabel, monthName, shortDate } from "./groups";
 
 const ALREADY_UPDATED = "Esta parcela já estava atualizada.";
 
@@ -26,11 +26,12 @@ type RowProps = {
   item: InstalmentItem;
   late?: boolean;
   busy: boolean;
+  currentMonth: string;
   onMark: (item: InstalmentItem) => void;
   onUndo: (item: InstalmentItem) => void;
 };
 
-function InstalmentRow({ item, late = false, busy, onMark, onUndo }: RowProps) {
+function InstalmentRow({ item, late = false, busy, currentMonth, onMark, onUndo }: RowProps) {
   const couple = coupleLabel({ full_name: item.groom_name }, { full_name: item.bride_name });
   return (
     <li className={styles.row}>
@@ -39,7 +40,7 @@ function InstalmentRow({ item, late = false, busy, onMark, onUndo }: RowProps) {
         <span>
           {item.number}/{item.count}
         </span>
-        <span>{monthName(item.month)}</span>
+        <span>{monthLabel(item.month, currentMonth)}</span>
         <span className={styles.amount}>{formatBrl(item.amount_cents)}</span>
         {late && (
           <span className={styles.late}>
@@ -64,7 +65,7 @@ function InstalmentRow({ item, late = false, busy, onMark, onUndo }: RowProps) {
   );
 }
 
-type GroupProps = Omit<RowProps, "item"> & { items: InstalmentItem[]; headingId: string };
+type GroupProps = Omit<RowProps, "item" | "busy"> & { items: InstalmentItem[]; headingId: string };
 
 function RowList({ items, headingId, ...row }: GroupProps & { busyKeys: Set<string> }) {
   return (
@@ -90,7 +91,7 @@ export function BusinessPage() {
   const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
   // State lags a render behind a fast second click; the ref closes that gap.
   const inFlight = useRef(new Set<string>());
-  const ids = { late: useId(), month: useId(), upcoming: useId() };
+  const ids = { late: useId(), month: useId() };
   const upcomingId = useId();
 
   const onError = (error: unknown) => {
@@ -131,7 +132,7 @@ export function BusinessPage() {
     groups.late.length === 0 &&
     groups.thisMonth.length === 0 &&
     groups.upcoming.length === 0;
-  const shared = { busyKeys, onMark, onUndo, busy: false };
+  const shared = { busyKeys, onMark, onUndo, currentMonth: month };
 
   return (
     <PageLayout title="Negócio">
@@ -162,7 +163,7 @@ export function BusinessPage() {
           {groups.upcoming.map((entry) => (
             <div key={entry.month}>
               <h4 id={`${upcomingId}-${entry.month}`} className={styles.monthHeading}>
-                {monthName(entry.month)}
+                {monthLabel(entry.month, month)}
               </h4>
               <RowList items={entry.items} headingId={`${upcomingId}-${entry.month}`} {...shared} />
             </div>

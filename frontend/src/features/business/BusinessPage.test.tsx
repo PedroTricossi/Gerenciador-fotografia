@@ -66,7 +66,7 @@ test("shows late, this month and upcoming groups with the right rows", async () 
   expect(within(month).getByRole("button", { name: "Desfazer" })).toBeInTheDocument();
   expect(within(month).getByRole("button", { name: "Marcar como paga" })).toBeInTheDocument();
 
-  const upcoming = screen.getByRole("list", { name: "Janeiro" });
+  const upcoming = screen.getByRole("list", { name: "Janeiro 2027" });
   expect(within(upcoming).getByRole("listitem")).toHaveTextContent("R$ 444,00");
   expect(screen.getByRole("heading", { level: 3, name: "Próximos meses" })).toBeInTheDocument();
 });
@@ -200,4 +200,15 @@ test("the nav has a Negócio link after Serviços that opens /negocio", async ()
   await user.click(within(nav).getByRole("link", { name: "Negócio" }));
   expect(router.state.location.pathname).toBe("/negocio");
   expect(await screen.findByRole("heading", { level: 1, name: "Negócio" })).toBeInTheDocument();
+});
+
+test("a month outside the current year shows its year, in headings and rows", async () => {
+  const lastYear = item({ number: 1, month: "2025-11", amount_cents: 11100 });
+  server.use(listing([lastYear, OPEN, NEXT]));
+  renderApp("/negocio");
+  const late = await screen.findByRole("list", { name: "Atrasadas" });
+  expect(within(late).getByRole("listitem")).toHaveTextContent("Novembro 2025");
+  expect(screen.getByRole("list", { name: "Dezembro" })).toBeInTheDocument();
+  const next = screen.getByRole("list", { name: "Janeiro 2027" });
+  expect(within(next).getByRole("listitem")).toHaveTextContent("Janeiro 2027");
 });

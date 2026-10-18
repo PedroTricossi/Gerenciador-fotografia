@@ -45,6 +45,12 @@ export function monthName(month: string): string {
   return MONTH_NAMES[Number(month.slice(5, 7)) - 1] ?? month;
 }
 
+/** The month's name, with its year when that is not the current year ("Janeiro 2027"). */
+export function monthLabel(month: string, currentMonth: string): string {
+  const name = monthName(month);
+  return month.slice(0, 4) === currentMonth.slice(0, 4) ? name : `${name} ${month.slice(0, 4)}`;
+}
+
 /** "2026-10-17" to "17/10". */
 export function shortDate(iso: string): string {
   return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
