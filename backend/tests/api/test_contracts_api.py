@@ -496,6 +496,24 @@ def test_patch_without_a_plan_spreads_the_change_over_unpaid_instalments(
     assert "instalments" in event.details["fields"]
 
 
+def test_patch_without_a_plan_keeps_the_shape_of_a_custom_plan(
+    api: TestClient, payload: Payload
+) -> None:
+    plan = [
+        {"month": "2026-10", "amount_cents": 60000},
+        {"month": "2026-11", "amount_cents": 60000},
+        {"month": "2026-12", "amount_cents": 80000},
+    ]
+    created = _create(api, payload, instalments=plan)
+    items = [{"service_id": SERVICE_ID_CEREMONY, "amount_cents": 240300}]
+    response = _patch(api, created, {"payment": {"items": items}})
+    assert response.status_code == 200
+    amounts = [i["amount_cents"] for i in response.json()["instalments"]]
+    # The 10300 difference is shared equally (3433 each, the odd centavo on the last one).
+    assert amounts == [63433, 63433, 83434]
+    assert sum(amounts) == 210300
+
+
 def test_patch_that_changes_the_total_of_a_fully_paid_plan_is_refused(
     api: TestClient, payload: Payload, engine: Engine
 ) -> None:

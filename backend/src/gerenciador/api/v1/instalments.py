@@ -28,4 +28,6 @@ def list_instalments(
     service: Instalments,
     unpaid_through: Annotated[str | None, Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")] = None,
 ) -> list[InstalmentListItem]:
-    return [InstalmentListItem.from_entry(entry) for entry in service.list(unpaid_through)]
+    return [
+        InstalmentListItem.from_entry(entry) for entry in service.list_instalments(unpaid_through)
+    ]

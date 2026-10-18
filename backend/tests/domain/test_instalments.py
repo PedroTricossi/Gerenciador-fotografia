@@ -62,6 +62,34 @@ def test_spread_change_that_zeroes_an_unpaid_amount_raises() -> None:
     assert exc.value.message == "a mudança de valor deixaria uma parcela sem valor; ajuste o plano"
 
 
+def test_spread_change_adds_the_difference_and_keeps_the_shape() -> None:
+    assert spread_change([3000, 3000, 4000], [False] * 3, 10300) == [3100, 3100, 4100]
+    assert spread_change([20000, 30000, 50000], [True, False, False], 103000) == [
+        20000,
+        31500,
+        51500,
+    ]
+
+
+def test_spread_change_decrease_keeps_the_shape() -> None:
+    assert spread_change([3000, 3000, 4000], [False] * 3, 9700) == [2900, 2900, 3900]
+
+
+def test_spread_change_odd_difference_leftover_goes_to_last_unpaid() -> None:
+    assert spread_change([3000, 3000, 4000], [False] * 3, 10304) == [3101, 3101, 4102]
+
+
+def test_spread_change_negative_odd_difference_floors() -> None:
+    # diff -5 over 2: floor(-2.5) = -3 and the leftover +1 on the last one -> -3 / -2.
+    assert spread_change([1000, 1000, 1000], [True, False, False], 2995) == [1000, 997, 998]
+
+
+def test_spread_change_refuses_when_the_difference_zeroes_an_amount() -> None:
+    with pytest.raises(ContractRuleError) as exc:
+        spread_change([500, 9500], [False, False], 9000)
+    assert exc.value.field == "instalments"
+
+
 def test_month_arithmetic() -> None:
     assert add_months("2026-12", 1) == "2027-01"
     assert add_months("2027-01", -1) == "2026-12"

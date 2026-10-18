@@ -32,22 +32,25 @@ def split_equally(total_cents: int, count: int) -> list[int]:
 
 
 def spread_change(amounts: Sequence[int], paid: Sequence[bool], new_total: int) -> list[int]:
-    """Spread a total change equally over the unpaid instalments."""
+    """Add the total's difference equally to the unpaid instalments, so custom shapes survive.
+
+    `floor(diff / k)` each (Python `//` floors negatives, like the frontend's `Math.floor`),
+    with the leftover on the last unpaid one.
+    """
     result = list(amounts)
-    if new_total == sum(amounts):
+    diff = new_total - sum(amounts)
+    if diff == 0:
         return result
     unpaid = [i for i, is_paid in enumerate(paid) if not is_paid]
     if not unpaid:
         raise ContractRuleError("instalments", "todas as parcelas estão pagas; ajuste o plano")
-    paid_sum = sum(a for a, is_paid in zip(amounts, paid, strict=True) if is_paid)
-    shares = split_equally(new_total - paid_sum, len(unpaid))
-    if min(shares) <= 0:
+    for index, delta in zip(unpaid, split_equally(diff, len(unpaid)), strict=True):
+        result[index] += delta
+    if min(result[i] for i in unpaid) <= 0:
         raise ContractRuleError(
             "instalments",
             "a mudança de valor deixaria uma parcela sem valor; ajuste o plano",
         )
-    for index, share in zip(unpaid, shares, strict=True):
-        result[index] = share
     return result
 
 

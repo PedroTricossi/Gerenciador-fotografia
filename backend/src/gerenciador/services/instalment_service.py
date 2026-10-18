@@ -2,8 +2,9 @@
 
 import datetime as dt
 from dataclasses import dataclass
+from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, CursorResult, select, update
 from sqlalchemy.orm import Session, lazyload
 
 from gerenciador.db.models import Contract, Instalment
@@ -49,17 +50,18 @@ class InstalmentService:
         row = self._row(contract_id, number)
         if row.paid_on is not None:
             raise ConflictError(ALREADY_PAID)
-        row.paid_on = paid_on
+        # Conditional, so two concurrent requests cannot both win.
+        self._flip(row, Instalment.paid_on.is_(None), paid_on, ALREADY_PAID)
         return self._save(ctx, "instalment.paid", row)
 
     def mark_unpaid(self, ctx: RequestContext, contract_id: str, number: int) -> InstalmentView:
         row = self._row(contract_id, number)
         if row.paid_on is None:
             raise ConflictError(NOT_PAID)
-        row.paid_on = None
+        self._flip(row, Instalment.paid_on.is_not(None), None, NOT_PAID)
         return self._save(ctx, "instalment.unpaid", row)
 
-    def list(self, unpaid_through: str | None) -> list[InstalmentListEntry]:
+    def list_instalments(self, unpaid_through: str | None) -> list[InstalmentListEntry]:
         """Instalments of contracts that are not deleted, by month, event date, then number.
 
         With `unpaid_through` ("YYYY-MM"), only unpaid ones due up to that month.
@@ -99,6 +101,21 @@ class InstalmentService:
             if row.number == number:
                 return row
         raise NotFoundError("instalment", contract_id, "parcela não encontrada")
+
+    def _flip(
+        self, row: Instalment, guard: ColumnElement[bool], paid_on: dt.date | None, conflict: str
+    ) -> None:
+        """Set `paid_on` only while the row is still in the expected state, else 409."""
+        result = self._session.execute(
+            update(Instalment)
+            .where(Instalment.id == row.id, guard)
+            .values(paid_on=paid_on)
+            .execution_options(synchronize_session=False)
+        )
+        if cast("CursorResult[Any]", result).rowcount == 0:
+            self._session.rollback()
+            raise ConflictError(conflict)
+        self._session.refresh(row)
 
     def _save(self, ctx: RequestContext, action: str, row: Instalment) -> InstalmentView:
         self._audit.record(

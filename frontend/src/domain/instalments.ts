@@ -11,23 +11,23 @@ export function splitEqually(total: number, count: number): number[] {
 }
 
 /**
- * Spreads a new total equally over the unpaid instalments, leaving the paid ones alone.
- * Returns null where the server would refuse: all paid, or an unpaid share left at zero or less.
+ * Adds the total's difference equally to the unpaid instalments (so custom shapes survive),
+ * leaving the paid ones alone. `Math.floor` floors negatives like Python's `//`.
+ * Returns null where the server would refuse: all paid, or an unpaid amount left at zero or less.
  */
 export function spreadChange(
   amounts: readonly number[],
   paid: readonly boolean[],
   newTotal: number,
 ): number[] | null {
-  const sum = amounts.reduce((acc, amount) => acc + amount, 0);
-  if (newTotal === sum) return [...amounts];
+  const diff = newTotal - amounts.reduce((acc, amount) => acc + amount, 0);
+  if (diff === 0) return [...amounts];
   const unpaid = paid.flatMap((isPaid, index) => (isPaid ? [] : [index]));
   if (unpaid.length === 0) return null;
-  const paidSum = amounts.reduce((acc, amount, index) => acc + (paid[index] ? amount : 0), 0);
-  const shares = splitEqually(newTotal - paidSum, unpaid.length);
-  if (Math.min(...shares) <= 0) return null;
+  const deltas = splitEqually(diff, unpaid.length);
   const result = [...amounts];
-  unpaid.forEach((position, index) => (result[position] = shares[index]!));
+  unpaid.forEach((position, index) => (result[position]! += deltas[index]!));
+  if (Math.min(...unpaid.map((position) => result[position]!)) <= 0) return null;
   return result;
 }
 
