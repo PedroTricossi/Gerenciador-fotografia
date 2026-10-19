@@ -9,6 +9,9 @@ import { Banner, Button, type Column, EmptyState, Loading, Table } from "../../.
 import { coupleLabel } from "../../contracts/names";
 import { monthName } from "../groups";
 import { ExpenseDialog } from "./ExpenseDialog";
+import { ExpenseTypesDialog } from "./ExpenseTypesDialog";
+import { FeeDialog } from "./FeeDialog";
+import { FixedCostsDialog } from "./FixedCostsDialog";
 import styles from "./ExpensesTab.module.css";
 
 const noop = () => {};
@@ -56,6 +59,10 @@ export function ExpensesTab({
 }: Props) {
   // null: closed; "new": a blank form; otherwise the stored expense being edited.
   const [dialog, setDialog] = useState<"new" | { id: string } | null>(null);
+  // The management dialogs: closed, or one of them (the fee one for a single wedding or the default).
+  const [manage, setManage] = useState<
+    "fixed" | "fee" | "types" | { adjust: ExpenseEntryOut } | null
+  >(null);
   const today = currentMonth();
   const [month, setMonth] = useState(today);
   const entries = useExpenseEntries(month);
@@ -95,7 +102,13 @@ export function ExpensesTab({
       actions: true,
       cell: (entry) =>
         entry.source === "second_photographer" ? (
-          <Button onClick={() => onAdjust(entry)} aria-label={`Ajustar ${describe(entry)}`}>
+          <Button
+            onClick={() => {
+              onAdjust(entry);
+              setManage({ adjust: entry });
+            }}
+            aria-label={`Ajustar ${describe(entry)}`}
+          >
             Ajustar
           </Button>
         ) : (
@@ -190,18 +203,34 @@ export function ExpensesTab({
                       })
                       .join(" · ")}
               </span>
-              <Button onClick={onManage}>Gerenciar</Button>
+              <Button
+                onClick={() => {
+                  onManage();
+                  setManage("fixed");
+                }}
+              >
+                Gerenciar
+              </Button>
             </p>
             <p className={styles.settingsLine}>
               <span>
                 2º fotógrafo (padrão):{" "}
                 {standardFee ? formatBrl(standardFee.amount_cents) : "não definido"}
               </span>
-              <Button onClick={onManage}>Alterar</Button>
+              <Button onClick={() => setManage("fee")}>Alterar</Button>
+            </p>
+            <p className={styles.settingsLine}>
+              <Button onClick={() => setManage("types")}>Tipos de despesa</Button>
             </p>
           </>
         )}
       </section>
+      {manage === "fixed" && <FixedCostsDialog onClose={() => setManage(null)} />}
+      {manage === "fee" && <FeeDialog mode="standard" onClose={() => setManage(null)} />}
+      {manage === "types" && <ExpenseTypesDialog onClose={() => setManage(null)} />}
+      {typeof manage === "object" && manage !== null && (
+        <FeeDialog mode="adjust" entry={manage.adjust} onClose={() => setManage(null)} />
+      )}
       {dialog && (
         <ExpenseDialog
           expenseId={dialog === "new" ? null : dialog.id}

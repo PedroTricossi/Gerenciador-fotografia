@@ -265,3 +265,24 @@ test("when the fixed costs fail to load, the box says so instead of nenhuma", as
   ).toBeInTheDocument();
   expect(within(box).queryByText(/nenhuma/)).not.toBeInTheDocument();
 });
+
+test("Ajustar on a fee row opens the fee dialog for that couple", async () => {
+  serve();
+  const { user } = renderApp("/negocio?aba=despesas");
+  await user.click(
+    await screen.findByRole("button", { name: "Ajustar 2º fotógrafo · Caio & Duda" }),
+  );
+  const dialog = await screen.findByRole("dialog", { name: "2º fotógrafo · Caio & Duda" });
+  expect(within(dialog).getByLabelText("Valor para este casamento")).toBeInTheDocument();
+});
+
+test("Alterar opens the standard fee and Tipos de despesa opens the types", async () => {
+  serve();
+  server.use(http.get("/api/v1/expense-types", () => HttpResponse.json([])));
+  const { user } = renderApp("/negocio?aba=despesas");
+  const box = await screen.findByRole("region", { name: "Configurações" });
+  await user.click(await within(box).findByRole("button", { name: "Alterar" }));
+  await user.click(await screen.findByRole("button", { name: "Cancelar" }));
+  await user.click(within(box).getByRole("button", { name: "Tipos de despesa" }));
+  expect(await screen.findByRole("dialog", { name: "Tipos de despesa" })).toBeInTheDocument();
+});

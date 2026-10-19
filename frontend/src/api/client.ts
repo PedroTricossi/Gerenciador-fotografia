@@ -20,6 +20,7 @@ export type ExpenseIn = Schemas["ExpenseIn"];
 export type ExpenseOut = Schemas["ExpenseOut"];
 export type ExpenseEventOut = Schemas["ExpenseEventOut"];
 export type ExpenseTypeOut = Schemas["ExpenseTypeOut"];
+export type FixedCostOut = Schemas["FixedCostOut"];
 
 export class ApiError extends Error {
   readonly status: number;
