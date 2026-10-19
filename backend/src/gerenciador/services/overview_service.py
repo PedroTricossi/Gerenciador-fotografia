@@ -16,7 +16,11 @@ from gerenciador.domain.instalments import Month, month_of
 from gerenciador.domain.overview import palette_slots, period_bounds, upcoming_months
 from gerenciador.services.expense_entry_service import ExpenseEntry, ExpenseEntryService
 
-_LEAN = (lazyload(Contract.items), lazyload(Contract.prewedding))
+_LEAN = (
+    lazyload(Contract.items),
+    lazyload(Contract.prewedding),
+    lazyload(Contract.instalments),
+)
 
 
 @dataclass(frozen=True)

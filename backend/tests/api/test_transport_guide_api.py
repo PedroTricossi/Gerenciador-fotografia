@@ -230,3 +230,19 @@ def test_a_deleted_contract_still_counts_without_names(
 )
 def test_invalid_query_is_rejected(api: TestClient, params: dict[str, Any]) -> None:
     assert api.get(URL, params=params).status_code == 422
+
+
+def test_an_anonymised_client_has_no_name_on_its_trip(
+    api: TestClient, payload: Payload, catalog: dict[str, str]
+) -> None:
+    contract = _contract(api, payload, catalog, 10)
+    _leg(api, contract, 4300, 320)
+    api.delete(f"{CONTRACTS}/{contract['id']}")
+    api.post(f"/api/v1/clients/{contract['groom']['id']}/anonymise")
+    api.post(f"/api/v1/clients/{contract['bride']['id']}/anonymise")
+
+    [trip] = _guide(api, distance_tenths=320)["similar"]
+
+    assert trip["contract_deleted"] is True
+    assert trip["groom_name"] is None
+    assert trip["bride_name"] is None

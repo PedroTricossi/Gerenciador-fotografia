@@ -141,6 +141,14 @@ def test_october_money_in_and_out(api: TestClient, engine: Engine, october: dict
     assert body["missing_fee_count"] == 0
 
 
+def test_statement_closes_on_the_free_balance(api: TestClient, october: dict[str, Any]) -> None:
+    body = _overview(api)
+
+    ins = sum(r["amount_cents"] for r in body["statement"] if r["kind"] == "in")
+    outs = sum(r["amount_cents"] for r in body["statement"] if r["kind"] == "out")
+    assert body["opening_cents"] + ins - outs == body["free_today_cents"]
+
+
 def test_out_agrees_with_despesas(api: TestClient, october: dict[str, Any]) -> None:
     entries = api.get(ENTRIES, params={"from": "2026-10", "to": "2026-10"}).json()["entries"]
 
