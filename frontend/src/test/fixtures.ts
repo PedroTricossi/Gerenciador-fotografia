@@ -69,7 +69,7 @@ export function servicesHandler(services: ServiceOut[] = SERVICES) {
 }
 
 export function makeContract(overrides: Partial<ContractOut> = {}): ContractOut {
-  return {
+  const contract: ContractOut = {
     id: IDS.contract,
     groom: makeClient(),
     bride: makeClient({ id: IDS.bride, full_name: "Ana Lima", cpf: "987.654.321-00" }),
@@ -100,6 +100,8 @@ export function makeContract(overrides: Partial<ContractOut> = {}): ContractOut 
       total_cents: 140000,
     },
     signing: { city: "Curitiba", date: "2026-10-13" },
+    instalments: [{ number: 1, month: "2026-10", amount_cents: 140000, paid_on: null }],
+    plan_needs_review: false,
     has_prewedding: false,
     prewedding: null,
     version: 1,
@@ -108,6 +110,13 @@ export function makeContract(overrides: Partial<ContractOut> = {}): ContractOut 
     deleted_at: null,
     ...overrides,
   };
+  // A plan always adds up to the total, so a contract given other payment gets a matching plan.
+  if (overrides.instalments === undefined && overrides.payment !== undefined) {
+    contract.instalments = [
+      { number: 1, month: "2026-10", amount_cents: contract.payment.total_cents, paid_on: null },
+    ];
+  }
+  return contract;
 }
 
 export function makeAgendaEntry(overrides: Partial<AgendaEntryOut> = {}): AgendaEntryOut {

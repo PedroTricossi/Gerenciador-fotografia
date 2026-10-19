@@ -149,3 +149,15 @@ export async function createLongNamedContract(page: Page): Promise<{ id: string;
   await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
   return { id: page.url().split("/").pop()!, label: couple.label };
 }
+
+/** Creates a contract paid in three instalments (the default months and an equal split). */
+export async function createSplitContract(page: Page, couple: Couple): Promise<void> {
+  await page.goto("/contratos/novo");
+  await fillContract(page, couple);
+  await page.getByRole("button", { name: "Parcelado" }).click();
+  await page.getByLabel("Nº de parcelas").selectOption("3");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await download;
+  await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
+}

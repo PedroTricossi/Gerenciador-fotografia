@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type FieldErrors,
   type FieldPath,
@@ -8,14 +8,20 @@ import {
 } from "react-hook-form";
 import { ApiError } from "../../api/client";
 import { describeUnexpected, isUnexpected } from "../../api/errors";
+import { parseBrl } from "../../domain/money";
 import { changedSections } from "../../domain/patch";
 import { splitFieldErrors } from "../../domain/problems";
 import {
   type ContractFormValues,
   MAX_ITEMS,
+  type PlanRow,
   emptyItem,
+  formPath,
   formTotal,
   isFormField,
+  resizePlan,
+  respreadForTotal,
+  splitUnpaid,
   toRequest,
   validate,
 } from "./formModel";
@@ -53,6 +59,14 @@ export function useContractForm(
     mode: "onTouched",
   });
   const items = useFieldArray({ control: form.control, name: "payment.items" });
+  const planRows = useFieldArray({ control: form.control, name: "plan.rows" });
+  // Once an amount is typed by hand, the form stops re-splitting the plan on its own.
+  const planEdited = useRef(false);
+  // A new contract starts with an empty amount; its plan is re-split equally, never spread.
+  // The rows the total is applied to: spreading from here, not from the last keystroke's result,
+  // keeps the plan equal to what the server makes of the final total (floors don't compose).
+  const baseRows = useRef(initialValues.plan.rows);
+  const newPlan = useRef(initialValues.plan.rows.every((row) => row.amount === ""));
   const [baseline] = useState(() => toRequest(initialValues));
   const [serverMessages, setServerMessages] = useState<string[]>([]);
   const inFlight = useRef(false);
@@ -60,6 +74,55 @@ export function useContractForm(
   const values = form.watch();
   // Compared as API requests, so "1200" and "1.200,00" are the same value.
   const hasChanges = Object.keys(changedSections(baseline, toRequest(values))).length > 0;
+
+  const total = formTotal(values);
+  useEffect(() => {
+    if (planEdited.current || total === null || Number.isNaN(total)) return;
+    const plan = form.getValues("plan");
+    const next = respreadForTotal({ ...plan, rows: baseRows.current }, total, !newPlan.current);
+    if (next !== null && JSON.stringify(next) !== JSON.stringify(plan.rows)) planRows.replace(next);
+    // Only a new total re-splits; the plan itself is read fresh from the form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total]);
+
+  // A message the server gave about the plan describes the plan as it was sent.
+  const planKey = JSON.stringify(values.plan);
+  useEffect(() => {
+    const error = form.getFieldState("plan.sum" as FieldPath<ContractFormValues>).error;
+    if (error?.type === "server") form.clearErrors("plan.sum" as FieldPath<ContractFormValues>);
+    // Runs when the plan changes, not when the error does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planKey]);
+
+  const paidCount = values.plan.rows.filter((row) => row.paidOn !== null).length;
+
+  const paidSum = values.plan.rows.reduce(
+    (sum, row) => sum + (row.paidOn === null ? 0 : (parseBrl(row.amount) ?? 0)),
+    0,
+  );
+  // With paid instalments, one instalment is only possible if the paid one already is the total.
+  const singleBlocked =
+    paidCount > 1 ||
+    (paidCount === 1 && total !== null && !Number.isNaN(total) && paidSum !== total);
+
+  const setPlanCount = (count: number) => {
+    const resized = resizePlan(form.getValues("plan.rows") as PlanRow[], count);
+    const split = total === null || Number.isNaN(total) ? null : splitUnpaid(resized, total);
+    planEdited.current = false;
+    baseRows.current = split ?? resized;
+    planRows.replace(baseRows.current);
+    form.setValue("plan.mode", count > 1 ? "split" : "single", { shouldDirty: true });
+  };
+  const setPlanMode = (mode: "single" | "split") => {
+    const current = form.getValues("plan.rows").length;
+    if (mode === "single") {
+      if (!singleBlocked) setPlanCount(1);
+    } else if (current > 1) {
+      form.setValue("plan.mode", "split", { shouldDirty: true });
+    } else {
+      setPlanCount(2);
+    }
+  };
 
   const onSubmit = form.handleSubmit(async (submitted) => {
     if (inFlight.current) return;
@@ -75,9 +138,10 @@ export function useContractForm(
         return;
       }
       const { fields, other } = splitFieldErrors(error.errors, (path) =>
-        isFormField(path, submitted.payment.items.length),
+        isFormField(path, submitted.payment.items.length, submitted.plan.rows.length),
       );
-      for (const [path, message] of Object.entries(fields)) {
+      for (const [serverPath, message] of Object.entries(fields)) {
+        const path = formPath(serverPath);
         form.setError(path as FieldPath<ContractFormValues>, { type: "server", message });
       }
       const nothingMapped = other.length === 0 && Object.keys(fields).length === 0;
@@ -92,8 +156,16 @@ export function useContractForm(
   return {
     form,
     items,
+    planRows,
     values,
-    total: formTotal(values),
+    total,
+    paidCount,
+    singleBlocked,
+    setPlanCount,
+    setPlanMode,
+    markPlanEdited: () => {
+      planEdited.current = true;
+    },
     hasChanges,
     serverMessages,
     onSubmit,

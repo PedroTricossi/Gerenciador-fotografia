@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { currentMonth } from "../../domain/instalments";
 import { IDS, makeContract, page, problem } from "../../test/fixtures";
 import { renderApp } from "../../test/render";
 import { server } from "../../test/server";
@@ -386,4 +387,180 @@ test("the Baixar PDF button is described by the save-first hint while there are 
 
   await user.type(screen.getByLabelText("Local do evento"), "{Backspace}");
   expect(download).not.toHaveAccessibleDescription();
+});
+
+describe("Parcelas", () => {
+  const PAID_PLAN = [
+    { number: 1, month: "2026-10", amount_cents: 70000, paid_on: "2026-10-05" },
+    { number: 2, month: "2026-11", amount_cents: 70000, paid_on: null },
+  ];
+  const capture = () => {
+    const sent: { body?: Record<string, unknown> } = {};
+    server.use(
+      http.patch("/api/v1/contracts/:id", async ({ request }) => {
+        sent.body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(makeContract({ version: 2 }));
+      }),
+    );
+    return sent;
+  };
+
+  test("a paid instalment is locked and says when it was paid", async () => {
+    serveContract(makeContract({ instalments: PAID_PLAN }));
+    renderApp(URL_PATH);
+    const plan = within(await screen.findByRole("group", { name: "Parcelas" }));
+    expect(await plan.findByText("paga em 05/10")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mês da parcela 1")).toBeDisabled();
+    expect(screen.getByLabelText("Valor da parcela 1")).toBeDisabled();
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("700,00");
+    expect(screen.getByLabelText("Mês da parcela 2")).toBeEnabled();
+    expect(screen.getByLabelText("Valor da parcela 2")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+  });
+
+  test("the count cannot drop below the instalments already paid", async () => {
+    const three = [
+      { number: 1, month: "2026-10", amount_cents: 40000, paid_on: "2026-10-05" },
+      { number: 2, month: "2026-11", amount_cents: 40000, paid_on: "2026-11-05" },
+      { number: 3, month: "2026-12", amount_cents: 60000, paid_on: null },
+    ];
+    serveContract(
+      makeContract({
+        instalments: three,
+        payment: { ...makeContract().payment, total_cents: 140000 },
+      }),
+    );
+    renderApp(URL_PATH);
+    const count = await screen.findByLabelText("Nº de parcelas");
+    expect(
+      within(count)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["2", "3", "4"]);
+  });
+
+  test("a total change re-spreads only the unpaid instalments", async () => {
+    serveContract(makeContract({ instalments: PAID_PLAN }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    const amount = await screen.findByLabelText("Valor do item 1");
+    await user.clear(amount);
+    await user.type(amount, "1400");
+    await user.tab();
+
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("700,00");
+    expect(screen.getByLabelText("Valor da parcela 2")).toHaveValue("900,00");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    // The server spreads the same way, so the plan is left for it to do.
+    expect(sent.body).toEqual({
+      payment: {
+        items: [
+          { service_id: IDS.serviceCeremony, amount_cents: 140000 },
+          { service_id: IDS.serviceSecond, amount_cents: 50000 },
+        ],
+        pix_discount_cents: 30000,
+      },
+    });
+  });
+
+  test("a custom plan keeps its shape on a total change and the save leaves the plan out", async () => {
+    const shaped = [
+      { number: 1, month: "2026-10", amount_cents: 40000, paid_on: null },
+      { number: 2, month: "2026-11", amount_cents: 40000, paid_on: null },
+      { number: 3, month: "2026-12", amount_cents: 60000, paid_on: null },
+    ];
+    serveContract(makeContract({ instalments: shaped }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    const amount = await screen.findByLabelText("Valor do item 1");
+    await user.clear(amount);
+    await user.type(amount, "1500");
+    await user.tab();
+
+    // Total 1.400 -> 1.700: R$ 100,00 more on each unpaid instalment, the shape kept.
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("500,00");
+    expect(screen.getByLabelText("Valor da parcela 2")).toHaveValue("500,00");
+    expect(screen.getByLabelText("Valor da parcela 3")).toHaveValue("700,00");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).not.toHaveProperty("instalments");
+  });
+
+  test("a contract with no instalments can be repaired by choosing À vista", async () => {
+    serveContract(makeContract({ instalments: [], plan_needs_review: true }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    expect(
+      await screen.findByText("Revise o plano de parcelas e salve para confirmar."),
+    ).toBeVisible();
+    const plan = within(screen.getByRole("group", { name: "Parcelas" }));
+    await user.click(plan.getByRole("button", { name: /À vista/ }));
+    expect(screen.getByLabelText("Valor da parcela 1")).toHaveValue("1.400,00");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).toEqual({
+      instalments: [{ month: currentMonth(), amount_cents: 140000 }],
+    });
+  });
+
+  test("a hand-edited plan is sent with the paid rows unchanged", async () => {
+    serveContract(makeContract({ instalments: PAID_PLAN }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    const month = await screen.findByLabelText("Mês da parcela 2");
+    fireEvent.change(month, { target: { value: "2026-12" } });
+    fireEvent.blur(month);
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).toEqual({
+      instalments: [
+        { month: "2026-10", amount_cents: 70000 },
+        { month: "2026-12", amount_cents: 70000 },
+      ],
+    });
+  });
+
+  test("a plan flagged for review is sent with the next save", async () => {
+    serveContract(makeContract({ plan_needs_review: true }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    const venue = await screen.findByLabelText("Local do evento");
+    await user.clear(venue);
+    await user.type(venue, "Capela");
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).toMatchObject({
+      instalments: [{ month: "2026-10", amount_cents: 140000 }],
+    });
+  });
+
+  test("a plan flagged for review shows a notice and can be saved as it is", async () => {
+    serveContract(makeContract({ plan_needs_review: true }));
+    const sent = capture();
+    const { user } = renderApp(URL_PATH);
+    expect(
+      await screen.findByText("Revise o plano de parcelas e salve para confirmar."),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Alterações salvas");
+    expect(sent.body).toEqual({ instalments: [{ month: "2026-10", amount_cents: 140000 }] });
+  });
+
+  test("À vista is unavailable while a paid instalment differs from the total", async () => {
+    serveContract(makeContract({ instalments: PAID_PLAN }));
+    renderApp(URL_PATH);
+    const plan = within(await screen.findByRole("group", { name: "Parcelas" }));
+    expect(plan.getByRole("button", { name: /À vista/ })).toBeDisabled();
+    expect(plan.getByText(/À vista indisponível/)).toBeInTheDocument();
+  });
+
+  test("a paid row is a group whose inputs are described by when it was paid", async () => {
+    serveContract(makeContract({ instalments: PAID_PLAN }));
+    renderApp(URL_PATH);
+    const row = within(await screen.findByRole("group", { name: "Parcela 1" }));
+    expect(row.getByLabelText("Mês da parcela 1")).toHaveAccessibleDescription(/paga em 05\/10/);
+    expect(row.getByLabelText("Valor da parcela 1")).toHaveAccessibleDescription(/paga em 05\/10/);
+    expect(screen.getByRole("group", { name: "Parcela 2" })).toBeInTheDocument();
+  });
 });

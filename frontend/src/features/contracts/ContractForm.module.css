@@ -38,3 +38,19 @@
   align-items: center;
   gap: var(--space-3);
 }
+/* One instalment: month, amount, and when it was paid if it was. */
+.instalment {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: end;
+}
+.paidOn {
+  margin: 0;
+}
+@media (max-width: 30rem) {
+  .instalment {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

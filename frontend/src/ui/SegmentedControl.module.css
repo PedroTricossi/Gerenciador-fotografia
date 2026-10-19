@@ -31,3 +31,7 @@
   color: var(--color-primary-text);
   font-weight: var(--font-weight-strong);
 }
+.option:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}

@@ -66,3 +66,10 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
+.reminders {
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+}

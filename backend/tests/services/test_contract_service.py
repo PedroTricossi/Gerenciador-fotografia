@@ -131,7 +131,10 @@ def test_update_changes_fields_bumps_version_and_audits_names(
     assert updated.updated_at >= created.updated_at
     event = _last_event(session)
     assert event.action == "contract.updated"
-    assert event.details == {"fields": ["venue_name", "items"], "version": 2}
+    assert event.details == {
+        "fields": ["venue_name", "items", "instalments"],
+        "version": 2,
+    }
 
 
 def test_update_with_no_changes_keeps_version_and_records_nothing(

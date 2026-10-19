@@ -1,5 +1,6 @@
 import { Navigate, Outlet, type RouteObject, useParams } from "react-router";
 import { AgendaPage } from "../features/agenda/AgendaPage";
+import { BusinessPage } from "../features/business/BusinessPage";
 import { ClientListPage } from "../features/clients/ClientListPage";
 import { ContractFormPage } from "../features/contracts/ContractFormPage";
 import { ContractListPage } from "../features/contracts/ContractListPage";
@@ -12,6 +13,7 @@ const LINKS = [
   { to: "/contratos", label: "Contratos" },
   { to: "/clientes", label: "Clientes" },
   { to: "/servicos", label: "Serviços" },
+  { to: "/negocio", label: "Negócio" },
 ];
 
 function AppShell() {
@@ -38,6 +40,7 @@ export const routes: RouteObject[] = [
       { path: "contratos/:id", element: <ContractFormRoute /> },
       { path: "clientes", element: <ClientListPage /> },
       { path: "servicos", element: <ServiceListPage /> },
+      { path: "negocio", element: <BusinessPage /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

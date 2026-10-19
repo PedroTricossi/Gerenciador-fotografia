@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type { AgendaEntryOut } from "../../api/client";
 import { IDS, makeAgendaEntry, problem } from "../../test/fixtures";
@@ -242,4 +242,90 @@ test("a long couple name keeps its full label as the chip's name", async () => {
   expect(label.length).toBeGreaterThan(80);
   expect(chip).toHaveAccessibleName(label);
   expect(chip).toHaveAttribute("title", label);
+});
+
+function dueInstalment(overrides: Record<string, unknown>) {
+  return {
+    contract_id: IDS.contract,
+    groom_name: "Caio Reis",
+    bride_name: "Duda Melo",
+    number: 1,
+    count: 4,
+    month: "2026-10",
+    amount_cents: 99000,
+    paid_on: null,
+    plan_needs_review: false,
+    ...overrides,
+  };
+}
+
+function serveReminders(items: unknown[]) {
+  const queries: (string | null)[] = [];
+  server.use(
+    http.get("/api/v1/instalments", ({ request }) => {
+      queries.push(new URL(request.url).searchParams.get("unpaid_through"));
+      return HttpResponse.json(items);
+    }),
+  );
+  return queries;
+}
+
+test("in the month's last week the Cobranças box lists unpaid and late instalments", async () => {
+  vi.setSystemTime(new Date(2026, 9, 27, 12, 0));
+  serveAgenda([]);
+  const queries = serveReminders([
+    dueInstalment({}),
+    dueInstalment({ number: 2, month: "2026-09", amount_cents: 50000 }),
+  ]);
+  renderApp("/agenda");
+
+  const box = await screen.findByRole("region", { name: "Cobranças" });
+  const first = within(box).getByRole("link", {
+    name: "Cobrar parcela: Caio & Duda · 1/4 · R$ 990,00",
+  });
+  expect(first).toHaveAttribute("href", "/negocio");
+  expect(within(box).getByRole("link", { name: /· 2\/4 · R\$ 500,00$/ })).toBeInTheDocument();
+  expect(queries).toEqual(["2026-10"]);
+});
+
+test("the Cobranças box also sits above the calendar view", async () => {
+  vi.setSystemTime(new Date(2026, 9, 27, 12, 0));
+  serveAgenda([]);
+  serveReminders([dueInstalment({})]);
+  const { user } = renderApp("/agenda");
+  await screen.findByRole("region", { name: "Cobranças" });
+  await user.click(screen.getByRole("button", { name: "Calendário" }));
+  expect(screen.getByRole("region", { name: "Cobranças" })).toBeInTheDocument();
+});
+
+test("outside the window there is no box and no request", async () => {
+  vi.setSystemTime(new Date(2026, 9, 20, 12, 0));
+  serveAgenda([]);
+  renderApp("/agenda");
+  await screen.findByText("Nenhum ensaio ou casamento nos próximos 30 dias.");
+  expect(screen.queryByRole("region", { name: "Cobranças" })).not.toBeInTheDocument();
+});
+
+test("the window opens on 22 Feb 2027 and not on 21 Feb", async () => {
+  vi.setSystemTime(new Date(2027, 1, 21, 12, 0));
+  serveAgenda([]);
+  renderApp("/agenda");
+  await screen.findByText("Nenhum ensaio ou casamento nos próximos 30 dias.");
+  expect(screen.queryByRole("region", { name: "Cobranças" })).not.toBeInTheDocument();
+  cleanup();
+
+  vi.setSystemTime(new Date(2027, 1, 22, 12, 0));
+  serveReminders([dueInstalment({ month: "2027-02" })]);
+  renderApp("/agenda");
+  expect(await screen.findByRole("region", { name: "Cobranças" })).toBeInTheDocument();
+});
+
+test("an empty list hides the box", async () => {
+  vi.setSystemTime(new Date(2026, 9, 27, 12, 0));
+  serveAgenda([]);
+  const queries = serveReminders([]);
+  renderApp("/agenda");
+  await screen.findByText("Nenhum ensaio ou casamento nos próximos 30 dias.");
+  await waitFor(() => expect(queries).toEqual(["2026-10"]));
+  expect(screen.queryByRole("region", { name: "Cobranças" })).not.toBeInTheDocument();
 });

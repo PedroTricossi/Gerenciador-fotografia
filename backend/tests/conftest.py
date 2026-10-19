@@ -14,6 +14,7 @@ from gerenciador.config import Settings, generate_key
 from gerenciador.db.migrate import init_database
 from gerenciador.db.models import Service
 from gerenciador.db.session import create_session_factory
+from gerenciador.domain.instalments import month_of
 from gerenciador.main import create_app
 from gerenciador.services.audit_service import AuditService
 from gerenciador.services.catalog_service import CatalogService
@@ -24,6 +25,7 @@ from gerenciador.services.contract_renderer import ContractRenderer
 from gerenciador.services.contract_service import (
     ContractInput,
     ContractService,
+    InstalmentInput,
     ItemInput,
     PersonInput,
 )
@@ -158,7 +160,12 @@ def make_input(catalog: dict[str, str]) -> Callable[..., ContractInput]:
             signing_city="Curitiba",
             signing_date=dt.date(2026, 10, 13),
         )
-        return replace(base, **overrides)
+        data = replace(base, **overrides)
+        if data.instalments is None and "instalments" not in overrides:
+            # A single instalment for the current month, whatever items the test sets.
+            total = sum(i.amount_cents for i in data.items) - (data.pix_discount_cents or 0)
+            data = replace(data, instalments=[InstalmentInput(month_of(dt.date.today()), total)])
+        return data
 
     return _make
 
@@ -205,6 +212,13 @@ def payload(catalog: dict[str, str]) -> Callable[..., dict[str, Any]]:
             "signing": {"city": "Curitiba", "date": "2026-10-13"},
         }
         body.update(overrides)
+        if "instalments" not in body:
+            # A single instalment for the current month, whatever items the test sets.
+            payment = body["payment"]
+            total = sum(i["amount_cents"] for i in payment["items"]) - (
+                payment.get("pix_discount_cents") or 0
+            )
+            body["instalments"] = [{"month": month_of(dt.date.today()), "amount_cents": total}]
         return body
 
     return _make

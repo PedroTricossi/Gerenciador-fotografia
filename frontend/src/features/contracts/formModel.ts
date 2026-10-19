@@ -2,6 +2,13 @@ import type { ContractCreate, ContractOut } from "../../api/client";
 import { discountError, totalCents } from "../../domain/contract";
 import { cpfDigits, formatCpf } from "../../domain/cpf";
 import { REQUIRED, amountError, textError } from "../../domain/fieldRules";
+import {
+  MAX_INSTALMENTS,
+  addMonths,
+  currentMonth,
+  spreadChange,
+  splitEqually,
+} from "../../domain/instalments";
 import { formatBrlAmount, parseBrl } from "../../domain/money";
 import {
   type PreweddingValues,
@@ -12,6 +19,9 @@ import {
 } from "./preweddingForm";
 
 export type ItemValues = { service_id: string; amount_cents: string };
+
+export type PlanRow = { month: string; amount: string; paidOn: string | null };
+export type PlanValues = { mode: "single" | "split"; rows: PlanRow[] };
 
 export type ContractFormValues = {
   groom: { full_name: string; cpf: string };
@@ -27,6 +37,7 @@ export type ContractFormValues = {
   };
   photographer_count: string;
   payment: { items: ItemValues[]; pix_discount_cents: string };
+  plan: PlanValues;
   signing: { city: string; date: string };
   prewedding: PreweddingValues;
 };
@@ -52,6 +63,7 @@ export function defaultValues(today: string): ContractFormValues {
     },
     photographer_count: "2",
     payment: { items: [emptyItem()], pix_discount_cents: "" },
+    plan: { mode: "single", rows: [{ month: today.slice(0, 7), amount: "", paidOn: null }] },
     signing: { city: "Curitiba", date: today },
     prewedding: emptyPrewedding(),
   };
@@ -90,6 +102,14 @@ export function fromContract(contract: ContractOut): ContractFormValues {
           ? ""
           : formatBrlAmount(contract.payment.pix_discount_cents),
     },
+    plan: {
+      mode: contract.instalments.length > 1 ? "split" : "single",
+      rows: contract.instalments.map((instalment) => ({
+        month: instalment.month,
+        amount: formatBrlAmount(instalment.amount_cents),
+        paidOn: instalment.paid_on,
+      })),
+    },
     signing: { city: contract.signing.city, date: contract.signing.date },
     prewedding: emptyPrewedding(),
   };
@@ -122,6 +142,10 @@ export function toRequest(values: ContractFormValues): ContractCreate {
       })),
       pix_discount_cents: parseBrl(values.payment.pix_discount_cents),
     },
+    instalments: values.plan.rows.map((row) => ({
+      month: row.month,
+      amount_cents: parseBrl(row.amount) ?? Number.NaN,
+    })),
     signing: { city: values.signing.city.trim(), date: values.signing.date },
     ...(isBlankPrewedding(values.prewedding)
       ? {}
@@ -187,6 +211,8 @@ export function validate(values: ContractFormValues): Record<string, string> {
     discountText ?? discountError(amounts(values), parseBrl(values.payment.pix_discount_cents)),
   );
 
+  Object.assign(errors, validatePlan(values));
+
   check("signing.city", textError(values.signing.city, 100, true));
   check("signing.date", values.signing.date === "" ? REQUIRED : null);
   if (!isBlankPrewedding(values.prewedding)) {
@@ -195,6 +221,122 @@ export function validate(values: ContractFormValues): Record<string, string> {
     }
   }
   return errors;
+}
+
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** Plan errors, keyed by form path; `plan.sum` is the whole-plan message. */
+function validatePlan(values: ContractFormValues): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const { rows } = values.plan;
+  rows.forEach((row, index) => {
+    if (row.month === "") errors[`plan.rows.${index}.month`] = REQUIRED;
+    else if (!MONTH.test(row.month)) errors[`plan.rows.${index}.month`] = "mês inválido";
+    else if (index > 0 && row.month <= rows[index - 1]!.month) {
+      errors[`plan.rows.${index}.month`] = "os meses das parcelas devem ser crescentes";
+    }
+    const amount = amountError(row.amount, true);
+    if (amount) errors[`plan.rows.${index}.amount`] = amount;
+  });
+  const total = formTotal(values);
+  const cents = rows.map((row) => parseBrl(row.amount));
+  if (
+    total !== null &&
+    cents.every((value) => value !== null && !Number.isNaN(value)) &&
+    cents.reduce<number>((sum, value) => sum + (value ?? 0), 0) !== total
+  ) {
+    errors["plan.sum"] = PLAN_SUM_MESSAGE;
+  }
+  return errors;
+}
+
+export const PLAN_SUM_MESSAGE = "a soma das parcelas deve ser igual ao total";
+
+/** Sum of the plan's amounts, or null while one of them is not a valid amount. */
+export function planSum(plan: PlanValues): number | null {
+  let sum = 0;
+  for (const row of plan.rows) {
+    const cents = parseBrl(row.amount);
+    if (cents === null || Number.isNaN(cents)) return null;
+    sum += cents;
+  }
+  return sum;
+}
+
+/** The plan with `count` rows: drops unpaid rows from the end, or adds rows in the following months. */
+export function resizePlan(rows: PlanRow[], count: number): PlanRow[] {
+  const next = [...rows];
+  while (next.length > count && next[next.length - 1]!.paidOn === null) next.pop();
+  while (next.length < Math.min(count, MAX_INSTALMENTS)) {
+    const last = next[next.length - 1];
+    // An empty plan (a contract with no instalments) starts from the current month.
+    next.push({
+      month: last ? addMonths(last.month, 1) : currentMonth(),
+      amount: "",
+      paidOn: null,
+    });
+  }
+  return next;
+}
+
+/** Splits what the paid rows leave of `total` equally over the unpaid rows; null when it cannot. */
+export function splitUnpaid(rows: PlanRow[], total: number): PlanRow[] | null {
+  const unpaid = rows.flatMap((row, index) => (row.paidOn === null ? [index] : []));
+  const paidSum = rows.reduce(
+    (sum, row) => sum + (row.paidOn === null ? 0 : (parseBrl(row.amount) ?? 0)),
+    0,
+  );
+  if (unpaid.length === 0) return null;
+  const shares = splitEqually(total - paidSum, unpaid.length);
+  if (Math.min(...shares) <= 0) return null;
+  const next = rows.map((row) => ({ ...row }));
+  unpaid.forEach((position, index) => (next[position]!.amount = formatBrlAmount(shares[index]!)));
+  return next;
+}
+
+/**
+ * The plan after the total changed. By default the unpaid rows are split equally (a new contract
+ * whose amounts were never typed). With `keepShape` (an existing plan) the difference is added
+ * equally to the unpaid rows, exactly as the server does, so the plan keeps its shape.
+ * Paid rows always stay.
+ */
+export function respreadForTotal(
+  plan: PlanValues,
+  total: number,
+  keepShape = false,
+): PlanRow[] | null {
+  if (planSum(plan) === total) return plan.rows;
+  const amounts = plan.rows.map((row) => parseBrl(row.amount));
+  if (keepShape && amounts.every((cents) => cents !== null && !Number.isNaN(cents))) {
+    const spread = spreadChange(
+      amounts as number[],
+      plan.rows.map((row) => row.paidOn !== null),
+      total,
+    );
+    return spread && plan.rows.map((row, i) => ({ ...row, amount: formatBrlAmount(spread[i]!) }));
+  }
+  return splitUnpaid(plan.rows, total);
+}
+
+/**
+ * True when the form's plan is exactly what the server would make of the new total on its own,
+ * so a save can leave the plan out and let the server spread it.
+ */
+export function planFollowsTotal(contract: ContractOut, values: ContractFormValues): boolean {
+  const total = formTotal(values);
+  if (total === null || Number.isNaN(total)) return false;
+  const stored = contract.instalments;
+  const spread = spreadChange(
+    stored.map((row) => row.amount_cents),
+    stored.map((row) => row.paid_on !== null),
+    total,
+  );
+  const sent = toRequest(values).instalments;
+  return (
+    spread !== null &&
+    sent.length === stored.length &&
+    sent.every((row, i) => row.month === stored[i]!.month && row.amount_cents === spread[i])
+  );
 }
 
 export function formTotal(values: ContractFormValues): number | null {
@@ -229,9 +371,20 @@ const FIXED_FIELDS = new Set([
   "prewedding.start_time",
 ]);
 const ITEM_FIELD = /^payment\.items\.(\d+)\.(service_id|amount_cents)$/;
+const INSTALMENT_FIELD = /^instalments\.(\d+)\.(month|amount_cents)$/;
 
-export function isFormField(path: string, itemCount: number): boolean {
-  if (FIXED_FIELDS.has(path)) return true;
+export function isFormField(path: string, itemCount: number, rowCount = 0): boolean {
+  if (FIXED_FIELDS.has(path) || path === "instalments") return true;
   const match = ITEM_FIELD.exec(path);
-  return match !== null && Number(match[1]) < itemCount;
+  if (match !== null) return Number(match[1]) < itemCount;
+  const instalment = INSTALMENT_FIELD.exec(path);
+  return instalment !== null && Number(instalment[1]) < rowCount;
+}
+
+/** Where the form shows a server error: the plan's fields have names of their own. */
+export function formPath(serverPath: string): string {
+  if (serverPath === "instalments") return "plan.sum";
+  const match = INSTALMENT_FIELD.exec(serverPath);
+  if (match === null) return serverPath;
+  return `plan.rows.${match[1]}.${match[2] === "month" ? "month" : "amount"}`;
 }

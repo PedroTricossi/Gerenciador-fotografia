@@ -1,6 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page } from "@playwright/test";
-import { createLongNamedContract, expect, fillContract, freshCouple, test } from "./helpers";
+import {
+  createLongNamedContract,
+  createSplitContract,
+  expect,
+  fillContract,
+  freshCouple,
+  test,
+} from "./helpers";
 
 function localIso(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -64,6 +71,8 @@ test.beforeAll(async ({ browser, baseURL }) => {
   const second = page.waitForEvent("download");
   await page.getByRole("button", { name: "Salvar" }).click();
   await second;
+  // A split contract gives /negocio rows to scan.
+  await createSplitContract(page, freshCouple());
   await page.close();
 });
 
@@ -81,6 +90,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         ["/contratos/novo", "/contratos/novo"],
         ["/clientes", "/clientes"],
         ["/servicos", "/servicos"],
+        ["/negocio", "/negocio"],
       ];
       for (const [name, path] of screens) {
         test(`${name} has no accessibility violations`, async ({ page }) => {
@@ -98,6 +108,13 @@ for (const colorScheme of ["light", "dark"] as const) {
         if (viewport.width > 640) {
           await expect(page.getByRole("button", { name: /^\+\d+ mais$/ }).first()).toBeVisible();
         }
+        await audit(page);
+      });
+
+      test("/contratos/novo with Parcelado has no accessibility violations", async ({ page }) => {
+        await page.goto("/contratos/novo");
+        await page.getByRole("button", { name: "Parcelado" }).click();
+        await expect(page.getByLabel("Mês da parcela 1")).toBeVisible();
         await audit(page);
       });
 

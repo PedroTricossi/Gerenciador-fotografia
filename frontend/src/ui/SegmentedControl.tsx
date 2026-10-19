@@ -2,7 +2,7 @@ import styles from "./SegmentedControl.module.css";
 
 type Props<T extends string> = {
   label: string;
-  options: readonly { value: T; label: string }[];
+  options: readonly { value: T; label: string; disabled?: boolean }[];
   value: T;
   onChange: (value: T) => void;
 };
@@ -18,6 +18,7 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
             key={option.value}
             type="button"
             aria-pressed={selected}
+            disabled={option.disabled}
             className={`${styles.option} ${selected ? styles.selected : ""}`}
             onClick={() => onChange(option.value)}
           >

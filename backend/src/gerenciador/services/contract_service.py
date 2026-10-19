@@ -8,8 +8,9 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from gerenciador.clock import utcnow
-from gerenciador.db.models import Client, Contract, ContractItem, Service
+from gerenciador.db.models import Client, Contract, ContractItem, Instalment, Service
 from gerenciador.domain.contract import ContractRuleError, compute_total_cents
+from gerenciador.domain.instalments import spread_change, validate_plan
 from gerenciador.repositories.contract_repository import ContractRepository
 from gerenciador.repositories.service_repository import ServiceRepository
 from gerenciador.services.audit_service import AuditService
@@ -40,6 +41,7 @@ _SCALAR_FIELDS = (
     "signing_city",
     "signing_date",
 )
+_PAID_LOCKED = "parcela já paga não pode ser alterada"
 PREWEDDING_SCHEDULED = (
     "o contrato tem um pré-wedding agendado; confirme o cancelamento para remover o item"
 )
@@ -54,6 +56,12 @@ class PersonInput:
 @dataclass(frozen=True)
 class ItemInput:
     service_id: str
+    amount_cents: int
+
+
+@dataclass(frozen=True)
+class InstalmentInput:
+    month: str
     amount_cents: int
 
 
@@ -74,6 +82,16 @@ class ContractInput:
     signing_city: str
     signing_date: dt.date
     prewedding: PreweddingInput | None = None
+    # None means the plan was not sent (a patch); a create requires it.
+    instalments: list[InstalmentInput] | None = None
+
+
+@dataclass(frozen=True)
+class InstalmentView:
+    number: int
+    month: str
+    amount_cents: int
+    paid_on: dt.date | None
 
 
 @dataclass(frozen=True)
@@ -107,12 +125,66 @@ class ContractView:
     deleted_at: dt.datetime | None
     has_prewedding: bool
     prewedding: PreweddingView | None
+    instalments: list[InstalmentView]
+    plan_needs_review: bool
 
 
-def _check_rules(data: ContractInput) -> None:
+def _check_rules(data: ContractInput) -> int:
+    """Check the contract's own rules and return its total after the PIX discount."""
     if data.groom.cpf == data.bride.cpf:
         raise ContractRuleError("bride.cpf", "os CPFs dos contratantes devem ser diferentes")
-    compute_total_cents([item.amount_cents for item in data.items], data.pix_discount_cents)
+    return compute_total_cents([item.amount_cents for item in data.items], data.pix_discount_cents)
+
+
+def _validated_plan(plan: list[InstalmentInput], total_cents: int) -> list[InstalmentInput]:
+    validate_plan([i.month for i in plan], [i.amount_cents for i in plan], total_cents)
+    return plan
+
+
+def _explicit_plan(
+    rows: list[Instalment], plan: list[InstalmentInput], total_cents: int
+) -> list[InstalmentInput]:
+    """A plan sent with the contract, which may not touch an instalment already paid."""
+    _validated_plan(plan, total_cents)
+    for row in rows:
+        if row.paid_on is None:
+            continue
+        index = row.number - 1
+        if index >= len(plan):
+            raise ContractRuleError("instalments", _PAID_LOCKED)
+        if plan[index].month != row.month:
+            raise ContractRuleError(f"instalments.{index}.month", _PAID_LOCKED)
+        if plan[index].amount_cents != row.amount_cents:
+            raise ContractRuleError(f"instalments.{index}.amount_cents", _PAID_LOCKED)
+    return plan
+
+
+def _spread_plan(
+    rows: list[Instalment], current_total: int, new_total: int
+) -> list[InstalmentInput] | None:
+    """The plan after a total change with no plan sent; None when nothing needs to move."""
+    if new_total == current_total:
+        return None
+    if not rows:
+        raise ContractRuleError("instalments", "o contrato precisa de um plano de parcelas")
+    amounts = spread_change(
+        [row.amount_cents for row in rows], [row.paid_on is not None for row in rows], new_total
+    )
+    return [InstalmentInput(row.month, amount) for row, amount in zip(rows, amounts, strict=True)]
+
+
+def _sync_instalments(rows: list[Instalment], plan: list[InstalmentInput]) -> list[Instalment]:
+    """Reuse the row of each number, so paid rows keep their date and ids stay stable."""
+    existing = {row.number: row for row in rows}
+    result: list[Instalment] = []
+    for index, item in enumerate(plan):
+        row = existing.get(index + 1)
+        if row is None:
+            row = Instalment(id=str(uuid4()), number=index + 1, paid_on=None)
+        row.month = item.month
+        row.amount_cents = item.amount_cents
+        result.append(row)
+    return result
 
 
 def _item_error(position: int, message: str) -> ContractRuleError:
@@ -132,8 +204,11 @@ class ContractService:
         self._audit = audit
 
     def create(self, ctx: RequestContext, data: ContractInput) -> ContractView:
-        _check_rules(data)
+        total = _check_rules(data)
+        if data.instalments is None:
+            raise ContractRuleError("instalments", "informe o plano de parcelas")
         services = self._resolve_services(data, [])
+        plan = _validated_plan(data.instalments, total)
         if data.prewedding is not None and not _wants_prewedding(data, services):
             raise ContractRuleError("prewedding", "inclua um serviço de pré-wedding")
         groom = self._upsert(ctx, data.groom, data.couple_address)
@@ -145,6 +220,7 @@ class ContractService:
             bride=bride,
             items=self._sync_items([], data, services),
             prewedding=new_prewedding(data.prewedding) if data.prewedding is not None else None,
+            instalments=_sync_instalments([], plan),
             version=1,
             created_at=now,
             updated_at=now,
@@ -222,8 +298,15 @@ class ContractService:
     def _apply_update(
         self, ctx: RequestContext, contract: Contract, data: ContractInput, cancel_prewedding: bool
     ) -> ContractView:
-        _check_rules(data)
+        total = _check_rules(data)
         services = self._resolve_services(data, contract.items)
+        current = self._to_view(contract)
+        # The plan is settled before anything is changed, so a refusal stores nothing.
+        plan = (
+            _explicit_plan(contract.instalments, data.instalments, total)
+            if data.instalments is not None
+            else _spread_plan(contract.instalments, current.total_cents, total)
+        )
         # Only an edit that drops the last pre-wedding item cancels the schedule.
         scheduled = contract.prewedding
         removing = (
@@ -233,7 +316,6 @@ class ContractService:
         )
         if removing and not cancel_prewedding:
             raise ConflictError(PREWEDDING_SCHEDULED, code="prewedding_scheduled")
-        current = self._to_view(contract)
         previous = (contract.groom, contract.bride)
         groom = self._upsert(ctx, data.groom, data.couple_address, editing=contract.id)
         bride = self._upsert(ctx, data.bride, data.couple_address, editing=contract.id)
@@ -258,6 +340,14 @@ class ContractService:
         if current_items != [(item.service_id, item.amount_cents) for item in data.items]:
             contract.items = self._sync_items(contract.items, data, services)
             changed.append("items")
+        if plan is not None:
+            if [(i.month, i.amount_cents) for i in plan] != [
+                (row.month, row.amount_cents) for row in contract.instalments
+            ]:
+                contract.instalments = _sync_instalments(contract.instalments, plan)
+                changed.append("instalments")
+            if data.instalments is not None:
+                contract.plan_needs_review = False
 
         if changed:
             # The contract must already point at its new clients when the old ones
@@ -396,4 +486,9 @@ class ContractService:
                 if active and contract.prewedding is not None
                 else None
             ),
+            instalments=[
+                InstalmentView(row.number, row.month, row.amount_cents, row.paid_on)
+                for row in contract.instalments
+            ],
+            plan_needs_review=contract.plan_needs_review,
         )
