@@ -9,6 +9,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -160,6 +161,123 @@ class Instalment(Base):
     month: Mapped[str] = mapped_column(String(7))
     amount_cents: Mapped[int]
     paid_on: Mapped[dt.date | None]
+
+
+class ExpenseType(Base):
+    """A category of expense. Keyed types are known to the code and cannot be archived."""
+
+    __tablename__ = "expense_types"
+    __table_args__ = (UniqueConstraint("key", name="uq_expense_types_key"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+    key: Mapped[str | None] = mapped_column(String(30))
+    archived_at: Mapped[dt.datetime | None] = mapped_column(UTCDateTime)
+    version: Mapped[int]
+    created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+    updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+
+
+class Expense(Base):
+    __tablename__ = "expenses"
+    __table_args__ = (
+        CheckConstraint("amount_cents > 0", name="ck_expenses_amount_positive"),
+        CheckConstraint(
+            "(contract_id IS NULL) = (event_kind IS NULL)", name="ck_expenses_event_link_paired"
+        ),
+        CheckConstraint(
+            "event_kind IN ('wedding','prewedding')", name="ck_expenses_event_kind_known"
+        ),
+        CheckConstraint("distance_tenths BETWEEN 1 AND 50000", name="ck_expenses_distance_range"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    spent_on: Mapped[dt.date]
+    amount_cents: Mapped[int]
+    type_id: Mapped[str] = mapped_column(
+        ForeignKey("expense_types.id", name="fk_expenses_type_id_expense_types")
+    )
+    description: Mapped[str | None] = mapped_column(String(200))
+    contract_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contracts.id", name="fk_expenses_contract_id_contracts")
+    )
+    event_kind: Mapped[str | None] = mapped_column(String(10))
+    transport_kind: Mapped[str | None] = mapped_column(String(20))
+    left_home_at: Mapped[dt.time | None]
+    distance_tenths: Mapped[int | None] = mapped_column(Integer)
+    version: Mapped[int]
+    created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+    updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+
+    type: Mapped[ExpenseType] = relationship(lazy="joined")
+
+
+class FixedCost(Base):
+    __tablename__ = "fixed_costs"
+    __table_args__ = (
+        CheckConstraint("day_of_month BETWEEN 1 AND 31", name="ck_fixed_costs_day_range"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    type_id: Mapped[str] = mapped_column(
+        ForeignKey("expense_types.id", name="fk_fixed_costs_type_id_expense_types")
+    )
+    day_of_month: Mapped[int]
+    start_month: Mapped[str] = mapped_column(String(7))
+    end_month: Mapped[str | None] = mapped_column(String(7))
+    version: Mapped[int]
+    created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+    updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
+
+    type: Mapped[ExpenseType] = relationship(lazy="joined")
+    prices: Mapped[list["FixedCostPrice"]] = relationship(
+        order_by="FixedCostPrice.from_month",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class FixedCostPrice(Base):
+    __tablename__ = "fixed_cost_prices"
+    __table_args__ = (
+        UniqueConstraint("fixed_cost_id", "from_month", name="uq_fixed_cost_prices_cost_month"),
+        CheckConstraint("amount_cents > 0", name="ck_fixed_cost_prices_amount_positive"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    fixed_cost_id: Mapped[str] = mapped_column(
+        ForeignKey("fixed_costs.id", name="fk_fixed_cost_prices_fixed_cost_id_fixed_costs")
+    )
+    from_month: Mapped[str] = mapped_column(String(7))
+    amount_cents: Mapped[int]
+
+
+class SecondPhotographerFee(Base):
+    __tablename__ = "second_photographer_fees"
+    __table_args__ = (
+        UniqueConstraint("from_month", name="uq_second_photographer_fees_from_month"),
+        CheckConstraint("amount_cents > 0", name="ck_second_photographer_fees_amount_positive"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    from_month: Mapped[str] = mapped_column(String(7))
+    amount_cents: Mapped[int]
+
+
+class SecondPhotographerOverride(Base):
+    __tablename__ = "second_photographer_overrides"
+    __table_args__ = (
+        CheckConstraint(
+            "amount_cents > 0", name="ck_second_photographer_overrides_amount_positive"
+        ),
+    )
+
+    contract_id: Mapped[str] = mapped_column(
+        ForeignKey("contracts.id", name="fk_second_photographer_overrides_contract_id_contracts"),
+        primary_key=True,
+    )
+    amount_cents: Mapped[int]
 
 
 class AuditEvent(Base):
