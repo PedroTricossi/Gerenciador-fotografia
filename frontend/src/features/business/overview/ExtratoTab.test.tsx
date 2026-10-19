@@ -174,3 +174,12 @@ test("explains a period that has not started", async () => {
     await screen.findByText("Este período ainda não começou — veja Próximos meses."),
   ).toBeInTheDocument();
 });
+
+test("an out row without an amount says sem valor, not zero", async () => {
+  serve({
+    statement: [out("2026-10-11", 0, { description: "Caixa de som", missing_amount: true })],
+  });
+  renderApp("/negocio?aba=extrato");
+  const row = (await screen.findByText("Caixa de som")).closest("tr");
+  expect(row).toHaveTextContent("— sem valor");
+});

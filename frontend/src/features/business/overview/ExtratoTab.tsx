@@ -80,7 +80,11 @@ export function ExtratoTab() {
             {row.kind === "in" ? formatBrlAmount(row.amount_cents) : ""}
           </td>
           <td className={tableStyles.end}>
-            {row.kind === "out" ? formatBrlAmount(row.amount_cents) : ""}
+            {row.kind === "out"
+              ? row.entry.missing_amount
+                ? "— sem valor"
+                : formatBrlAmount(row.amount_cents)
+              : ""}
           </td>
           <td className={tableStyles.end}>{plain(balance)}</td>
         </tr>,
