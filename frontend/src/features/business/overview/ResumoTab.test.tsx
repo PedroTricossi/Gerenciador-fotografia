@@ -77,8 +77,12 @@ test("shows the three totals, the bar legend and the months ahead", async () => 
   const rows = within(table).getAllByRole("row").slice(1);
   expect(rows[0]).toHaveTextContent("resto de outubro");
   expect(rows[1]).toHaveTextContent("novembro");
-  expect(screen.getByText(/A receber = parcelas não pagas do mês/)).toBeInTheDocument();
-  expect(screen.queryByText(/parcelas atrasadas/)).not.toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "A receber = parcelas não pagas do mês · A pagar = despesas fixas, 2º fotógrafo e despesas lançadas com data futura.",
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/Parcelas atrasadas não contadas/)).not.toBeInTheDocument();
 });
 
 test("when more went out than came in it warns and lists amounts without percentages", async () => {
@@ -132,7 +136,9 @@ test("Próximo período asks for the next month and Ano asks for the year", asyn
 test("a period that has not started shows the message but keeps Livre hoje and the months ahead", async () => {
   serve({ not_started: true, in_cents: 0, out_cents: 0, by_type: [] });
   renderApp("/negocio?aba=resumo");
-  expect(await screen.findByText("Este período ainda não começou.")).toBeInTheDocument();
+  expect(
+    await screen.findByText("Este período ainda não começou — veja Próximos meses."),
+  ).toBeInTheDocument();
   expect(screen.queryByText("Entrou")).not.toBeInTheDocument();
   expect(screen.getByText("R$ 5.420,00")).toBeInTheDocument();
   expect(screen.getByRole("table", { name: "Próximos meses" })).toBeInTheDocument();
@@ -141,7 +147,9 @@ test("a period that has not started shows the message but keeps Livre hoje and t
 test("the late note links to the instalments only when something is late", async () => {
   serve({ late_cents: 123400 });
   renderApp("/negocio?aba=resumo");
-  expect(await screen.findByText(/R\$ 1\.234,00 em parcelas atrasadas/)).toBeInTheDocument();
+  expect(
+    await screen.findByText(/Parcelas atrasadas não contadas: R\$ 1\.234,00/),
+  ).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Ver parcelas" })).toHaveAttribute("href", "/negocio");
 });
 
@@ -157,6 +165,6 @@ test("notes the contracts missing a second-photographer fee", async () => {
   serve({ missing_fee_count: 2 });
   renderApp("/negocio?aba=resumo");
   expect(
-    await screen.findByText(/2 contratos estão sem o valor do 2º fotógrafo/),
+    await screen.findByText("Há 2 casamento(s) com 2º fotógrafo sem valor definido"),
   ).toBeInTheDocument();
 });

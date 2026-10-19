@@ -30,7 +30,7 @@ export function ResumoTab() {
       {data && (
         <>
           {data.not_started ? (
-            <p className={styles.note}>Este período ainda não começou.</p>
+            <p className={styles.note}>Este período ainda não começou — veja Próximos meses.</p>
           ) : (
             <>
               <div className={styles.cards}>
@@ -49,10 +49,7 @@ export function ResumoTab() {
               </section>
               {data.missing_fee_count > 0 && (
                 <p className={styles.note}>
-                  {data.missing_fee_count === 1
-                    ? "1 contrato está"
-                    : `${data.missing_fee_count} contratos estão`}{" "}
-                  sem o valor do 2º fotógrafo definido; essa saída ainda não entrou na conta.
+                  {`Há ${data.missing_fee_count} casamento(s) com 2º fotógrafo sem valor definido`}
                 </p>
               )}
             </>

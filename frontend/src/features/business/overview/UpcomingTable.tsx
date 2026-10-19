@@ -39,11 +39,12 @@ export function UpcomingTable({ rows, lateCents }: Props) {
         ]}
       />
       <p className={styles.note}>
-        A receber = parcelas não pagas do mês · A pagar = despesas fixas + 2º fotógrafo
+        A receber = parcelas não pagas do mês · A pagar = despesas fixas, 2º fotógrafo e despesas
+        lançadas com data futura.
       </p>
       {lateCents > 0 && (
         <p className={styles.note}>
-          Há {formatBrl(lateCents)} em parcelas atrasadas, que não entram nesta previsão.{" "}
+          Parcelas atrasadas não contadas: {formatBrl(lateCents)}{" "}
           <TextLink to="/negocio">Ver parcelas</TextLink>
         </p>
       )}

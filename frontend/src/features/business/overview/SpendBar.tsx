@@ -27,6 +27,7 @@ function toSlices(byType: TypeShare[], inCents: number, outCents: number): Slice
   }
   if (others > 0)
     slices.push({ key: "others", name: "Outros", cents: others, color: paletteVar(null) });
+  slices.sort((a, b) => b.cents - a.cents);
   if (inCents > outCents)
     slices.push({
       key: "free",
