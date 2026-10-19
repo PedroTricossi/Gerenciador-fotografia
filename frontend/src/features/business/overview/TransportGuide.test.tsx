@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { renderApp } from "../../../test/render";
@@ -92,19 +92,18 @@ test("shows the per-kind and day/night lines on mount", async () => {
 });
 
 test("submitting a distance and a time asks for that estimate", async () => {
-  serve();
+  serve({ similar: [TRIP] });
   const user = userEvent.setup();
   await open();
   await user.type(await screen.findByLabelText("Distância (km)"), "32");
   await user.click(screen.getByRole("button", { name: "Ver estimativa" }));
+  await waitFor(() => expect(queries.at(-1)!.get("distance_tenths")).toBe("320"));
   await screen.findByText("Poucas viagens registradas ainda");
-  expect(queries.at(-1)!.get("distance_tenths")).toBe("320");
   expect(queries.at(-1)!.has("left_home_at")).toBe(false);
 
   await user.type(screen.getByLabelText("Saída de casa"), "13:30");
   await user.click(screen.getByRole("button", { name: "Ver estimativa" }));
-  await screen.findByText("Poucas viagens registradas ainda");
-  expect(queries.at(-1)!.get("left_home_at")).toBe("13:30");
+  await waitFor(() => expect(queries.at(-1)!.get("left_home_at")).toBe("13:30"));
 });
 
 test("shows the typical cost with its range and the similar trips", async () => {
@@ -141,4 +140,60 @@ test("an invalid distance shows the field error and sends nothing", async () => 
   await user.click(screen.getByRole("button", { name: "Ver estimativa" }));
   expect(await screen.findByText("distância inválida")).toBeInTheDocument();
   expect(queries).toHaveLength(1);
+});
+
+async function submitKm(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(await screen.findByLabelText("Distância (km)"), "32");
+  await user.click(screen.getByRole("button", { name: "Ver estimativa" }));
+}
+
+test("while the estimate loads it never claims there are few trips", async () => {
+  serve();
+  server.use(
+    http.get("/api/v1/transport-guide", ({ request }) => {
+      if (new URL(request.url).searchParams.has("distance_tenths")) return new Promise(() => {});
+      return HttpResponse.json(makeGuide());
+    }),
+  );
+  const user = userEvent.setup();
+  await open();
+  await submitKm(user);
+  expect(await screen.findByText("Carregando…")).toBeInTheDocument();
+  expect(screen.queryByText("Poucas viagens registradas ainda")).not.toBeInTheDocument();
+});
+
+test("a failed estimate shows an error, not the few-trips text", async () => {
+  serve();
+  server.use(
+    http.get("/api/v1/transport-guide", ({ request }) =>
+      new URL(request.url).searchParams.has("distance_tenths")
+        ? HttpResponse.json({ detail: "x" }, { status: 500 })
+        : HttpResponse.json(makeGuide()),
+    ),
+  );
+  const user = userEvent.setup();
+  await open();
+  await submitKm(user);
+  expect(await screen.findByText("Não foi possível carregar a estimativa.")).toBeInTheDocument();
+  expect(screen.queryByText("Poucas viagens registradas ainda")).not.toBeInTheDocument();
+});
+
+test("trips on the other side of 18:00 are tagged, not dropped", async () => {
+  serve({
+    similar: [
+      { ...TRIP, left_home_at: "19:00" },
+      { ...TRIP, contract_id: "c2", left_home_at: "09:00" },
+      { ...TRIP, contract_id: "c3", left_home_at: null },
+    ],
+  });
+  const user = userEvent.setup();
+  await open();
+  await user.type(await screen.findByLabelText("Saída de casa"), "09:30");
+  await submitKm(user);
+  const rows = within(await screen.findByRole("list", { name: "Viagens parecidas" })).getAllByRole(
+    "listitem",
+  );
+  expect(rows[0]).toHaveTextContent(/saí 19:00.*· noite$/);
+  expect(rows[1]).not.toHaveTextContent(/· (noite|dia)$/);
+  expect(rows[2]).not.toHaveTextContent(/noite/);
 });

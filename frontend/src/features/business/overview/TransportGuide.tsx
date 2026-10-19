@@ -3,7 +3,7 @@ import { useTransportGuide } from "../../../api/overview";
 import { formatIsoDate } from "../../../domain/dates";
 import { formatKm, parseKm, transportKindLabel } from "../../../domain/expenses";
 import { formatBrl } from "../../../domain/money";
-import { Button, Field, FormSection, TextInput } from "../../../ui";
+import { Banner, Button, Field, FormSection, Loading, TextInput } from "../../../ui";
 import styles from "./TransportGuide.module.css";
 
 type Submitted = { tenths: number; leftHomeAt?: string };
@@ -40,7 +40,8 @@ export function TransportGuide() {
     );
   }
 
-  const result = submitted ? (estimate.data ?? guide) : undefined;
+  const result = submitted ? estimate.data : undefined;
+  const isNight = (time: string) => time >= "18:00";
   const perKind = guide.per_km_by_kind
     .map((item) => `${transportKindLabel(item.transport_kind)} ${formatBrl(item.cents_per_km)}/km`)
     .join(" · ");
@@ -80,6 +81,10 @@ export function TransportGuide() {
             {`Dia ${formatBrl(guide.day_cents_per_km!)}/km · Noite ${formatBrl(guide.night_cents_per_km!)}/km`}
           </p>
         )}
+        {submitted && estimate.isPending && <Loading />}
+        {submitted && estimate.isError && (
+          <Banner tone="error">Não foi possível carregar a estimativa.</Banner>
+        )}
         {result &&
           (result.typical_cents != null ? (
             <p className={styles.line}>
@@ -92,7 +97,10 @@ export function TransportGuide() {
       {result && result.similar.length > 0 && (
         <ul className={styles.trips} aria-label="Viagens parecidas">
           {result.similar.map((trip) => (
-            <li key={`${trip.contract_id}-${trip.date}-${trip.cost_cents}`} className={styles.trip}>
+            <li
+              key={`${trip.contract_id}-${trip.event_kind}-${trip.date}-${trip.cost_cents}`}
+              className={styles.trip}
+            >
               {[
                 formatIsoDate(trip.date),
                 trip.contract_deleted
@@ -102,6 +110,13 @@ export function TransportGuide() {
                 trip.left_home_at ? `saí ${trip.left_home_at}` : null,
                 trip.transport_kind ? transportKindLabel(trip.transport_kind) : null,
                 formatBrl(trip.cost_cents),
+                submitted?.leftHomeAt &&
+                trip.left_home_at &&
+                isNight(trip.left_home_at) !== isNight(submitted.leftHomeAt)
+                  ? isNight(trip.left_home_at)
+                    ? "noite"
+                    : "dia"
+                  : null,
               ]
                 .filter(Boolean)
                 .join(" · ")}
