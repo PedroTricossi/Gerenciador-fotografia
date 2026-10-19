@@ -212,3 +212,35 @@ test("a month outside the current year shows its year, in headings and rows", as
   const next = screen.getByRole("list", { name: "Janeiro 2027" });
   expect(within(next).getByRole("listitem")).toHaveTextContent("Janeiro 2027");
 });
+
+describe("tabs", () => {
+  const empty = () => [
+    http.get("/api/v1/instalments", () => HttpResponse.json([])),
+    http.get("/api/v1/expense-entries", () => HttpResponse.json({ entries: [], total_cents: 0 })),
+    http.get("/api/v1/fixed-costs", () => HttpResponse.json([])),
+    http.get("/api/v1/second-photographer-fee", () => HttpResponse.json({ prices: [] })),
+  ];
+
+  test("Parcelas is pressed by default", async () => {
+    server.use(...empty());
+    renderApp("/negocio");
+    expect(await screen.findByRole("button", { name: "Parcelas", pressed: true })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Despesas", pressed: false })).toBeVisible();
+  });
+
+  test("clicking Despesas shows the tab and puts it in the URL", async () => {
+    server.use(...empty());
+    const { user, router } = renderApp("/negocio");
+    await user.click(await screen.findByRole("button", { name: "Despesas" }));
+    expect(await screen.findByText("Nenhuma despesa neste mês.")).toBeInTheDocument();
+    expect(router.state.location.search).toBe("?aba=despesas");
+    expect(screen.getByRole("button", { name: "Despesas", pressed: true })).toBeVisible();
+  });
+
+  test("/negocio?aba=despesas opens the tab directly", async () => {
+    server.use(...empty());
+    renderApp("/negocio?aba=despesas");
+    expect(await screen.findByText("Nenhuma despesa neste mês.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Parcelas" })).not.toBeInTheDocument();
+  });
+});

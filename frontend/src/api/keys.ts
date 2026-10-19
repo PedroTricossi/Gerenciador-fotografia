@@ -24,3 +24,12 @@ export const instalmentKeys = {
   all: ["instalments"] as const,
   list: (unpaidThrough: string | null) => ["instalments", { unpaidThrough }] as const,
 };
+
+export const expenseKeys = {
+  all: ["expenses"] as const,
+  entries: (month: string) => ["expenses", "entries", month] as const,
+  types: (includeArchived: boolean) => ["expenses", "types", { includeArchived }] as const,
+  events: ["expenses", "events"] as const,
+  fixedCosts: ["expenses", "fixed-costs"] as const,
+  fee: ["expenses", "second-photographer-fee"] as const,
+};

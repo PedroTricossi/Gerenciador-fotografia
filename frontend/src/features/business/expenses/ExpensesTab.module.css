@@ -1,0 +1,43 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.month {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.monthName {
+  margin: 0;
+}
+.total {
+  margin: var(--space-3) 0 var(--space-6);
+  text-align: end;
+  font-weight: 700;
+}
+.tag {
+  margin-inline-start: var(--space-2);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-box);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+.settings {
+  display: grid;
+  gap: var(--space-2);
+}
+.settingsTitle {
+  margin: 0 0 var(--space-2);
+}
+.settingsLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}

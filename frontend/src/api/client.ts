@@ -15,6 +15,7 @@ export type ServicePatch = Schemas["ServicePatch"];
 export type PreweddingIn = Schemas["PreweddingIn"];
 export type PreweddingOut = Schemas["PreweddingOut"];
 export type AgendaEntryOut = Schemas["AgendaEntryOut"];
+export type ExpenseEntryOut = Schemas["ExpenseEntryOut"];
 
 export class ApiError extends Error {
   readonly status: number;
