@@ -37,6 +37,7 @@ from gerenciador.services.fixed_cost_service import FixedCostView, PriceView
 from gerenciador.services.instalment_service import InstalmentListEntry
 from gerenciador.services.overview_service import OverviewView, StatementIn
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
+from gerenciador.services.transport_guide_service import GuideView
 
 
 def _blank_to_none(value: Any) -> Any:
@@ -848,4 +849,58 @@ class OverviewOut(BaseModel):
         return cls(
             **{k: v for k, v in asdict(view).items() if k not in ("statement",)},
             statement=rows,
+        )
+
+
+class GuideTripOut(BaseModel):
+    contract_id: str
+    event_kind: EventKind
+    date: dt.date
+    cost_cents: int
+    distance_tenths: int
+    left_home_at: ClockTime | None
+    transport_kind: str | None
+    groom_name: str | None
+    bride_name: str | None
+    contract_deleted: bool
+
+
+class PerKmByKindOut(BaseModel):
+    transport_kind: str
+    cents_per_km: int
+
+
+class TransportGuideOut(BaseModel):
+    trips_total: int
+    similar: list[GuideTripOut]
+    typical_cents: int | None
+    min_cents: int | None
+    max_cents: int | None
+    per_km_by_kind: list[PerKmByKindOut]
+    day_cents_per_km: int | None
+    night_cents_per_km: int | None
+
+    @classmethod
+    def from_view(cls, view: GuideView) -> Self:
+        result = view.result
+        return cls(
+            trips_total=view.trips_total,
+            similar=[
+                GuideTripOut(
+                    **asdict(row.trip),
+                    groom_name=row.groom_name,
+                    bride_name=row.bride_name,
+                    contract_deleted=row.contract_deleted,
+                )
+                for row in view.similar
+            ],
+            typical_cents=result.typical_cents,
+            min_cents=result.min_cents,
+            max_cents=result.max_cents,
+            per_km_by_kind=[
+                PerKmByKindOut(transport_kind=kind, cents_per_km=cents)
+                for kind, cents in sorted(result.per_km_by_kind.items())
+            ],
+            day_cents_per_km=result.day_per_km,
+            night_cents_per_km=result.night_per_km,
         )

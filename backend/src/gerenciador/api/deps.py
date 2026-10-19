@@ -21,6 +21,7 @@ from gerenciador.services.instalment_service import InstalmentService
 from gerenciador.services.overview_service import OverviewService
 from gerenciador.services.prewedding_service import PreweddingService
 from gerenciador.services.second_photographer_service import SecondPhotographerService
+from gerenciador.services.transport_guide_service import TransportGuideService
 
 
 def get_current_actor() -> str:
@@ -99,6 +100,10 @@ def get_overview_service(session: DbSession) -> OverviewService:
     return OverviewService(session)
 
 
+def get_transport_guide_service(session: DbSession) -> TransportGuideService:
+    return TransportGuideService(session)
+
+
 def get_agenda_service(session: DbSession) -> AgendaService:
     return AgendaService(session)
 
@@ -128,6 +133,7 @@ Contracts = Annotated[ContractService, Depends(get_contract_service)]
 Preweddings = Annotated[PreweddingService, Depends(get_prewedding_service)]
 Instalments = Annotated[InstalmentService, Depends(get_instalment_service)]
 Overview = Annotated[OverviewService, Depends(get_overview_service)]
+TransportGuide = Annotated[TransportGuideService, Depends(get_transport_guide_service)]
 Agenda = Annotated[AgendaService, Depends(get_agenda_service)]
 Documents = Annotated[ContractDocumentService, Depends(get_document_service)]
 Limit = Annotated[int, Query(ge=1, le=100)]

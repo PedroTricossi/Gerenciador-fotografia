@@ -598,6 +598,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transport-guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Transport Guide */
+        get: operations["transport_guide_api_v1_transport_guide_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-events": {
         parameters: {
             query?: never;
@@ -1070,6 +1087,35 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** GuideTripOut */
+        GuideTripOut: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Cost Cents */
+            cost_cents: number;
+            /** Distance Tenths */
+            distance_tenths: number;
+            /** Left Home At */
+            left_home_at: string | null;
+            /** Transport Kind */
+            transport_kind: string | null;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Contract Deleted */
+            contract_deleted: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1229,6 +1275,13 @@ export interface components {
             items?: components["schemas"]["ItemIn"][] | null;
             /** Pix Discount Cents */
             pix_discount_cents?: number | null;
+        };
+        /** PerKmByKindOut */
+        PerKmByKindOut: {
+            /** Transport Kind */
+            transport_kind: string;
+            /** Cents Per Km */
+            cents_per_km: number;
         };
         /** PersonIn */
         PersonIn: {
@@ -1409,6 +1462,25 @@ export interface components {
         StopIn: {
             /** End Month */
             end_month: string;
+        };
+        /** TransportGuideOut */
+        TransportGuideOut: {
+            /** Trips Total */
+            trips_total: number;
+            /** Similar */
+            similar: components["schemas"]["GuideTripOut"][];
+            /** Typical Cents */
+            typical_cents: number | null;
+            /** Min Cents */
+            min_cents: number | null;
+            /** Max Cents */
+            max_cents: number | null;
+            /** Per Km By Kind */
+            per_km_by_kind: components["schemas"]["PerKmByKindOut"][];
+            /** Day Cents Per Km */
+            day_cents_per_km: number | null;
+            /** Night Cents Per Km */
+            night_cents_per_km: number | null;
         };
         /** TripIn */
         TripIn: {
@@ -3074,6 +3146,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transport_guide_api_v1_transport_guide_get: {
+        parameters: {
+            query: {
+                today: string;
+                distance_tenths?: number | null;
+                left_home_at?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransportGuideOut"];
                 };
             };
             /** @description Validation Error */
