@@ -8,6 +8,7 @@ import { formatBrl } from "../../../domain/money";
 import { Banner, Button, type Column, EmptyState, Loading, Table } from "../../../ui";
 import { coupleLabel } from "../../contracts/names";
 import { monthName } from "../groups";
+import { costPriceLabel } from "./costPrice";
 import { ExpenseDialog } from "./ExpenseDialog";
 import { ExpenseTypesDialog } from "./ExpenseTypesDialog";
 import { FeeDialog } from "./FeeDialog";
@@ -31,10 +32,15 @@ function describe(entry: ExpenseEntryOut): string {
       entry.link_state === "ok"
         ? coupleLabel({ full_name: entry.groom_name }, { full_name: entry.bride_name })
         : (DANGLING[entry.link_state] ?? "");
-    const event = entry.event_kind ? `${EVENT_WORD[entry.event_kind]} ` : "";
+    const couple = coupleLabel({ full_name: entry.groom_name }, { full_name: entry.bride_name });
+    // A dangling link has no event to name: the couple (when still known) and the warning say it.
+    const where =
+      entry.link_state === "ok"
+        ? `${entry.event_kind ? `${EVENT_WORD[entry.event_kind]} ` : ""}${place}`
+        : [entry.groom_name || entry.bride_name ? couple : null, place].filter(Boolean).join(" ");
     return [
       transportKindLabel(entry.transport_kind),
-      `${event}${place}`,
+      where,
       entry.distance_tenths === null ? null : formatKm(entry.distance_tenths),
       entry.left_home_at ? `saí ${entry.left_home_at}` : null,
     ]
@@ -212,10 +218,7 @@ export function ExpensesTab({
                 {activeCosts.length === 0
                   ? "nenhuma"
                   : activeCosts
-                      .map((cost) => {
-                        const price = priceInForce(cost.prices, today);
-                        return `${cost.name} ${price ? formatBrl(price.amount_cents) : "sem valor"}`;
-                      })
+                      .map((cost) => `${cost.name} ${costPriceLabel(cost, today)}`)
                       .join(" · ")}
               </span>
               <Button

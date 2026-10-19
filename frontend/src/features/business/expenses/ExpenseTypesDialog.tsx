@@ -18,7 +18,7 @@ import {
   useToast,
 } from "../../../ui";
 import styles from "./ExpenseDialogs.module.css";
-import { useWrite } from "./useWrite";
+import { TYPE_MESSAGES, useWrite } from "./useWrite";
 
 const DUPLICATE = "Já existe um tipo com esse nome.";
 
@@ -26,7 +26,7 @@ type Write = ReturnType<typeof useWrite>;
 
 export function ExpenseTypesDialog({ onClose }: { onClose: () => void }) {
   const types = useExpenseTypes({ includeArchived: true });
-  const write = useWrite();
+  const write = useWrite(TYPE_MESSAGES);
   const active = types.data?.filter((type) => !type.archived_at) ?? [];
   const archived = types.data?.filter((type) => type.archived_at) ?? [];
 

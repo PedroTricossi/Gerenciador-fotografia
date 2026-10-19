@@ -182,6 +182,10 @@ test("Excluir warns about past months before deleting", async () => {
   expect(ifMatch).toBeNull();
   await user.click(within(confirm).getByRole("button", { name: "Excluir" }));
   await waitFor(() => expect(ifMatch).toBe('"4"'));
+  // The row stays until the list refetches, so the confirmation must not be left open.
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Excluir despesa fixa?" })).toBeNull(),
+  );
 });
 
 test("a stale delete shows the conflict and closes the confirmation", async () => {

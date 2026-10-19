@@ -1,11 +1,22 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { ApiError } from "../../../api/client";
+import { expenseKeys } from "../../../api/expenses";
 import { describeUnexpected } from "../../../api/errors";
 import { MAX_CENTS, parseBrl } from "../../../domain/money";
 
-export const CHANGED =
-  "Esta despesa foi alterada em outro lugar. Feche e abra de novo para ver a versão atual.";
-export const GONE = "Esta despesa não existe mais. A lista foi atualizada.";
+export type WriteMessages = { changed: string; gone: string };
+
+const make = (subject: string, feminine: boolean): WriteMessages => ({
+  changed: `${subject} foi alterad${feminine ? "a" : "o"} em outro lugar. Feche e abra de novo para ver a versão atual.`,
+  gone: `${subject} não existe mais. A lista foi atualizada.`,
+});
+
+export const EXPENSE_MESSAGES = make("Esta despesa", true);
+export const TYPE_MESSAGES = make("Este tipo", false);
+export const FIXED_COST_MESSAGES = make("Esta despesa fixa", true);
+export const STANDARD_MESSAGES = make("O valor padrão", false);
+export const WEDDING_MESSAGES = make("Este casamento", false);
 
 /** Cents from the typed text, or the message for the field. */
 export function amountFrom(text: string): { cents: number } | { error: string } {
@@ -26,7 +37,8 @@ export function fieldMessage(error: ApiError, name: string): string | undefined 
  * ref guards a second click before React has re-rendered. A failure that `onError` does not
  * handle lands in the banner.
  */
-export function useWrite() {
+export function useWrite(messages: WriteMessages = EXPENSE_MESSAGES) {
+  const client = useQueryClient();
   const [banner, setBanner] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -45,9 +57,11 @@ export function useWrite() {
     } catch (error) {
       if (!(error instanceof ApiError)) throw error;
       if (onError?.(error)) return false;
-      if (error.status === 412) setBanner(CHANGED);
-      else if (error.status === 404) setBanner(GONE);
-      else setBanner(error.detail || describeUnexpected(error));
+      if (error.status === 412 || error.status === 404) {
+        // What the dialog showed is stale, so the lists behind it must catch up.
+        void client.invalidateQueries({ queryKey: expenseKeys.all });
+        setBanner(error.status === 412 ? messages.changed : messages.gone);
+      } else setBanner(error.detail || describeUnexpected(error));
       return false;
     } finally {
       inFlight.current = false;

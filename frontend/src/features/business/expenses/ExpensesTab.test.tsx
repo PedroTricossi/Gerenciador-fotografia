@@ -3,6 +3,7 @@ import { http, HttpResponse } from "msw";
 import { makeExpenseEntry, problem } from "../../../test/fixtures";
 import { renderApp } from "../../../test/render";
 import { server } from "../../../test/server";
+import { makeCost, serveExpenses } from "./testData";
 
 const ENTRIES = [
   makeExpenseEntry({
@@ -43,16 +44,17 @@ const ENTRIES = [
     distance_tenths: 320,
   }),
   makeExpenseEntry({
-    id: "second:c1",
+    id: "fee:c1",
     source: "second_photographer",
     date: "2026-10-11",
     amount_cents: 50000,
     type_name: "2º fotógrafo",
     type_key: "second_photographer",
-    description: "2º fotógrafo · Caio & Duda",
     expense_id: null,
     version: null,
     contract_id: "c1",
+    groom_name: "Caio Reis",
+    bride_name: "Duda Melo",
   }),
   makeExpenseEntry({
     id: "manual:cafe",
@@ -206,7 +208,8 @@ test("a fee without an amount shows sem valor", async () => {
     makeExpenseEntry({
       source: "second_photographer",
       type_name: "2º fotógrafo",
-      description: "2º fotógrafo · Caio & Duda",
+      groom_name: "Caio Reis",
+      bride_name: "Duda Melo",
       amount_cents: 0,
       missing_amount: true,
       expense_id: null,
@@ -251,8 +254,44 @@ test("a transport row whose contract was deleted says so", async () => {
   ]);
   renderApp("/negocio?aba=despesas");
   expect(
-    await screen.findByText("Carro · casamento (contrato excluído) · 32,5 km · saí 08:00"),
+    await screen.findByText("Carro · (contrato excluído) · 32,5 km · saí 08:00"),
   ).toBeInTheDocument();
+});
+
+test("a transport row whose pre-wedding was cancelled keeps the couple", async () => {
+  serve([
+    makeExpenseEntry({
+      type_name: "Transporte",
+      type_key: "transport",
+      event_kind: "prewedding",
+      link_state: "prewedding_cancelled",
+      groom_name: "Caio Reis",
+      bride_name: "Duda Melo",
+      transport_kind: "car",
+      distance_tenths: 100,
+    }),
+  ]);
+  renderApp("/negocio?aba=despesas");
+  expect(
+    await screen.findByText("Carro · Caio & Duda (pré-wedding cancelado) · 10 km"),
+  ).toBeInTheDocument();
+});
+
+test("a fixed cost that starts later shows when, not sem valor", async () => {
+  serveExpenses({
+    costs: [
+      makeCost({
+        start_month: "2026-12",
+        prices: [{ from_month: "2026-12", amount_cents: 9900 }],
+      }),
+    ],
+  });
+  renderApp("/negocio?aba=despesas");
+  const box = await screen.findByRole("region", { name: "Configurações" });
+  expect(await within(box).findByText(/Adobe a partir de dezembro 2026/)).toHaveTextContent(
+    "R$ 99,00",
+  );
+  expect(box).not.toHaveTextContent("sem valor");
 });
 
 test("an empty month says so", async () => {

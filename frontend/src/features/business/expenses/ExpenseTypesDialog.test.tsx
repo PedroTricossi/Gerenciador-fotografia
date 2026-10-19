@@ -101,3 +101,14 @@ test("Renomear patches the name with the version", async () => {
   await user.click(within(row).getByRole("button", { name: "Salvar" }));
   await waitFor(() => expect(sent).toEqual({ body: { name: "Lanche" }, ifMatch: '"1"' }));
 });
+
+test("a stale rename says the type changed and refreshes the list", async () => {
+  server.use(http.patch(`/api/v1/expense-types/${TYPE_IDS.cafe}`, () => problem(412, "stale")));
+  const { user, dialog } = await openDialog();
+  const row = rowOf(dialog, "Café");
+  await user.click(within(row).getByRole("button", { name: "Renomear" }));
+  await user.type(within(row).getByLabelText("Novo nome"), "s");
+  await user.click(within(row).getByRole("button", { name: "Salvar" }));
+  expect(await within(dialog).findByText(/Este tipo foi alterado em outro lugar/)).toBeVisible();
+  expect(within(dialog).queryByText(/Esta despesa/)).toBeNull();
+});

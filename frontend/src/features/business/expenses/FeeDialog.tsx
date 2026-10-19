@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ExpenseEntryOut } from "../../../api/client";
+import { ApiError, type ExpenseEntryOut } from "../../../api/client";
 import {
   expenseKeys,
   useClearContractFee,
@@ -23,16 +23,23 @@ import {
 import { coupleLabel } from "../../contracts/names";
 import { monthName } from "../groups";
 import styles from "./ExpenseDialogs.module.css";
-import { amountFrom, fieldMessage, useWrite } from "./useWrite";
+import {
+  amountFrom,
+  fieldMessage,
+  STANDARD_MESSAGES,
+  useWrite,
+  WEDDING_MESSAGES,
+} from "./useWrite";
 
 const NO_SECOND = "Este casamento não tem mais 2 fotógrafos.";
+const DELETED = "Este contrato foi excluído.";
 
 type Props =
   | { mode: "standard"; onClose: () => void }
   | { mode: "adjust"; entry: ExpenseEntryOut; onClose: () => void };
 
 export function FeeDialog(props: Props) {
-  const write = useWrite();
+  const write = useWrite(props.mode === "adjust" ? WEDDING_MESSAGES : STANDARD_MESSAGES);
   const title =
     props.mode === "standard" ? "2º fotógrafo (padrão)" : `2º fotógrafo · ${couple(props.entry)}`;
   return (
@@ -48,8 +55,6 @@ export function FeeDialog(props: Props) {
 }
 
 function couple(entry: ExpenseEntryOut): string {
-  if (entry.groom_name === null && entry.bride_name === null)
-    return (entry.description ?? "").replace("2º fotógrafo · ", "");
   return coupleLabel({ full_name: entry.groom_name }, { full_name: entry.bride_name });
 }
 
@@ -164,10 +169,10 @@ function ContractFee({
   const [error, setError] = useState<string>();
 
   // Both writes fail the same way when the wedding lost its second photographer.
-  const conflict = (failure: { status: number }) => {
+  const conflict = (failure: ApiError) => {
     if (failure.status !== 409) return false;
     void client.invalidateQueries({ queryKey: expenseKeys.all });
-    write.setBanner(NO_SECOND);
+    write.setBanner(failure.code === "contract_deleted" ? DELETED : NO_SECOND);
     return true;
   };
   const finish = (message: string) => (ok: boolean) => {
@@ -182,6 +187,10 @@ function ContractFee({
     const parsed = amountFrom(amount);
     setError("error" in parsed ? parsed.error : undefined);
     if ("error" in parsed) return;
+    // Ajustar pre-fills the standard: saving it untouched would pin this wedding to today's
+    // standard and shield it from later changes.
+    if (!entry.override && !entry.missing_amount && parsed.cents === entry.amount_cents)
+      return onClose();
     void write
       .run(() => set.mutateAsync({ contractId, amountCents: parsed.cents }), conflict)
       .then(finish("Valor do casamento salvo"));

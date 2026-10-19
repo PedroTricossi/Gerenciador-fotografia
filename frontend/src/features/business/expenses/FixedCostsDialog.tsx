@@ -17,14 +17,14 @@ import {
 } from "../../../ui";
 import styles from "./ExpenseDialogs.module.css";
 import { FixedCostRow } from "./FixedCostRow";
-import { amountFrom, fieldMessage, useWrite } from "./useWrite";
+import { amountFrom, FIXED_COST_MESSAGES, fieldMessage, useWrite } from "./useWrite";
 
 type Props = { onClose: () => void };
 
 export function FixedCostsDialog({ onClose }: Props) {
   const costs = useFixedCosts();
   const types = useExpenseTypes({ includeArchived: false });
-  const write = useWrite();
+  const write = useWrite(FIXED_COST_MESSAGES);
   const failed = costs.isError || types.isError;
 
   return (

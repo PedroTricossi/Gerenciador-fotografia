@@ -7,10 +7,9 @@ import {
   useSetFixedCostPrice,
   useStopFixedCost,
 } from "../../../api/expenses";
-import { priceInForce } from "../../../domain/expenses";
 import { currentMonth } from "../../../domain/instalments";
-import { formatBrl } from "../../../domain/money";
 import { Button, ConfirmDialog, Field, TextInput, useToast } from "../../../ui";
+import { costPriceLabel } from "./costPrice";
 import { monthName } from "../groups";
 import styles from "./ExpenseDialogs.module.css";
 import { amountFrom, fieldMessage, type useWrite } from "./useWrite";
@@ -27,7 +26,6 @@ export function FixedCostRow({ cost, write }: Props) {
   const remove = useDeleteFixedCost();
   const { busy, run } = write;
   const today = currentMonth();
-  const price = priceInForce(cost.prices, today);
   const stopped = cost.end_month !== null;
 
   const done = (message: string) => {
@@ -40,8 +38,7 @@ export function FixedCostRow({ cost, write }: Props) {
       <div className={styles.head}>
         <span className={styles.name}>{cost.name}</span>
         <span className={styles.meta}>
-          {cost.type_name} · dia {cost.day_of_month} ·{" "}
-          {price ? formatBrl(price.amount_cents) : "sem valor"}
+          {cost.type_name} · dia {cost.day_of_month} · {costPriceLabel(cost, today)}
           {stopped &&
             ` · parada em ${monthName(cost.end_month!).toLowerCase()} ${cost.end_month!.slice(0, 4)}`}
         </span>
@@ -89,9 +86,11 @@ export function FixedCostRow({ cost, write }: Props) {
         tone="danger"
         busy={busy}
         onConfirm={() =>
-          void run(() => remove.mutateAsync({ id: cost.id, version: cost.version })).then((ok) =>
-            ok ? notify("Despesa excluída") : setMode(null),
-          )
+          void run(() => remove.mutateAsync({ id: cost.id, version: cost.version })).then((ok) => {
+            // The banner sits behind the confirmation, and the row is about to go.
+            if (ok) notify("Despesa excluída");
+            setMode(null);
+          })
         }
         onCancel={() => setMode(null)}
       >

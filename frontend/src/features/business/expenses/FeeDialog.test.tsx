@@ -12,13 +12,12 @@ afterEach(() => vi.useRealTimers());
 
 const FEE_ENTRY = (override: boolean) =>
   makeExpenseEntry({
-    id: "second:c1",
+    id: "fee:c1",
     source: "second_photographer",
     date: "2026-10-11",
     amount_cents: 60000,
     type_name: "2º fotógrafo",
     type_key: "second_photographer",
-    description: "2º fotógrafo · Caio & Duda",
     expense_id: null,
     version: null,
     contract_id: "c1",
@@ -104,8 +103,49 @@ test("a 409 says the wedding no longer has two photographers", async () => {
     http.put("/api/v1/contracts/c1/second-photographer-fee", () => problem(409, "no second")),
   );
   const { user, dialog } = await openAdjust(false);
+  const field = within(dialog).getByLabelText("Valor para este casamento");
+  await user.clear(field);
+  await user.type(field, "700");
   await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
   expect(
     await within(dialog).findByText("Este casamento não tem mais 2 fotógrafos."),
   ).toBeInTheDocument();
+});
+
+test("a 409 for a deleted contract says so", async () => {
+  server.use(
+    http.put("/api/v1/contracts/c1/second-photographer-fee", () =>
+      problem(409, "contrato excluído", { code: "contract_deleted" }),
+    ),
+  );
+  const { user, dialog } = await openAdjust(false);
+  const field = within(dialog).getByLabelText("Valor para este casamento");
+  await user.clear(field);
+  await user.type(field, "700");
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  expect(await within(dialog).findByText("Este contrato foi excluído.")).toBeInTheDocument();
+});
+
+test("a 404 speaks of the wedding, not of an expense", async () => {
+  server.use(http.put("/api/v1/contracts/c1/second-photographer-fee", () => problem(404, "gone")));
+  const { user, dialog } = await openAdjust(false);
+  const field = within(dialog).getByLabelText("Valor para este casamento");
+  await user.clear(field);
+  await user.type(field, "700");
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  expect(await within(dialog).findByText(/Este casamento não existe mais/)).toBeInTheDocument();
+});
+
+test("Salvar without changing the standard amount closes without a request", async () => {
+  let called = false;
+  server.use(
+    http.put("/api/v1/contracts/c1/second-photographer-fee", () => {
+      called = true;
+      return HttpResponse.json({});
+    }),
+  );
+  const { user, dialog } = await openAdjust(false);
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(called).toBe(false);
 });
