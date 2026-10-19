@@ -16,6 +16,15 @@ export function useExpenseEntries(month: string) {
   });
 }
 
+export function useExpense(id: string | null) {
+  return useQuery({
+    queryKey: expenseKeys.expense(id ?? ""),
+    queryFn: () =>
+      unwrap(api.GET("/api/v1/expenses/{expense_id}", { params: { path: { expense_id: id! } } })),
+    enabled: id !== null,
+  });
+}
+
 export function useExpenseTypes({ includeArchived }: { includeArchived: boolean }) {
   return useQuery({
     queryKey: expenseKeys.types(includeArchived),

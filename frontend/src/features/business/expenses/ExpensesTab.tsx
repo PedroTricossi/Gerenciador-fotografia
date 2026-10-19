@@ -8,6 +8,7 @@ import { formatBrl } from "../../../domain/money";
 import { Banner, Button, type Column, EmptyState, Loading, Table } from "../../../ui";
 import { coupleLabel } from "../../contracts/names";
 import { monthName } from "../groups";
+import { ExpenseDialog } from "./ExpenseDialog";
 import styles from "./ExpensesTab.module.css";
 
 const noop = () => {};
@@ -53,6 +54,8 @@ export function ExpensesTab({
   onManage = noop,
   onNew = noop,
 }: Props) {
+  // null: closed; "new": a blank form; otherwise the stored expense being edited.
+  const [dialog, setDialog] = useState<"new" | { id: string } | null>(null);
   const today = currentMonth();
   const [month, setMonth] = useState(today);
   const entries = useExpenseEntries(month);
@@ -60,6 +63,11 @@ export function ExpensesTab({
   const fee = useSecondPhotographerFee();
   const settingsId = useId();
   const todayDate = todayIso();
+
+  const openEdit = (entry: ExpenseEntryOut) => {
+    onEdit(entry);
+    if (entry.expense_id) setDialog({ id: entry.expense_id });
+  };
 
   const columns: Column<ExpenseEntryOut>[] = [
     { header: "Dia", cell: (entry) => entry.date.slice(8, 10) },
@@ -91,7 +99,7 @@ export function ExpensesTab({
             Ajustar
           </Button>
         ) : (
-          <Button onClick={() => onEdit(entry)} aria-label={`Editar ${describe(entry)}`}>
+          <Button onClick={() => openEdit(entry)} aria-label={`Editar ${describe(entry)}`}>
             Editar
           </Button>
         ),
@@ -117,7 +125,13 @@ export function ExpensesTab({
             ›
           </Button>
         </div>
-        <Button variant="primary" onClick={onNew}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            onNew();
+            setDialog("new");
+          }}
+        >
           + Nova despesa
         </Button>
       </div>
@@ -188,6 +202,12 @@ export function ExpensesTab({
           </>
         )}
       </section>
+      {dialog && (
+        <ExpenseDialog
+          expenseId={dialog === "new" ? null : dialog.id}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </>
   );
 }

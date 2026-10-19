@@ -30,6 +30,7 @@ export const expenseKeys = {
   entries: (month: string) => ["expenses", "entries", month] as const,
   types: (includeArchived: boolean) => ["expenses", "types", { includeArchived }] as const,
   events: ["expenses", "events"] as const,
+  expense: (id: string) => ["expenses", "expense", id] as const,
   fixedCosts: ["expenses", "fixed-costs"] as const,
   fee: ["expenses", "second-photographer-fee"] as const,
 };
