@@ -5,6 +5,7 @@ import { Banner, Loading } from "../../../ui";
 import { type Period, PeriodControl } from "../PeriodControl";
 import styles from "./ResumoTab.module.css";
 import { SpendBar } from "./SpendBar";
+import { TransportGuide } from "./TransportGuide";
 import { UpcomingTable } from "./UpcomingTable";
 import { formatSigned } from "./share";
 
@@ -72,8 +73,7 @@ export function ResumoTab() {
           </section>
         </>
       )}
-      {/* Room for the transport price guide (Task 7). */}
-      <div data-slot="transport-guide" />
+      <TransportGuide />
     </div>
   );
 }
