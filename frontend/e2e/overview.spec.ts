@@ -9,10 +9,12 @@ import {
   uniqueSuffix,
 } from "./helpers";
 
-/** Cents in "R$ 1.234,56" or "−R$ 1,00". */
+/** Cents of the first amount in the text: "R$ 1.234,56", "−R$ 1,00" or a bare "1,00". */
 function toCents(text: string): number {
-  const digits = Number(text.replace(/\D/g, ""));
-  return text.trim().startsWith("−") ? -digits : digits;
+  const match = /(−?)\s*(?:R\$\s?)?(\d[\d.]*),(\d{2})/.exec(text);
+  if (!match) throw new Error(`no amount in "${text}"`);
+  const cents = Number(match[2]!.replace(/\./g, "")) * 100 + Number(match[3]);
+  return match[1] ? -cents : cents;
 }
 
 async function openTab(page: Page, tab: "resumo" | "extrato") {
@@ -21,17 +23,15 @@ async function openTab(page: Page, tab: "resumo" | "extrato") {
 }
 
 async function total(page: Page, label: string): Promise<number> {
-  const value = page.getByText(label, { exact: true }).locator("xpath=following-sibling::div");
-  await expect(value).toHaveText(/R\$/);
-  return toCents(await value.innerText());
+  const card = page.getByText(label, { exact: true }).locator("..");
+  await expect(card).toContainText("R$");
+  return toCents(await card.innerText());
 }
 
 async function freeToday(page: Page): Promise<number> {
-  const value = page
-    .getByRole("heading", { name: /^Livre hoje/ })
-    .locator("xpath=following-sibling::div");
-  await expect(value).toHaveText(/R\$/);
-  return toCents((await value.innerText()).replace("⚠", ""));
+  const box = page.getByRole("region", { name: /^Livre hoje/ });
+  await expect(box).toContainText("R$");
+  return toCents(await box.innerText());
 }
 
 function instalmentRow(page: Page, couple: Couple, number: number) {
@@ -122,24 +122,57 @@ test("two transport legs of one wedding make one trip costing their sum", async 
   await expect(mine).toContainText("R$ 75,00");
 });
 
-test("a paid instalment's successor shows under the next month's A receber", async ({ page }) => {
-  const couple = freshCouple();
+/** "novembro" or "janeiro 2027": how the app names a month other than the current one. */
+function monthText(date: Date): string {
+  const name = date.toLocaleDateString("pt-BR", { month: "long" });
+  return date.getFullYear() === new Date().getFullYear() ? name : `${name} ${date.getFullYear()}`;
+}
 
-  await openTab(page, "resumo");
-  const before = await nextReceivable(page);
+/** "A receber" of the row of Próximos meses with this label, 0 when there is no such row. */
+async function receivable(page: Page, label: RegExp): Promise<number> {
+  const table = page.getByRole("table", { name: "Próximos meses" });
+  await expect(table.getByRole("row").nth(1)).toBeVisible();
+  const row = table.getByRole("row").filter({ hasText: label });
+  if ((await row.count()) === 0) return 0;
+  return toCents(await row.first().getByRole("cell").nth(1).innerText());
+}
+
+test("marking an instalment paid moves it from A receber to Entrou, not the next month's", async ({
+  page,
+}) => {
+  const couple = freshCouple();
+  const now = new Date();
+  const nextMonth = monthText(new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  const thisMonth = now.toLocaleDateString("pt-BR", { month: "long" });
+  const nextLabel = new RegExp(`^\\s*${nextMonth}`, "i");
+  const restLabel = new RegExp(`resto de ${thisMonth}`, "i");
 
   await createSplitContract(page, couple);
+
+  // R$ 1.400,00 in three (466,66 each): the first is due this month, the second next month.
+  await page.goto("/negocio");
+  await expect(
+    page.getByRole("list", { name: new RegExp(`^${thisMonth}$`, "i") }).filter({
+      has: instalmentRow(page, couple, 1),
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: new RegExp(`^${nextMonth}$`, "i") }).filter({
+      has: instalmentRow(page, couple, 2),
+    }),
+  ).toBeVisible();
+
+  await openTab(page, "resumo");
+  const entered = await total(page, "Entrou");
+  const free = await freeToday(page);
+  const rest = await receivable(page, restLabel);
+  const next = await receivable(page, nextLabel);
+
   await markFirstPaid(page, couple);
 
   await openTab(page, "resumo");
-  // R$ 1.400,00 in three: the second instalment, due next month, is also 466,66.
-  expect(await nextReceivable(page)).toBe(before + 46666);
+  expect(await total(page, "Entrou")).toBe(entered + 46666);
+  expect(await freeToday(page)).toBe(free + 46666);
+  expect(await receivable(page, restLabel)).toBe(rest - 46666);
+  expect(await receivable(page, nextLabel)).toBe(next);
 });
-
-/** "A receber" of the first row of Próximos meses that is a whole month. */
-async function nextReceivable(page: Page): Promise<number> {
-  const rows = page.getByRole("table", { name: "Próximos meses" }).getByRole("row");
-  await expect(rows.nth(1)).toBeVisible();
-  const whole = rows.filter({ hasNotText: /resto de/ }).filter({ has: page.getByRole("cell") });
-  return toCents(await whole.first().getByRole("cell").nth(1).innerText());
-}
