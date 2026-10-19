@@ -111,6 +111,16 @@ export function ExpensesTab({
           >
             Ajustar
           </Button>
+        ) : entry.source === "fixed" ? (
+          <Button
+            onClick={() => {
+              onManage();
+              setManage("fixed");
+            }}
+            aria-label={`Gerenciar ${describe(entry)}`}
+          >
+            Gerenciar
+          </Button>
         ) : (
           <Button onClick={() => openEdit(entry)} aria-label={`Editar ${describe(entry)}`}>
             Editar

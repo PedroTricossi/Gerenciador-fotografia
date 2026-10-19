@@ -157,7 +157,7 @@ test("row buttons carry the row's description in their names", async () => {
   serve();
   renderApp("/negocio?aba=despesas");
   expect(await screen.findByRole("button", { name: "Editar Café (edição)" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Editar Adobe" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Gerenciar Adobe" })).toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Ajustar 2º fotógrafo · Caio & Duda" }),
   ).toBeInTheDocument();
@@ -285,4 +285,12 @@ test("Alterar opens the standard fee and Tipos de despesa opens the types", asyn
   await user.click(await screen.findByRole("button", { name: "Cancelar" }));
   await user.click(within(box).getByRole("button", { name: "Tipos de despesa" }));
   expect(await screen.findByRole("dialog", { name: "Tipos de despesa" })).toBeInTheDocument();
+});
+
+test("Gerenciar on a fixed row opens the Despesas fixas dialog", async () => {
+  serve();
+  server.use(http.get("/api/v1/expense-types", () => HttpResponse.json([])));
+  const { user } = renderApp("/negocio?aba=despesas");
+  await user.click(await screen.findByRole("button", { name: "Gerenciar Adobe" }));
+  expect(await screen.findByRole("dialog", { name: "Despesas fixas" })).toBeInTheDocument();
 });
