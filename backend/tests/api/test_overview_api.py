@@ -3,6 +3,10 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, select
+
+from gerenciador.db.models import ExpenseType
+from gerenciador.db.session import create_session_factory
 
 URL = "/api/v1/overview"
 ENTRIES = "/api/v1/expense-entries"
@@ -21,14 +25,18 @@ def _type_id(api: TestClient, name: str) -> str:
 
 
 def _contract(
-    api: TestClient, payload: Payload, catalog: dict[str, str], **overrides: Any
+    api: TestClient,
+    payload: Payload,
+    catalog: dict[str, str],
+    months: tuple[str, ...] = ("2026-09", "2026-10", "2026-11"),
+    **overrides: Any,
 ) -> dict[str, Any]:
     body = payload(
         photographer_count=1,
-        payment={"items": [{"service_id": catalog["ceremony"], "amount_cents": 297000}]},
-        instalments=[
-            {"month": m, "amount_cents": 99000} for m in ("2026-09", "2026-10", "2026-11")
-        ],
+        payment={
+            "items": [{"service_id": catalog["ceremony"], "amount_cents": 99000 * len(months)}]
+        },
+        instalments=[{"month": m, "amount_cents": 99000} for m in months],
         **overrides,
     )
     response = api.post(CONTRACTS, json=body)
@@ -81,6 +89,15 @@ def _overview(
     return body
 
 
+def _expected_slots(engine: Engine) -> dict[str, int]:
+    """Slot by type id: the position in (created_at, id) order, archived types included."""
+    with create_session_factory(engine)() as session:
+        ids = session.scalars(
+            select(ExpenseType.id).order_by(ExpenseType.created_at, ExpenseType.id)
+        ).all()
+    return {type_id: i for i, type_id in enumerate(ids)}
+
+
 @pytest.fixture
 def october(api: TestClient, payload: Payload, catalog: dict[str, str]) -> dict[str, Any]:
     contract = _contract(api, payload, catalog)
@@ -91,7 +108,7 @@ def october(api: TestClient, payload: Payload, catalog: dict[str, str]) -> dict[
     return contract
 
 
-def test_october_money_in_and_out(api: TestClient, october: dict[str, Any]) -> None:
+def test_october_money_in_and_out(api: TestClient, engine: Engine, october: dict[str, Any]) -> None:
     body = _overview(api)
 
     assert body["period_start"] == "2026-10-01"
@@ -104,9 +121,10 @@ def test_october_money_in_and_out(api: TestClient, october: dict[str, Any]) -> N
         ("Café", 3800),
     ]
     slots = {t["type_name"]: t["palette_slot"] for t in body["by_type"]}
-    assert slots["Assinatura"] is not None
-    assert slots["Café"] is not None
-    assert slots["Assinatura"] != slots["Café"]
+    assert slots == {
+        "Assinatura": _expected_slots(engine)[_type_id(api, "Assinatura")],
+        "Café": _expected_slots(engine)[_type_id(api, "Café")],
+    }
     rows = body["statement"]
     assert [(r["kind"], r["date"]) for r in rows] == [
         ("in", "2026-10-03"),
@@ -164,28 +182,63 @@ def test_upcoming_months_carry_the_balance(api: TestClient, october: dict[str, A
     assert second["projected_free_cents"] == first["projected_free_cents"] + 99000 - 12400
 
 
-def test_late_instalments_only_in_late(api: TestClient, october: dict[str, Any]) -> None:
-    body = _overview(api)
-
-    assert body["late_cents"] == 0
-    # Instalment 1 is due in 2026-09 and paid; unpay it and it becomes late.
-    api.delete(f"{CONTRACTS}/{october['id']}/instalments/1/paid")
-    late = _overview(api)
-    assert late["late_cents"] == 99000
-    assert late["in_cents"] == 0
-    assert all(r["month"] >= "2026-10" for r in late["upcoming"])
-    assert sum(r["in_cents"] for r in late["upcoming"]) == 2 * 99000
-
-
-def test_a_future_payment_counts_in_its_month(api: TestClient, october: dict[str, Any]) -> None:
-    _pay(api, october, 3, "2026-11-05")
+def test_late_instalments_only_in_late(
+    api: TestClient, payload: Payload, catalog: dict[str, str]
+) -> None:
+    contract = _contract(api, payload, catalog, months=("2026-08", "2026-10", "2026-11"))
 
     body = _overview(api)
 
-    assert body["in_cents"] == 99000
-    assert body["free_today_cents"] == 82800
-    november = next(r for r in body["upcoming"] if r["month"] == "2026-11")
-    assert november["in_cents"] == 99000
+    assert body["late_cents"] == 99000
+    assert [r["month"] for r in body["upcoming"]] == ["2026-10", "2026-11", "2026-12", "2027-01"]
+    assert [r["in_cents"] for r in body["upcoming"]] == [99000, 99000, 0, 0]
+    assert body["in_cents"] == 0
+    # Paying the late one moves it out of late; it is money in on the payment day.
+    _pay(api, contract, 1, "2026-10-02")
+    paid = _overview(api)
+    assert paid["late_cents"] == 0
+    assert paid["in_cents"] == 99000
+
+
+def test_upcoming_reaches_the_last_unpaid_month(
+    api: TestClient, payload: Payload, catalog: dict[str, str]
+) -> None:
+    _contract(api, payload, catalog, months=("2026-10", "2027-03", "2027-05"))
+
+    upcoming = _overview(api)["upcoming"]
+
+    assert [r["month"] for r in upcoming] == [
+        "2026-10",
+        "2026-11",
+        "2026-12",
+        "2027-01",
+        "2027-02",
+        "2027-03",
+        "2027-04",
+        "2027-05",
+    ]
+    assert [r["in_cents"] for r in upcoming] == [99000, 0, 0, 0, 0, 99000, 0, 99000]
+    assert upcoming[-1]["projected_free_cents"] == 3 * 99000
+
+
+def test_a_future_payment_counts_in_the_month_it_is_paid(
+    api: TestClient, payload: Payload, catalog: dict[str, str]
+) -> None:
+    contract = _contract(api, payload, catalog, months=("2026-10", "2026-11", "2027-02"))
+    # Due 2026-11, but paid in December; due 2026-10, paid later this month.
+    _pay(api, contract, 2, "2026-12-05")
+    _pay(api, contract, 1, "2026-10-28")
+
+    body = _overview(api)
+
+    assert body["in_cents"] == 0
+    assert body["free_today_cents"] == 0
+    by_month = {r["month"]: r for r in body["upcoming"]}
+    assert by_month["2026-10"]["in_cents"] == 99000
+    assert by_month["2026-10"]["rest_of_month"] is True
+    assert by_month["2026-11"]["in_cents"] == 0
+    assert by_month["2026-12"]["in_cents"] == 99000
+    assert by_month["2027-02"]["in_cents"] == 99000
 
 
 def test_deleted_contract(api: TestClient, october: dict[str, Any]) -> None:
@@ -232,3 +285,26 @@ def test_bad_input_is_rejected_on_its_field(
 
     assert response.status_code == 422
     assert field in response.text
+
+
+def test_palette_slots_follow_creation_order(
+    api: TestClient, engine: Engine, october: dict[str, Any]
+) -> None:
+    for i in range(4):
+        assert api.post(TYPES, json={"name": f"Novo {i}"}).status_code == 201
+    expected = _expected_slots(engine)
+    assert len(expected) >= 10
+    for name in ("Transporte", "Equipamento", "Outro", *(f"Novo {i}" for i in range(4))):
+        _expense(api, name, "2026-10-10", 100)
+    archived = _type_id(api, "Equipamento")
+    assert api.post(f"{TYPES}/{archived}/archive").status_code == 200
+
+    shares = {t["type_id"]: t["palette_slot"] for t in _overview(api)["by_type"]}
+
+    assert len(shares) == 9
+    assert shares == {
+        type_id: (expected[type_id] if expected[type_id] < 8 else None) for type_id in shares
+    }
+    assert shares[archived] == (expected[archived] if expected[archived] < 8 else None)
+    assert None in shares.values()
+    assert any(slot is not None for slot in shares.values())
