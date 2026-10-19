@@ -1,4 +1,5 @@
-import { type FormEvent, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   type ExpenseEventOut,
   type ExpenseOut,
@@ -7,6 +8,7 @@ import {
 } from "../../../api/client";
 import { describeUnexpected, isUnexpected } from "../../../api/errors";
 import {
+  expenseKeys,
   useCreateExpense,
   useDeleteExpense,
   useExpense,
@@ -44,12 +46,10 @@ import {
   validateExpense,
 } from "./expenseForm";
 import styles from "./ExpenseDialog.module.css";
+import { EXPENSE_MESSAGES } from "./useWrite";
 
 const TRANSPORT_KINDS = ["car", "ride_app", "bus", "plane", "other"] as const;
 const EVENT_WORD = { wedding: "casamento", prewedding: "pré-wedding" } as const;
-const CHANGED =
-  "Esta despesa foi alterada em outro lugar. Feche e abra de novo para ver a versão atual.";
-const GONE = "Esta despesa não existe mais. A lista foi atualizada.";
 
 const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
@@ -71,10 +71,15 @@ export function ExpenseDialog({ expenseId, onClose }: Props) {
   const expense = useExpense(expenseId);
   const queries = expenseId ? [types, events, expense] : [types, events];
   const failed = queries.some((query) => query.isError);
-  const ready = types.data && events.data && (!expenseId || expense.data);
+  // A cached copy can be older than the stored expense, and saving it would send its version
+  // with its amounts: wait for the fetch this mount started.
+  // The form reports a save in flight so Escape and the backdrop cannot close it midway.
+  const [saving, setSaving] = useState(false);
+  const ready =
+    types.data && events.data && (!expenseId || (expense.data && expense.isFetchedAfterMount));
 
   return (
-    <Dialog open title={title} onClose={onClose}>
+    <Dialog open title={title} onClose={onClose} dismissable={!saving}>
       {failed && (
         <>
           <Banner tone="error">Não foi possível carregar os dados da despesa.</Banner>
@@ -90,6 +95,7 @@ export function ExpenseDialog({ expenseId, onClose }: Props) {
           types={types.data}
           events={events.data}
           onClose={onClose}
+          onBusy={setSaving}
         />
       )}
     </Dialog>
@@ -101,10 +107,12 @@ type FormProps = {
   types: ExpenseTypeOut[];
   events: ExpenseEventOut[];
   onClose: () => void;
+  onBusy: (busy: boolean) => void;
 };
 
-function ExpenseForm({ expense, types, events, onClose }: FormProps) {
+function ExpenseForm({ expense, types, events, onClose, onBusy }: FormProps) {
   const notify = useToast();
+  const client = useQueryClient();
   const create = useCreateExpense();
   const update = useUpdateExpense();
   const remove = useDeleteExpense();
@@ -116,6 +124,7 @@ function ExpenseForm({ expense, types, events, onClose }: FormProps) {
   const [confirming, setConfirming] = useState(false);
   const inFlight = useRef(false);
   const busy = create.isPending || update.isPending || remove.isPending;
+  useEffect(() => onBusy(busy), [busy, onBusy]);
 
   const set = (patch: Partial<ExpenseFormValues>) =>
     setValues((current) => ({ ...current, ...patch }));
@@ -148,9 +157,10 @@ function ExpenseForm({ expense, types, events, onClose }: FormProps) {
       if (!(error instanceof ApiError)) throw error;
       // The banner sits in the form, behind a confirmation that would otherwise stay open.
       setConfirming(false);
-      if (error.status === 412) setBanner(CHANGED);
-      else if (error.status === 404) setBanner(GONE);
-      else if (error.status === 422) {
+      if (error.status === 412 || error.status === 404) {
+        void client.invalidateQueries({ queryKey: expenseKeys.all });
+        setBanner(error.status === 412 ? EXPENSE_MESSAGES.changed : EXPENSE_MESSAGES.gone);
+      } else if (error.status === 422) {
         const { fields, other } = splitFieldErrors(error.errors, (path) => fieldFor(path) !== null);
         const mapped: ExpenseErrors = {};
         for (const [path, message] of Object.entries(fields)) mapped[fieldFor(path)!] = message;

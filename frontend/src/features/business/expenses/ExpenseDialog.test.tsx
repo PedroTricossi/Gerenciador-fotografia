@@ -396,3 +396,65 @@ test("a 422 on trip.contract_id shows its message on the event field", async () 
     "evento não encontrado",
   );
 });
+
+test("reopening after a stale save shows the current expense and sends its version", async () => {
+  serve([CAFE_ENTRY], STORED_CAFE);
+  const bumped = { ...STORED_CAFE, amount_cents: 9900, version: 5 };
+  let calls = 0;
+  let ifMatch: string | null = null;
+  let sent: { amount_cents: number } | undefined;
+  server.use(
+    http.patch(`/api/v1/expenses/${EXPENSE_ID}`, async ({ request }) => {
+      calls += 1;
+      if (calls === 1) {
+        // Another tab saved first.
+        server.use(http.get(`/api/v1/expenses/${EXPENSE_ID}`, () => HttpResponse.json(bumped)));
+        return problem(412, "stale");
+      }
+      ifMatch = request.headers.get("if-match");
+      sent = (await request.json()) as { amount_cents: number };
+      return HttpResponse.json({ ...bumped, version: 6 });
+    }),
+  );
+  const { user } = renderApp("/negocio?aba=despesas");
+  await user.click(await screen.findByRole("button", { name: /^Editar/ }));
+  let dialog = await screen.findByRole("dialog", { name: "Editar despesa" });
+  await waitFor(() => expect(within(dialog).getByLabelText("Valor")).toHaveValue("38,00"));
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  expect(await within(dialog).findByText(/foi alterada em outro lugar/)).toBeInTheDocument();
+  await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+  await user.click(await screen.findByRole("button", { name: /^Editar/ }));
+  dialog = await screen.findByRole("dialog", { name: "Editar despesa" });
+  await waitFor(() => expect(within(dialog).getByLabelText("Valor")).toHaveValue("99,00"));
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(ifMatch).toBe('"5"');
+  expect(sent?.amount_cents).toBe(9900);
+});
+
+test("Escape does not close the dialog while a save is in flight", async () => {
+  serve([CAFE_ENTRY], STORED_CAFE);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  server.use(
+    http.patch(`/api/v1/expenses/${EXPENSE_ID}`, async () => {
+      await gate;
+      return HttpResponse.json({ ...STORED_CAFE, version: 4 });
+    }),
+  );
+  const { user } = renderApp("/negocio?aba=despesas");
+  await user.click(await screen.findByRole("button", { name: /^Editar/ }));
+  const dialog = await screen.findByRole("dialog", { name: "Editar despesa" });
+  await waitFor(() => expect(within(dialog).getByLabelText("Valor")).toHaveValue("38,00"));
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  await waitFor(() =>
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled(),
+  );
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  fireEvent(dialog, new Event("cancel", { cancelable: true }));
+  expect(screen.getByRole("dialog", { name: "Editar despesa" })).toBeInTheDocument();
+  release();
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
