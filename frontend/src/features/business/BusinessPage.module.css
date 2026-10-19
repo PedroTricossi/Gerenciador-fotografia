@@ -51,3 +51,6 @@
   background: var(--color-info-bg);
   font-size: var(--font-size-sm);
 }
+.tabs {
+  margin-bottom: var(--space-4);
+}

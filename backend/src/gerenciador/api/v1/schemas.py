@@ -13,6 +13,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    PlainSerializer,
     model_validator,
 )
 
@@ -29,6 +30,10 @@ from gerenciador.services.contract_service import (
     ItemInput,
     PersonInput,
 )
+from gerenciador.services.expense_entry_service import ExpenseEntry
+from gerenciador.services.expense_service import EventChoice, ExpenseInput, ExpenseView, TripInput
+from gerenciador.services.expense_type_service import ExpenseTypeView
+from gerenciador.services.fixed_cost_service import FixedCostView, PriceView
 from gerenciador.services.instalment_service import InstalmentListEntry
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
 
@@ -64,13 +69,23 @@ class StrictModel(BaseModel):
 Cpf = Annotated[str, Field(max_length=20), AfterValidator(normalize_cpf)]
 _Printable = AfterValidator(_no_control_characters)
 Name = Annotated[str, Field(min_length=1, max_length=200), _Printable]
+ExpenseTypeName = Annotated[str, Field(min_length=1, max_length=60), _Printable]
+FixedCostName = Annotated[str, Field(min_length=1, max_length=100), _Printable]
 Address = Annotated[str, Field(min_length=1, max_length=300), _Printable]
 City = Annotated[str, Field(min_length=1, max_length=100), _Printable]
 OptionalAddress = Annotated[Address | None, BeforeValidator(_blank_to_none)]
 OptionalTime = Annotated[dt.time | None, BeforeValidator(_blank_to_none)]
 Hours = Annotated[int, Field(strict=True, ge=1, le=24)]
 PhotographerCount = Annotated[int, Field(strict=True, ge=1, le=10)]
+Month = Annotated[str, Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 Cents = Annotated[int, Field(strict=True, gt=0, le=100_000_000)]
+Description = Annotated[
+    Annotated[str, Field(max_length=200), _Printable] | None, BeforeValidator(_blank_to_none)
+]
+DistanceTenths = Annotated[int, Field(strict=True, ge=1, le=50_000)]
+EventKind = Literal["wedding", "prewedding"]
+TransportKind = Literal["car", "ride_app", "bus", "plane", "other"]
+ClockTime = Annotated[dt.time, PlainSerializer(lambda t: t.strftime("%H:%M"), return_type=str)]
 Flag = Annotated[bool, Field(strict=True)]
 UtcDatetime = Annotated[AwareDatetime, AfterValidator(_to_utc)]
 
@@ -301,6 +316,73 @@ class ServicePatch(StrictModel):
         return ServiceChanges(self.name, self.default_price_cents, self.is_prewedding)
 
 
+class ExpenseTypeIn(StrictModel):
+    name: ExpenseTypeName
+
+
+class ExpenseTypePatch(StrictModel):
+    name: ExpenseTypeName
+
+
+class TripIn(StrictModel):
+    contract_id: UUID
+    event_kind: EventKind
+    transport_kind: TransportKind
+    left_home_at: dt.time
+    distance_tenths: DistanceTenths
+
+    def to_input(self) -> TripInput:
+        return TripInput(
+            str(self.contract_id),
+            self.event_kind,
+            self.transport_kind,
+            self.left_home_at.replace(second=0, microsecond=0, tzinfo=None),
+            self.distance_tenths,
+        )
+
+
+class ExpenseIn(StrictModel):
+    spent_on: dt.date
+    amount_cents: Cents
+    type_id: UUID
+    description: Description = None
+    trip: TripIn | None = None
+
+    def to_input(self) -> ExpenseInput:
+        return ExpenseInput(
+            self.spent_on,
+            self.amount_cents,
+            str(self.type_id),
+            self.description,
+            self.trip.to_input() if self.trip else None,
+        )
+
+
+class FixedCostIn(StrictModel):
+    name: FixedCostName
+    type_id: UUID
+    day_of_month: Annotated[int, Field(strict=True, ge=1, le=31)]
+    start_month: Month
+    amount_cents: Cents
+
+
+class FixedCostRename(StrictModel):
+    name: FixedCostName
+
+
+class PriceIn(StrictModel):
+    from_month: Month
+    amount_cents: Cents
+
+
+class StopIn(StrictModel):
+    end_month: Month
+
+
+class OverrideIn(StrictModel):
+    amount_cents: Cents
+
+
 # ---- responses ------------------------------------------------------------
 
 
@@ -326,6 +408,142 @@ class ServiceOut(BaseModel):
             is_prewedding=view.is_prewedding,
             archived_at=view.archived_at,
             version=view.version,
+        )
+
+
+class ExpenseTypeOut(BaseModel):
+    id: str
+    name: str
+    key: str | None
+    archived_at: dt.datetime | None
+    version: int
+
+    @classmethod
+    def from_view(cls, view: ExpenseTypeView) -> Self:
+        return cls(
+            id=view.id,
+            name=view.name,
+            key=view.key,
+            archived_at=view.archived_at,
+            version=view.version,
+        )
+
+
+class TripOut(BaseModel):
+    contract_id: str
+    event_kind: EventKind
+    transport_kind: str
+    left_home_at: ClockTime
+    distance_tenths: int
+
+
+class ExpenseOut(BaseModel):
+    id: str
+    spent_on: dt.date
+    amount_cents: int
+    type_id: str
+    description: str | None
+    trip: TripOut | None
+    version: int
+    created_at: dt.datetime
+
+    @classmethod
+    def from_view(cls, view: ExpenseView) -> Self:
+        return cls(
+            id=view.id,
+            spent_on=view.spent_on,
+            amount_cents=view.amount_cents,
+            type_id=view.type_id,
+            description=view.description,
+            trip=TripOut.model_validate(asdict(view.trip)) if view.trip else None,
+            version=view.version,
+            created_at=view.created_at,
+        )
+
+
+class PriceOut(BaseModel):
+    from_month: str
+    amount_cents: int
+
+
+class PricesOut(BaseModel):
+    prices: list[PriceOut]
+
+    @classmethod
+    def from_views(cls, views: list[PriceView]) -> Self:
+        return cls(prices=[PriceOut.model_validate(asdict(view)) for view in views])
+
+
+class FixedCostOut(BaseModel):
+    id: str
+    name: str
+    type_id: str
+    type_name: str
+    day_of_month: int
+    start_month: str
+    end_month: str | None
+    prices: list[PriceOut]
+    version: int
+
+    @classmethod
+    def from_view(cls, view: FixedCostView) -> Self:
+        return cls.model_validate(asdict(view))
+
+
+class OverrideOut(BaseModel):
+    contract_id: str
+    amount_cents: int
+
+
+class ExpenseEventOut(BaseModel):
+    contract_id: str
+    event_kind: EventKind
+    date: dt.date
+    groom_name: str | None
+    bride_name: str | None
+    venue_name: str
+    venue_address: str | None
+
+    @classmethod
+    def from_view(cls, view: EventChoice) -> Self:
+        return cls.model_validate(asdict(view))
+
+
+class ExpenseEntryOut(BaseModel):
+    id: str
+    source: Literal["manual", "fixed", "second_photographer"]
+    date: dt.date
+    amount_cents: int
+    missing_amount: bool
+    type_id: str
+    type_name: str
+    type_key: str | None
+    description: str | None
+    expense_id: str | None
+    version: int | None
+    fixed_cost_id: str | None
+    contract_id: str | None
+    event_kind: EventKind | None
+    groom_name: str | None
+    bride_name: str | None
+    link_state: Literal["ok", "contract_deleted", "prewedding_cancelled"] | None
+    venue_name: str | None
+    venue_address: str | None
+    transport_kind: str | None
+    left_home_at: ClockTime | None
+    distance_tenths: int | None
+    override: bool
+
+
+class ExpenseEntriesOut(BaseModel):
+    entries: list[ExpenseEntryOut]
+    total_cents: int
+
+    @classmethod
+    def from_entries(cls, entries: list[ExpenseEntry]) -> Self:
+        return cls(
+            entries=[ExpenseEntryOut.model_validate(asdict(entry)) for entry in entries],
+            total_cents=sum(entry.amount_cents for entry in entries),
         )
 
 

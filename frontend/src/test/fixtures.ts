@@ -1,5 +1,11 @@
 import { HttpResponse, http } from "msw";
-import type { AgendaEntryOut, ClientOut, ContractOut, ServiceOut } from "../api/client";
+import type {
+  AgendaEntryOut,
+  ClientOut,
+  ContractOut,
+  ExpenseEntryOut,
+  ServiceOut,
+} from "../api/client";
 
 export const IDS = {
   contract: "6f1c0a52-1111-4000-8000-000000000001",
@@ -148,4 +154,33 @@ export function problem(status: number, detail: string, extra: Record<string, un
     },
     { status, headers: { "Content-Type": "application/problem+json" } },
   );
+}
+
+export function makeExpenseEntry(overrides: Partial<ExpenseEntryOut> = {}): ExpenseEntryOut {
+  return {
+    id: "manual:6f1c0a52-8888-4000-8000-000000000008",
+    source: "manual",
+    date: "2026-10-14",
+    amount_cents: 3800,
+    missing_amount: false,
+    type_id: "6f1c0a52-9999-4000-8000-000000000009",
+    type_name: "Café",
+    type_key: null,
+    description: null,
+    expense_id: "6f1c0a52-8888-4000-8000-000000000008",
+    version: 1,
+    fixed_cost_id: null,
+    contract_id: null,
+    event_kind: null,
+    groom_name: null,
+    bride_name: null,
+    link_state: null,
+    venue_name: null,
+    venue_address: null,
+    transport_kind: null,
+    left_home_at: null,
+    distance_tenths: null,
+    override: false,
+    ...overrides,
+  };
 }

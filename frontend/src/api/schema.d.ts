@@ -302,6 +302,285 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/expense-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Expense Types */
+        get: operations["list_expense_types_api_v1_expense_types_get"];
+        put?: never;
+        /** Create Expense Type */
+        post: operations["create_expense_type_api_v1_expense_types_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-types/{type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Expense Type */
+        get: operations["get_expense_type_api_v1_expense_types__type_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename Expense Type */
+        patch: operations["rename_expense_type_api_v1_expense_types__type_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/expense-types/{type_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Expense Type */
+        post: operations["archive_expense_type_api_v1_expense_types__type_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-types/{type_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Expense Type */
+        post: operations["restore_expense_type_api_v1_expense_types__type_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Expense */
+        post: operations["create_expense_api_v1_expenses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expenses/{expense_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Expense */
+        get: operations["get_expense_api_v1_expenses__expense_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Expense */
+        delete: operations["delete_expense_api_v1_expenses__expense_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Expense */
+        patch: operations["update_expense_api_v1_expenses__expense_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/expense-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Expense Events */
+        get: operations["list_expense_events_api_v1_expense_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Expense Entries */
+        get: operations["expense_entries_api_v1_expense_entries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixed-costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Fixed Costs */
+        get: operations["list_fixed_costs_api_v1_fixed_costs_get"];
+        put?: never;
+        /** Create Fixed Cost */
+        post: operations["create_fixed_cost_api_v1_fixed_costs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Fixed Cost */
+        delete: operations["delete_fixed_cost_api_v1_fixed_costs__cost_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Fixed Cost */
+        patch: operations["rename_fixed_cost_api_v1_fixed_costs__cost_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Fixed Cost Price */
+        post: operations["set_fixed_cost_price_api_v1_fixed_costs__cost_id__prices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop Fixed Cost */
+        post: operations["stop_fixed_cost_api_v1_fixed_costs__cost_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Fixed Cost */
+        post: operations["resume_fixed_cost_api_v1_fixed_costs__cost_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/second-photographer-fee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Second Photographer Fee */
+        get: operations["get_second_photographer_fee_api_v1_second_photographer_fee_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/second-photographer-fee/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Second Photographer Fee */
+        post: operations["set_second_photographer_fee_api_v1_second_photographer_fee_prices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contracts/{contract_id}/second-photographer-fee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Override */
+        put: operations["set_override_api_v1_contracts__contract_id__second_photographer_fee_put"];
+        post?: never;
+        /** Clear Override */
+        delete: operations["clear_override_api_v1_contracts__contract_id__second_photographer_fee_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-events": {
         parameters: {
             query?: never;
@@ -582,6 +861,198 @@ export interface components {
             /** Hours Contracted */
             hours_contracted?: number | null;
         };
+        /** ExpenseEntriesOut */
+        ExpenseEntriesOut: {
+            /** Entries */
+            entries: components["schemas"]["ExpenseEntryOut"][];
+            /** Total Cents */
+            total_cents: number;
+        };
+        /** ExpenseEntryOut */
+        ExpenseEntryOut: {
+            /** Id */
+            id: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "fixed" | "second_photographer";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Missing Amount */
+            missing_amount: boolean;
+            /** Type Id */
+            type_id: string;
+            /** Type Name */
+            type_name: string;
+            /** Type Key */
+            type_key: string | null;
+            /** Description */
+            description: string | null;
+            /** Expense Id */
+            expense_id: string | null;
+            /** Version */
+            version: number | null;
+            /** Fixed Cost Id */
+            fixed_cost_id: string | null;
+            /** Contract Id */
+            contract_id: string | null;
+            /** Event Kind */
+            event_kind: ("wedding" | "prewedding") | null;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Link State */
+            link_state: ("ok" | "contract_deleted" | "prewedding_cancelled") | null;
+            /** Venue Name */
+            venue_name: string | null;
+            /** Venue Address */
+            venue_address: string | null;
+            /** Transport Kind */
+            transport_kind: string | null;
+            /** Left Home At */
+            left_home_at: string | null;
+            /** Distance Tenths */
+            distance_tenths: number | null;
+            /** Override */
+            override: boolean;
+        };
+        /** ExpenseEventOut */
+        ExpenseEventOut: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Venue Name */
+            venue_name: string;
+            /** Venue Address */
+            venue_address: string | null;
+        };
+        /** ExpenseIn */
+        ExpenseIn: {
+            /**
+             * Spent On
+             * Format: date
+             */
+            spent_on: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /**
+             * Type Id
+             * Format: uuid
+             */
+            type_id: string;
+            /** Description */
+            description?: string | null;
+            trip?: components["schemas"]["TripIn"] | null;
+        };
+        /** ExpenseOut */
+        ExpenseOut: {
+            /** Id */
+            id: string;
+            /**
+             * Spent On
+             * Format: date
+             */
+            spent_on: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Type Id */
+            type_id: string;
+            /** Description */
+            description: string | null;
+            trip: components["schemas"]["TripOut"] | null;
+            /** Version */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ExpenseTypeIn */
+        ExpenseTypeIn: {
+            /** Name */
+            name: string;
+        };
+        /** ExpenseTypeOut */
+        ExpenseTypeOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Key */
+            key: string | null;
+            /** Archived At */
+            archived_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** ExpenseTypePatch */
+        ExpenseTypePatch: {
+            /** Name */
+            name: string;
+        };
+        /** FixedCostIn */
+        FixedCostIn: {
+            /** Name */
+            name: string;
+            /**
+             * Type Id
+             * Format: uuid
+             */
+            type_id: string;
+            /** Day Of Month */
+            day_of_month: number;
+            /** Start Month */
+            start_month: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** FixedCostOut */
+        FixedCostOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Type Id */
+            type_id: string;
+            /** Type Name */
+            type_name: string;
+            /** Day Of Month */
+            day_of_month: number;
+            /** Start Month */
+            start_month: string;
+            /** End Month */
+            end_month: string | null;
+            /** Prices */
+            prices: components["schemas"]["PriceOut"][];
+            /** Version */
+            version: number;
+        };
+        /** FixedCostRename */
+        FixedCostRename: {
+            /** Name */
+            name: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -652,6 +1123,18 @@ export interface components {
              * Format: date
              */
             paid_on: string;
+        };
+        /** OverrideIn */
+        OverrideIn: {
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** OverrideOut */
+        OverrideOut: {
+            /** Contract Id */
+            contract_id: string;
+            /** Amount Cents */
+            amount_cents: number;
         };
         /** PageOut[AuditEventOut] */
         PageOut_AuditEventOut_: {
@@ -741,6 +1224,25 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** PriceIn */
+        PriceIn: {
+            /** From Month */
+            from_month: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** PriceOut */
+        PriceOut: {
+            /** From Month */
+            from_month: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** PricesOut */
+        PricesOut: {
+            /** Prices */
+            prices: components["schemas"]["PriceOut"][];
+        };
         /** ServiceIn */
         ServiceIn: {
             /** Name */
@@ -809,6 +1311,52 @@ export interface components {
             city?: string | null;
             /** Date */
             date?: string | null;
+        };
+        /** StopIn */
+        StopIn: {
+            /** End Month */
+            end_month: string;
+        };
+        /** TripIn */
+        TripIn: {
+            /**
+             * Contract Id
+             * Format: uuid
+             */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /**
+             * Transport Kind
+             * @enum {string}
+             */
+            transport_kind: "car" | "ride_app" | "bus" | "plane" | "other";
+            /**
+             * Left Home At
+             * Format: time
+             */
+            left_home_at: string;
+            /** Distance Tenths */
+            distance_tenths: number;
+        };
+        /** TripOut */
+        TripOut: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /** Transport Kind */
+            transport_kind: string;
+            /** Left Home At */
+            left_home_at: string;
+            /** Distance Tenths */
+            distance_tenths: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -1660,6 +2208,723 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_expense_types_api_v1_expense_types_get: {
+        parameters: {
+            query?: {
+                include_archived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseTypeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_expense_type_api_v1_expense_types_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseTypeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_expense_type_api_v1_expense_types__type_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_expense_type_api_v1_expense_types__type_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseTypePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_expense_type_api_v1_expense_types__type_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_expense_type_api_v1_expense_types__type_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_expense_api_v1_expenses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_expense_api_v1_expenses__expense_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_expense_api_v1_expenses__expense_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_expense_api_v1_expenses__expense_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_expense_events_api_v1_expense_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseEventOut"][];
+                };
+            };
+        };
+    };
+    expense_entries_api_v1_expense_entries_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseEntriesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_fixed_costs_api_v1_fixed_costs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"][];
+                };
+            };
+        };
+    };
+    create_fixed_cost_api_v1_fixed_costs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixedCostIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_fixed_cost_api_v1_fixed_costs__cost_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_fixed_cost_api_v1_fixed_costs__cost_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixedCostRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_fixed_cost_price_api_v1_fixed_costs__cost_id__prices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_fixed_cost_api_v1_fixed_costs__cost_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StopIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_fixed_cost_api_v1_fixed_costs__cost_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_second_photographer_fee_api_v1_second_photographer_fee_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricesOut"];
+                };
+            };
+        };
+    };
+    set_second_photographer_fee_api_v1_second_photographer_fee_prices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_override_api_v1_contracts__contract_id__second_photographer_fee_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverrideIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_override_api_v1_contracts__contract_id__second_photographer_fee_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

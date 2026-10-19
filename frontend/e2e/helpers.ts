@@ -161,3 +161,15 @@ export async function createSplitContract(page: Page, couple: Couple): Promise<v
   await download;
   await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
 }
+
+/** Creates a contract dated today with two photographers, so the month's expenses get its fee. */
+export async function createTwoPhotographerContract(page: Page, couple: Couple): Promise<void> {
+  await page.goto("/contratos/novo");
+  await fillContract(page, couple);
+  await page.getByLabel("Data do evento").fill(localIso(new Date()));
+  await page.getByLabel("Número de fotógrafos").fill("2");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await download;
+  await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
+}
