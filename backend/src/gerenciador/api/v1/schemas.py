@@ -35,6 +35,7 @@ from gerenciador.services.expense_service import EventChoice, ExpenseInput, Expe
 from gerenciador.services.expense_type_service import ExpenseTypeView
 from gerenciador.services.fixed_cost_service import FixedCostView, PriceView
 from gerenciador.services.instalment_service import InstalmentListEntry
+from gerenciador.services.overview_service import OverviewView, StatementIn
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
 
 
@@ -779,3 +780,72 @@ class AuditEventOut(BaseModel):
     @classmethod
     def from_event(cls, event: AuditEvent) -> Self:
         return cls.model_validate(event)
+
+
+class TypeShareOut(BaseModel):
+    type_id: str
+    type_name: str
+    palette_slot: int | None
+    amount_cents: int
+
+
+class StatementInOut(BaseModel):
+    kind: Literal["in"] = "in"
+    date: dt.date
+    amount_cents: int
+    contract_id: str
+    number: int
+    count: int
+    groom_name: str | None
+    bride_name: str | None
+    contract_deleted: bool
+
+
+class StatementOutOut(BaseModel):
+    kind: Literal["out"] = "out"
+    date: dt.date
+    amount_cents: int
+    entry: ExpenseEntryOut
+
+
+StatementRowOut = Annotated[StatementInOut | StatementOutOut, Field(discriminator="kind")]
+
+
+class UpcomingMonthOut(BaseModel):
+    month: str
+    rest_of_month: bool
+    in_cents: int
+    out_cents: int
+    projected_free_cents: int
+
+
+class OverviewOut(BaseModel):
+    period_start: dt.date
+    period_end: dt.date
+    not_started: bool
+    in_cents: int
+    out_cents: int
+    by_type: list[TypeShareOut]
+    missing_fee_count: int
+    free_today_cents: int
+    opening_cents: int
+    statement: list[StatementRowOut]
+    upcoming: list[UpcomingMonthOut]
+    late_cents: int
+
+    @classmethod
+    def from_view(cls, view: OverviewView) -> Self:
+        rows: list[StatementInOut | StatementOutOut] = [
+            StatementInOut.model_validate(asdict(row))
+            if isinstance(row, StatementIn)
+            else StatementOutOut(
+                date=row.date,
+                amount_cents=row.amount_cents,
+                entry=ExpenseEntryOut.model_validate(asdict(row.entry)),
+            )
+            for row in view.statement
+        ]
+        return cls(
+            **{k: v for k, v in asdict(view).items() if k not in ("statement",)},
+            statement=rows,
+        )

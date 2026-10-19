@@ -22,7 +22,7 @@ from gerenciador.domain.expenses import (
     months_in,
     occurrence_date,
 )
-from gerenciador.domain.instalments import Month
+from gerenciador.domain.instalments import Month, add_months, month_of
 
 FEE_TYPE_KEY = "second_photographer"
 _WEDDING = "wedding"
@@ -72,12 +72,20 @@ class ExpenseEntryService:
     def entries(self, from_month: Month, to_month: Month) -> list[ExpenseEntry]:
         """Every entry from `from_month` to `to_month` (inclusive), in display order."""
         try:
-            months = months_in(from_month, to_month)
+            months_in(from_month, to_month)  # the 24-month cap
         except ValueError as exc:
             raise ContractRuleError("to", str(exc)) from exc
-        start, end = occurrence_date(from_month, 1), occurrence_date(to_month, 31)
+        return self.entries_between(occurrence_date(from_month, 1), occurrence_date(to_month, 31))
+
+    def entries_between(self, start: dt.date, end: dt.date) -> list[ExpenseEntry]:
+        """Every entry dated from `start` to `end` (inclusive), in display order, with no cap."""
+        if start > end:
+            return []
+        months = [month_of(start)]
+        while months[-1] < month_of(end):
+            months.append(add_months(months[-1], 1))
         found = [
-            *self._fixed(months),
+            *(item for item in self._fixed(months) if start <= item[0].date <= end),
             *self._manual(start, end),
             *self._fees(start, end),
         ]
