@@ -13,6 +13,7 @@ from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
 from gerenciador.services.contract_document import ContractDocumentService
 from gerenciador.services.contract_service import ContractService
+from gerenciador.services.expense_type_service import ExpenseTypeService
 from gerenciador.services.instalment_service import InstalmentService
 from gerenciador.services.prewedding_service import PreweddingService
 
@@ -47,6 +48,10 @@ def get_audit_service(session: DbSession) -> AuditService:
 
 def get_catalog_service(session: DbSession) -> CatalogService:
     return CatalogService(session, AuditService(session))
+
+
+def get_expense_type_service(session: DbSession) -> ExpenseTypeService:
+    return ExpenseTypeService(session, AuditService(session))
 
 
 def get_client_service(request: Request, session: DbSession) -> ClientService:
@@ -86,6 +91,7 @@ def get_document_service(request: Request, session: DbSession) -> ContractDocume
 Ctx = Annotated[RequestContext, Depends(get_context)]
 Audit = Annotated[AuditService, Depends(get_audit_service)]
 Catalog = Annotated[CatalogService, Depends(get_catalog_service)]
+ExpenseTypes = Annotated[ExpenseTypeService, Depends(get_expense_type_service)]
 Clients = Annotated[ClientService, Depends(get_client_service)]
 Contracts = Annotated[ContractService, Depends(get_contract_service)]
 Preweddings = Annotated[PreweddingService, Depends(get_prewedding_service)]

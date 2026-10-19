@@ -29,6 +29,7 @@ from gerenciador.services.contract_service import (
     ItemInput,
     PersonInput,
 )
+from gerenciador.services.expense_type_service import ExpenseTypeView
 from gerenciador.services.instalment_service import InstalmentListEntry
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
 
@@ -64,6 +65,7 @@ class StrictModel(BaseModel):
 Cpf = Annotated[str, Field(max_length=20), AfterValidator(normalize_cpf)]
 _Printable = AfterValidator(_no_control_characters)
 Name = Annotated[str, Field(min_length=1, max_length=200), _Printable]
+ExpenseTypeName = Annotated[str, Field(min_length=1, max_length=60), _Printable]
 Address = Annotated[str, Field(min_length=1, max_length=300), _Printable]
 City = Annotated[str, Field(min_length=1, max_length=100), _Printable]
 OptionalAddress = Annotated[Address | None, BeforeValidator(_blank_to_none)]
@@ -301,6 +303,14 @@ class ServicePatch(StrictModel):
         return ServiceChanges(self.name, self.default_price_cents, self.is_prewedding)
 
 
+class ExpenseTypeIn(StrictModel):
+    name: ExpenseTypeName
+
+
+class ExpenseTypePatch(StrictModel):
+    name: ExpenseTypeName
+
+
 # ---- responses ------------------------------------------------------------
 
 
@@ -324,6 +334,24 @@ class ServiceOut(BaseModel):
             name=view.name,
             default_price_cents=view.default_price_cents,
             is_prewedding=view.is_prewedding,
+            archived_at=view.archived_at,
+            version=view.version,
+        )
+
+
+class ExpenseTypeOut(BaseModel):
+    id: str
+    name: str
+    key: str | None
+    archived_at: dt.datetime | None
+    version: int
+
+    @classmethod
+    def from_view(cls, view: ExpenseTypeView) -> Self:
+        return cls(
+            id=view.id,
+            name=view.name,
+            key=view.key,
             archived_at=view.archived_at,
             version=view.version,
         )

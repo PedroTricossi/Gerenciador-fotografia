@@ -6,6 +6,7 @@ from gerenciador.api.v1 import (
     audit,
     clients,
     contracts,
+    expense_types,
     health,
     instalments,
     prewedding,
@@ -21,4 +22,5 @@ api_router.include_router(instalments.router)
 api_router.include_router(agenda.router)
 api_router.include_router(clients.router)
 api_router.include_router(services.router)
+api_router.include_router(expense_types.router)
 api_router.include_router(audit.router)
