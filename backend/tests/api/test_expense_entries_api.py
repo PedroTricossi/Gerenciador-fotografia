@@ -200,7 +200,8 @@ def test_dangling_links_hide_the_event(
     cancelled = by_id[f"manual:{ok['id']}"]
     assert cancelled["link_state"] == "prewedding_cancelled"
     assert cancelled["venue_name"] is None
-    assert cancelled["groom_name"] is None
+    assert cancelled["groom_name"] == pre["groom"]["full_name"]
+    assert cancelled["bride_name"] == pre["bride"]["full_name"]
 
 
 def test_a_stopped_cost_ends_and_a_backdated_price_changes_later_months(

@@ -69,14 +69,18 @@ def test_override_leaves_the_contract_untouched(api: TestClient, payload: Payloa
 def test_override_needs_two_photographers(api: TestClient, payload: Payload) -> None:
     contract = _contract(api, payload, photographer_count=1)
     path = f"{CONTRACTS}/{contract['id']}/second-photographer-fee"
-    assert api.put(path, json={"amount_cents": 45000}).status_code == 409
+    refused = api.put(path, json={"amount_cents": 45000})
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "no_second_photographer"
 
 
 def test_override_on_a_deleted_contract_is_refused(api: TestClient, payload: Payload) -> None:
     contract = _contract(api, payload)
     api.delete(f"{CONTRACTS}/{contract['id']}")
     path = f"{CONTRACTS}/{contract['id']}/second-photographer-fee"
-    assert api.put(path, json={"amount_cents": 45000}).status_code == 409
+    refused = api.put(path, json={"amount_cents": 45000})
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "contract_deleted"
 
 
 def test_unknown_contract_is_404(api: TestClient) -> None:

@@ -86,6 +86,8 @@ class SecondPhotographerService:
         if contract is None:
             raise NotFoundError("contract", contract_id)
         if contract.deleted_at is not None:
-            raise ConflictError("contrato excluído")
+            raise ConflictError("contrato excluído", code="contract_deleted")
         if contract.photographer_count < 2:
-            raise ConflictError("o contrato não tem segundo fotógrafo")
+            raise ConflictError(
+                "o contrato não tem segundo fotógrafo", code="no_second_photographer"
+            )

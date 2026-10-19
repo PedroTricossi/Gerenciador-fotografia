@@ -152,7 +152,12 @@ class ExpenseEntryService:
         if expense.event_kind == _PREWEDDING:
             pre = contract.prewedding
             if pre is None:
-                return {"link_state": "prewedding_cancelled"}
+                # The contract is live, so the couple is still known; only the venue is gone.
+                return {
+                    "link_state": "prewedding_cancelled",
+                    "groom_name": contract.groom.full_name,
+                    "bride_name": contract.bride.full_name,
+                }
             venue_name, venue_address = pre.venue_name, pre.venue_address
         else:
             venue_name, venue_address = contract.venue_name, contract.venue_address
