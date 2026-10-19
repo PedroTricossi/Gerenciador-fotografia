@@ -170,3 +170,16 @@ def test_audit_holds_no_names_or_amounts(api: TestClient) -> None:
     assert "Segredo" not in text
     assert "98765" not in text
     assert "98766" not in text
+
+
+def test_name_allows_100_characters_and_refuses_101(api: TestClient) -> None:
+    cost = _create(api, name="a" * 100)
+    too_long = api.post(URL, json=_body(api, name="a" * 101))
+    assert too_long.status_code == 422
+    assert "name" in _fields(too_long)
+    path = f"{URL}/{cost['id']}"
+    ok = api.patch(path, json={"name": "b" * 100}, headers={"If-Match": '"1"'})
+    assert ok.status_code == 200
+    refused = api.patch(path, json={"name": "b" * 101}, headers={"If-Match": '"2"'})
+    assert refused.status_code == 422
+    assert "name" in _fields(refused)

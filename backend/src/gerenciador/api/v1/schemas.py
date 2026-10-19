@@ -69,6 +69,7 @@ Cpf = Annotated[str, Field(max_length=20), AfterValidator(normalize_cpf)]
 _Printable = AfterValidator(_no_control_characters)
 Name = Annotated[str, Field(min_length=1, max_length=200), _Printable]
 ExpenseTypeName = Annotated[str, Field(min_length=1, max_length=60), _Printable]
+FixedCostName = Annotated[str, Field(min_length=1, max_length=100), _Printable]
 Address = Annotated[str, Field(min_length=1, max_length=300), _Printable]
 City = Annotated[str, Field(min_length=1, max_length=100), _Printable]
 OptionalAddress = Annotated[Address | None, BeforeValidator(_blank_to_none)]
@@ -357,7 +358,7 @@ class ExpenseIn(StrictModel):
 
 
 class FixedCostIn(StrictModel):
-    name: ExpenseTypeName
+    name: FixedCostName
     type_id: UUID
     day_of_month: Annotated[int, Field(strict=True, ge=1, le=31)]
     start_month: Month
@@ -365,7 +366,7 @@ class FixedCostIn(StrictModel):
 
 
 class FixedCostRename(StrictModel):
-    name: ExpenseTypeName
+    name: FixedCostName
 
 
 class PriceIn(StrictModel):
