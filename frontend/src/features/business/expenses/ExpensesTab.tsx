@@ -101,6 +101,8 @@ export function ExpensesTab({
   const activeCosts = (fixedCosts.data ?? []).filter(
     (cost) => cost.end_month === null || cost.end_month >= today,
   );
+  const settingsPending = fixedCosts.isPending || fee.isPending;
+  const settingsFailed = fixedCosts.isError || fee.isError;
   const standardFee = fee.data ? priceInForce(fee.data.prices, today) : null;
 
   return (
@@ -146,27 +148,45 @@ export function ExpensesTab({
         <h3 id={settingsId} className={styles.settingsTitle}>
           Configurações
         </h3>
-        <p className={styles.settingsLine}>
-          <span>
-            Despesas fixas:{" "}
-            {activeCosts.length === 0
-              ? "nenhuma"
-              : activeCosts
-                  .map((cost) => {
-                    const price = priceInForce(cost.prices, today);
-                    return `${cost.name} ${price ? formatBrl(price.amount_cents) : "sem valor"}`;
-                  })
-                  .join(" · ")}
-          </span>
-          <Button onClick={onManage}>Gerenciar</Button>
-        </p>
-        <p className={styles.settingsLine}>
-          <span>
-            2º fotógrafo (padrão):{" "}
-            {standardFee ? formatBrl(standardFee.amount_cents) : "não definido"}
-          </span>
-          <Button onClick={onManage}>Alterar</Button>
-        </p>
+        {settingsPending && <Loading />}
+        {!settingsPending && settingsFailed && (
+          <Banner tone="error">
+            Não foi possível carregar as configurações.{" "}
+            <Button
+              onClick={() => {
+                void fixedCosts.refetch();
+                void fee.refetch();
+              }}
+            >
+              Tentar de novo
+            </Button>
+          </Banner>
+        )}
+        {!settingsPending && !settingsFailed && (
+          <>
+            <p className={styles.settingsLine}>
+              <span>
+                Despesas fixas:{" "}
+                {activeCosts.length === 0
+                  ? "nenhuma"
+                  : activeCosts
+                      .map((cost) => {
+                        const price = priceInForce(cost.prices, today);
+                        return `${cost.name} ${price ? formatBrl(price.amount_cents) : "sem valor"}`;
+                      })
+                      .join(" · ")}
+              </span>
+              <Button onClick={onManage}>Gerenciar</Button>
+            </p>
+            <p className={styles.settingsLine}>
+              <span>
+                2º fotógrafo (padrão):{" "}
+                {standardFee ? formatBrl(standardFee.amount_cents) : "não definido"}
+              </span>
+              <Button onClick={onManage}>Alterar</Button>
+            </p>
+          </>
+        )}
       </section>
     </>
   );

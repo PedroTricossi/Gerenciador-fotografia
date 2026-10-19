@@ -19,7 +19,7 @@ export function BusinessPage() {
     <PageLayout title="Negócio">
       <div className={styles.tabs}>
         <SegmentedControl
-          label="Seção"
+          label="Área"
           options={TABS}
           value={tab}
           onChange={(next) => setParams(next === "parcelas" ? {} : { aba: next })}

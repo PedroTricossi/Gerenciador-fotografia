@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { makeExpenseEntry } from "../../../test/fixtures";
+import { makeExpenseEntry, problem } from "../../../test/fixtures";
 import { renderApp } from "../../../test/render";
 import { server } from "../../../test/server";
 
@@ -240,4 +240,28 @@ test("an empty month says so", async () => {
   serve([]);
   renderApp("/negocio?aba=despesas");
   expect(await screen.findByText("Nenhuma despesa neste mês.")).toBeInTheDocument();
+});
+
+test("while the settings load, the box does not claim there are none", async () => {
+  serve();
+  server.use(
+    http.get("/api/v1/fixed-costs", () => new Promise(() => {})),
+    http.get("/api/v1/second-photographer-fee", () => new Promise(() => {})),
+  );
+  renderApp("/negocio?aba=despesas");
+  const box = await screen.findByRole("region", { name: "Configurações" });
+  expect(within(box).getByRole("status")).toBeInTheDocument();
+  expect(within(box).queryByText(/nenhuma/)).not.toBeInTheDocument();
+  expect(within(box).queryByText(/não definido/)).not.toBeInTheDocument();
+});
+
+test("when the fixed costs fail to load, the box says so instead of nenhuma", async () => {
+  serve();
+  server.use(http.get("/api/v1/fixed-costs", () => problem(500, "boom")));
+  renderApp("/negocio?aba=despesas");
+  const box = await screen.findByRole("region", { name: "Configurações" });
+  expect(
+    await within(box).findByText(/Não foi possível carregar as configurações/),
+  ).toBeInTheDocument();
+  expect(within(box).queryByText(/nenhuma/)).not.toBeInTheDocument();
 });

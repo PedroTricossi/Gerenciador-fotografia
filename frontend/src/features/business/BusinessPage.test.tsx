@@ -224,6 +224,7 @@ describe("tabs", () => {
   test("Parcelas is pressed by default", async () => {
     server.use(...empty());
     renderApp("/negocio");
+    expect(await screen.findByRole("group", { name: "Área" })).toBeVisible();
     expect(await screen.findByRole("button", { name: "Parcelas", pressed: true })).toBeVisible();
     expect(screen.getByRole("button", { name: "Despesas", pressed: false })).toBeVisible();
   });
