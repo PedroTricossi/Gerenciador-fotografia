@@ -41,6 +41,11 @@ function describe(entry: ExpenseEntryOut): string {
       .filter(Boolean)
       .join(" · ");
   }
+  if (entry.source === "second_photographer" && !entry.description) {
+    // The read path sends the fee without a description; the wedding is what tells the rows apart.
+    const couple = coupleLabel({ full_name: entry.groom_name }, { full_name: entry.bride_name });
+    return `${entry.type_name} · ${couple}`;
+  }
   return entry.description || entry.type_name;
 }
 

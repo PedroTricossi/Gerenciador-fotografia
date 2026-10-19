@@ -77,6 +77,19 @@ como paga** and **Desfazer**; marking one never changes the contract or its
 PDF. In the last 7 days of each month the Agenda shows a **Cobranças** box
 listing the instalments still unpaid.
 
+### Despesas
+
+The **Despesas** tab on the Negócio page lists a month's expenses and their
+total. **+ Nova despesa** records a one-off expense; for **Transporte** it also
+takes the trip: the wedding or pre-wedding, the means of transport, when you
+left home and the distance in km. **Despesas fixas** (software, rent and the
+like) repeat every month from their start month, with a price history, and can
+be stopped, resumed or deleted. Each wedding with two or more photographers
+adds the second photographer's fee automatically, at the standard value in
+force that month; **Ajustar** changes it for one wedding without touching the
+standard. **Tipos de despesa** manages the categories. Future rows are marked
+**prevista**.
+
 ### Pré-wedding
 
 A contract that includes a pre-wedding service can carry its pre-wedding

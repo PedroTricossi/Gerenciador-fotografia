@@ -91,6 +91,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         ["/clientes", "/clientes"],
         ["/servicos", "/servicos"],
         ["/negocio", "/negocio"],
+        ["/negocio despesas", "/negocio?aba=despesas"],
       ];
       for (const [name, path] of screens) {
         test(`${name} has no accessibility violations`, async ({ page }) => {
@@ -128,6 +129,17 @@ for (const colorScheme of ["light", "dark"] as const) {
         await page.goto("/clientes");
         await page.getByRole("button", { name: "Anonimizar" }).first().click();
         await expect(page.getByRole("dialog", { name: "Anonimizar cliente" })).toBeVisible();
+        await audit(page);
+      });
+
+      test("the Nova despesa dialog with Transporte has no accessibility violations", async ({
+        page,
+      }) => {
+        await page.goto("/negocio?aba=despesas");
+        await page.getByRole("button", { name: "+ Nova despesa" }).click();
+        const dialog = page.getByRole("dialog", { name: "Nova despesa" });
+        await dialog.getByLabel("Tipo").selectOption({ label: "Transporte" });
+        await expect(dialog.getByLabel("Meio de transporte")).toBeVisible();
         await audit(page);
       });
 

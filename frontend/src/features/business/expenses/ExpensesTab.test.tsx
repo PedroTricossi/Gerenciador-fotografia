@@ -218,6 +218,25 @@ test("a fee without an amount shows sem valor", async () => {
   expect(row).toHaveTextContent("— sem valor");
 });
 
+test("a fee the API sends without a description is named after its couple", async () => {
+  serve([
+    makeExpenseEntry({
+      source: "second_photographer",
+      type_name: "2º fotógrafo",
+      description: null,
+      groom_name: "Caio Souza",
+      bride_name: "Duda Lima",
+      expense_id: null,
+      version: null,
+      contract_id: "c1",
+    }),
+  ]);
+  renderApp("/negocio?aba=despesas");
+  expect(
+    await screen.findByRole("button", { name: "Ajustar 2º fotógrafo · Caio & Duda" }),
+  ).toBeInTheDocument();
+});
+
 test("a transport row whose contract was deleted says so", async () => {
   serve([
     makeExpenseEntry({

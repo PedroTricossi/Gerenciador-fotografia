@@ -9,7 +9,15 @@ import {
 } from "./helpers";
 
 const WIDTHS = [400, 800, 1024, 1280, 1440];
-const SCREENS = ["/agenda", "/contratos", "/contratos/novo", "/clientes", "/servicos", "/negocio"];
+const SCREENS = [
+  "/agenda",
+  "/contratos",
+  "/contratos/novo",
+  "/clientes",
+  "/servicos",
+  "/negocio",
+  "/negocio?aba=despesas",
+];
 
 let contractId = "";
 
