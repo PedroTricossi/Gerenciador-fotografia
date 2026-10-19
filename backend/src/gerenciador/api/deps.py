@@ -13,6 +13,7 @@ from gerenciador.services.client_service import ClientService
 from gerenciador.services.context import RequestContext
 from gerenciador.services.contract_document import ContractDocumentService
 from gerenciador.services.contract_service import ContractService
+from gerenciador.services.expense_entry_service import ExpenseEntryService
 from gerenciador.services.expense_service import ExpenseService
 from gerenciador.services.expense_type_service import ExpenseTypeService
 from gerenciador.services.fixed_cost_service import FixedCostService
@@ -60,6 +61,10 @@ def get_expense_type_service(session: DbSession) -> ExpenseTypeService:
 def get_expense_service(session: DbSession) -> ExpenseService:
     audit = AuditService(session)
     return ExpenseService(session, ExpenseTypeService(session, audit), audit)
+
+
+def get_expense_entry_service(session: DbSession) -> ExpenseEntryService:
+    return ExpenseEntryService(session)
 
 
 def get_fixed_cost_service(session: DbSession) -> FixedCostService:
@@ -110,6 +115,7 @@ Audit = Annotated[AuditService, Depends(get_audit_service)]
 Catalog = Annotated[CatalogService, Depends(get_catalog_service)]
 ExpenseTypes = Annotated[ExpenseTypeService, Depends(get_expense_type_service)]
 Expenses = Annotated[ExpenseService, Depends(get_expense_service)]
+ExpenseEntries = Annotated[ExpenseEntryService, Depends(get_expense_entry_service)]
 FixedCosts = Annotated[FixedCostService, Depends(get_fixed_cost_service)]
 SecondPhotographer = Annotated[SecondPhotographerService, Depends(get_second_photographer_service)]
 Clients = Annotated[ClientService, Depends(get_client_service)]

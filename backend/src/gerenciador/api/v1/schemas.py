@@ -30,6 +30,7 @@ from gerenciador.services.contract_service import (
     ItemInput,
     PersonInput,
 )
+from gerenciador.services.expense_entry_service import ExpenseEntry
 from gerenciador.services.expense_service import EventChoice, ExpenseInput, ExpenseView, TripInput
 from gerenciador.services.expense_type_service import ExpenseTypeView
 from gerenciador.services.fixed_cost_service import FixedCostView, PriceView
@@ -506,6 +507,44 @@ class ExpenseEventOut(BaseModel):
     @classmethod
     def from_view(cls, view: EventChoice) -> Self:
         return cls.model_validate(asdict(view))
+
+
+class ExpenseEntryOut(BaseModel):
+    id: str
+    source: Literal["manual", "fixed", "second_photographer"]
+    date: dt.date
+    amount_cents: int
+    missing_amount: bool
+    type_id: str
+    type_name: str
+    type_key: str | None
+    description: str | None
+    expense_id: str | None
+    version: int | None
+    fixed_cost_id: str | None
+    contract_id: str | None
+    event_kind: EventKind | None
+    groom_name: str | None
+    bride_name: str | None
+    link_state: Literal["ok", "contract_deleted", "prewedding_cancelled"] | None
+    venue_name: str | None
+    venue_address: str | None
+    transport_kind: str | None
+    left_home_at: ClockTime | None
+    distance_tenths: int | None
+    override: bool
+
+
+class ExpenseEntriesOut(BaseModel):
+    entries: list[ExpenseEntryOut]
+    total_cents: int
+
+    @classmethod
+    def from_entries(cls, entries: list[ExpenseEntry]) -> Self:
+        return cls(
+            entries=[ExpenseEntryOut.model_validate(asdict(entry)) for entry in entries],
+            total_cents=sum(entry.amount_cents for entry in entries),
+        )
 
 
 class ClientOut(BaseModel):

@@ -425,6 +425,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/expense-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Expense Entries */
+        get: operations["expense_entries_api_v1_expense_entries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fixed-costs": {
         parameters: {
             query?: never;
@@ -843,6 +860,68 @@ export interface components {
             coverage_end?: string | null;
             /** Hours Contracted */
             hours_contracted?: number | null;
+        };
+        /** ExpenseEntriesOut */
+        ExpenseEntriesOut: {
+            /** Entries */
+            entries: components["schemas"]["ExpenseEntryOut"][];
+            /** Total Cents */
+            total_cents: number;
+        };
+        /** ExpenseEntryOut */
+        ExpenseEntryOut: {
+            /** Id */
+            id: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "fixed" | "second_photographer";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Missing Amount */
+            missing_amount: boolean;
+            /** Type Id */
+            type_id: string;
+            /** Type Name */
+            type_name: string;
+            /** Type Key */
+            type_key: string | null;
+            /** Description */
+            description: string | null;
+            /** Expense Id */
+            expense_id: string | null;
+            /** Version */
+            version: number | null;
+            /** Fixed Cost Id */
+            fixed_cost_id: string | null;
+            /** Contract Id */
+            contract_id: string | null;
+            /** Event Kind */
+            event_kind: ("wedding" | "prewedding") | null;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Link State */
+            link_state: ("ok" | "contract_deleted" | "prewedding_cancelled") | null;
+            /** Venue Name */
+            venue_name: string | null;
+            /** Venue Address */
+            venue_address: string | null;
+            /** Transport Kind */
+            transport_kind: string | null;
+            /** Left Home At */
+            left_home_at: string | null;
+            /** Distance Tenths */
+            distance_tenths: number | null;
+            /** Override */
+            override: boolean;
         };
         /** ExpenseEventOut */
         ExpenseEventOut: {
@@ -2483,6 +2562,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExpenseEventOut"][];
+                };
+            };
+        };
+    };
+    expense_entries_api_v1_expense_entries_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseEntriesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
