@@ -17,6 +17,8 @@ const SCREENS = [
   "/servicos",
   "/negocio",
   "/negocio?aba=despesas",
+  "/negocio?aba=resumo",
+  "/negocio?aba=extrato",
 ];
 
 let contractId = "";
