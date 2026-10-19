@@ -9,7 +9,7 @@ import {
   unwrap,
 } from "./client";
 import { saveBlob } from "./download";
-import { clientKeys, contractKeys } from "./keys";
+import { clientKeys, contractKeys, overviewKeys } from "./keys";
 
 export { contractKeys };
 
@@ -52,6 +52,8 @@ function useStoreContract() {
     return Promise.all([
       client.invalidateQueries({ queryKey: contractKeys.all }),
       client.invalidateQueries({ queryKey: clientKeys.all }),
+      // Instalments and fees come from contracts, so the overview moves with them.
+      client.invalidateQueries({ queryKey: overviewKeys.all }),
     ]);
   };
 }
@@ -87,6 +89,7 @@ export function useDeleteContract() {
       Promise.all([
         client.invalidateQueries({ queryKey: contractKeys.all }),
         client.invalidateQueries({ queryKey: contractKeys.one(id) }),
+        client.invalidateQueries({ queryKey: overviewKeys.all }),
       ]),
   });
 }
