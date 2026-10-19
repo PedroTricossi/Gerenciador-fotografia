@@ -195,5 +195,50 @@ test("trips on the other side of 18:00 are tagged, not dropped", async () => {
   );
   expect(rows[0]).toHaveTextContent(/saí 19:00.*· noite$/);
   expect(rows[1]).not.toHaveTextContent(/· (noite|dia)$/);
+  expect(rows[2]).toHaveTextContent(/· sem horário$/);
   expect(rows[2]).not.toHaveTextContent(/noite/);
+});
+
+test("without a typed time, trips without a departure get no tag", async () => {
+  serve({ similar: [{ ...TRIP, left_home_at: null }] });
+  const user = userEvent.setup();
+  await open();
+  await submitKm(user);
+  expect(await screen.findByRole("list", { name: "Viagens parecidas" })).not.toHaveTextContent(
+    "sem horário",
+  );
+});
+
+test("couples show first names only, and anonymised ones are labelled as such", async () => {
+  serve({
+    similar: [
+      { ...TRIP, groom_name: "Ana Souza", bride_name: "Bia Lima" },
+      { ...TRIP, contract_id: "c2", groom_name: null, bride_name: null },
+    ],
+  });
+  const user = userEvent.setup();
+  await open();
+  await submitKm(user);
+  const rows = within(await screen.findByRole("list", { name: "Viagens parecidas" })).getAllByRole(
+    "listitem",
+  );
+  expect(rows[0]).toHaveTextContent("Ana & Bia");
+  expect(rows[0]).not.toHaveTextContent("Souza");
+  expect(rows[1]).toHaveTextContent("Clientes anonimizados");
+});
+
+test("while the guide loads it shows the loading state", async () => {
+  serve();
+  server.use(http.get("/api/v1/transport-guide", () => new Promise(() => {})));
+  renderApp("/negocio?aba=resumo");
+  expect(await screen.findByText("Carregando…")).toBeInTheDocument();
+});
+
+test("a failed guide shows an error", async () => {
+  serve();
+  server.use(
+    http.get("/api/v1/transport-guide", () => HttpResponse.json({ detail: "x" }, { status: 500 })),
+  );
+  renderApp("/negocio?aba=resumo");
+  expect(await screen.findByText("Não foi possível carregar o guia.")).toBeInTheDocument();
 });

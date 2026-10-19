@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { useTransportGuide } from "../../../api/overview";
+import { coupleLabel } from "../../contracts/names";
 import { formatIsoDate } from "../../../domain/dates";
 import { formatKm, parseKm, transportKindLabel } from "../../../domain/expenses";
 import { formatBrl } from "../../../domain/money";
@@ -7,6 +8,16 @@ import { Banner, Button, Field, FormSection, Loading, TextInput } from "../../..
 import styles from "./TransportGuide.module.css";
 
 type Submitted = { tenths: number; leftHomeAt?: string };
+
+const isNight = (time: string) => time >= "18:00";
+
+/** Marks a trip that left on the other side of 18:00 or has no departure time. */
+function sideTag(tripTime: string | null | undefined, typed: string | undefined) {
+  if (!typed) return null;
+  if (!tripTime) return "sem horário";
+  if (isNight(tripTime) === isNight(typed)) return null;
+  return isNight(tripTime) ? "noite" : "dia";
+}
 
 export function TransportGuide() {
   const [distance, setDistance] = useState("");
@@ -29,7 +40,8 @@ export function TransportGuide() {
     setSubmitted({ tenths, leftHomeAt: leftHome === "" ? undefined : leftHome });
   }
 
-  if (!guide) return null;
+  if (base.isError) return <Banner tone="error">Não foi possível carregar o guia.</Banner>;
+  if (!guide) return <Loading />;
   if (guide.trips_total === 0) {
     return (
       <FormSection title="Guia de transporte">
@@ -41,7 +53,6 @@ export function TransportGuide() {
   }
 
   const result = submitted ? estimate.data : undefined;
-  const isNight = (time: string) => time >= "18:00";
   const perKind = guide.per_km_by_kind
     .map((item) => `${transportKindLabel(item.transport_kind)} ${formatBrl(item.cents_per_km)}/km`)
     .join(" · ");
@@ -105,18 +116,12 @@ export function TransportGuide() {
                 formatIsoDate(trip.date),
                 trip.contract_deleted
                   ? "(contrato excluído)"
-                  : [trip.groom_name, trip.bride_name].filter(Boolean).join(" & "),
+                  : coupleLabel({ full_name: trip.groom_name }, { full_name: trip.bride_name }),
                 formatKm(trip.distance_tenths),
                 trip.left_home_at ? `saí ${trip.left_home_at}` : null,
                 trip.transport_kind ? transportKindLabel(trip.transport_kind) : null,
                 formatBrl(trip.cost_cents),
-                submitted?.leftHomeAt &&
-                trip.left_home_at &&
-                isNight(trip.left_home_at) !== isNight(submitted.leftHomeAt)
-                  ? isNight(trip.left_home_at)
-                    ? "noite"
-                    : "dia"
-                  : null,
+                sideTag(trip.left_home_at, submitted?.leftHomeAt),
               ]
                 .filter(Boolean)
                 .join(" · ")}
