@@ -117,7 +117,7 @@ test("two transport legs of one wedding make one trip costing their sum", async 
   await guide.getByLabel("Distância (km)").fill("40");
   await guide.getByRole("button", { name: "Ver estimativa" }).click();
   const trips = guide.getByRole("list", { name: "Viagens parecidas" }).getByRole("listitem");
-  const mine = trips.filter({ hasText: `${couple.groom} & ${couple.bride}` });
+  const mine = trips.filter({ hasText: couple.label });
   await expect(mine).toHaveCount(1);
   await expect(mine).toContainText("R$ 75,00");
 });
