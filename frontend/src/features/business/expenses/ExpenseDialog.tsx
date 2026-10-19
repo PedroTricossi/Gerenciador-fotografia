@@ -146,6 +146,8 @@ function ExpenseForm({ expense, types, events, onClose }: FormProps) {
       onClose();
     } catch (error) {
       if (!(error instanceof ApiError)) throw error;
+      // The banner sits in the form, behind a confirmation that would otherwise stay open.
+      setConfirming(false);
       if (error.status === 412) setBanner(CHANGED);
       else if (error.status === 404) setBanner(GONE);
       else if (error.status === 422) {

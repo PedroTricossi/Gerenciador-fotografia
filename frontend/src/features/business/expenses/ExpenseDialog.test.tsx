@@ -355,6 +355,19 @@ test("Excluir asks to confirm, then sends DELETE with If-Match", async () => {
   expect(ifMatch).toBe('"3"');
 });
 
+test("a failed delete closes the confirmation and shows the error", async () => {
+  serve([CAFE_ENTRY], STORED_CAFE);
+  server.use(http.delete(`/api/v1/expenses/${EXPENSE_ID}`, () => problem(412, "stale")));
+  const { user } = renderApp("/negocio?aba=despesas");
+  await user.click(await screen.findByRole("button", { name: /^Editar/ }));
+  const dialog = await screen.findByRole("dialog", { name: "Editar despesa" });
+  await user.click(await within(dialog).findByRole("button", { name: "Excluir" }));
+  const confirm = await screen.findByRole("dialog", { name: "Excluir esta despesa?" });
+  await user.click(within(confirm).getByRole("button", { name: "Excluir" }));
+  expect(await within(dialog).findByText(/foi alterada em outro lugar/)).toBeInTheDocument();
+  expect(screen.queryByRole("dialog", { name: "Excluir esta despesa?" })).toBeNull();
+});
+
 test("a new expense has no Excluir button", async () => {
   serve();
   const { dialog } = await openNew();
