@@ -93,25 +93,28 @@ class Trip:
 
 
 def group_trips(legs: Iterable[Leg]) -> list[Trip]:
-    """One trip per (contract, event kind): legs summed, the first known facts kept."""
+    """One trip per (contract, event kind): costs summed, longest distance, earliest departure."""
     groups: dict[tuple[str, str], list[Leg]] = defaultdict(list)
     for leg in legs:
         groups[(leg.contract_id, leg.event_kind)].append(leg)
     trips = []
     for (contract_id, event_kind), group in groups.items():
         group.sort(key=lambda leg: leg.spent_on)
-        distance = next((g.distance_tenths for g in group if g.distance_tenths is not None), None)
-        if distance is None:
+        distances = [g.distance_tenths for g in group if g.distance_tenths is not None]
+        if not distances:
             continue
+        timed = [g for g in group if g.left_home_at is not None]
+        # The earliest departure sets the time and the kind; with no times, the first leg's kind.
+        first = min(timed, key=lambda g: g.left_home_at or NIGHT_FROM) if timed else group[0]
         trips.append(
             Trip(
                 contract_id,
                 event_kind,
                 group[0].spent_on,
                 sum(g.amount_cents for g in group),
-                distance,
-                next((g.left_home_at for g in group if g.left_home_at is not None), None),
-                next((g.transport_kind for g in group if g.transport_kind is not None), None),
+                max(distances),
+                first.left_home_at,
+                first.transport_kind,
             )
         )
     return trips
@@ -142,7 +145,7 @@ def guide(
 ) -> GuideResult:
     similar: list[Trip] = []
     if distance_tenths is not None:
-        window = max(_SIMILAR_MIN_TENTHS, _half_up_div(distance_tenths, 4))
+        window = max(_SIMILAR_MIN_TENTHS, -(-distance_tenths // 4))
         similar = [t for t in trips if abs(t.distance_tenths - distance_tenths) <= window]
         similar.sort(
             key=lambda t: (

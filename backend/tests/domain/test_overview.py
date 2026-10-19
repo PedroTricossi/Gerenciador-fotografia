@@ -154,3 +154,37 @@ def test_guide_orders_same_side_then_distance_then_newest():
     assert [t.cost_cents for t in result.similar] == [2, 1, 3, 5, 4]
     result = guide([old, new], 320, None)
     assert [t.cost_cents for t in result.similar] == [5, 4]
+
+
+def test_group_trips_takes_the_largest_distance():
+    legs = [
+        Leg("c1", "wedding", dt.date(2026, 5, 1), 100, 200, None, None),
+        Leg("c1", "wedding", dt.date(2026, 5, 2), 100, 320, None, None),
+    ]
+    assert group_trips(legs)[0].distance_tenths == 320
+
+
+def test_group_trips_takes_the_earliest_departure_and_its_kind():
+    legs = [
+        Leg("c1", "wedding", dt.date(2026, 5, 1), 100, 200, dt.time(15, 0), "bus"),
+        Leg("c1", "wedding", dt.date(2026, 5, 2), 100, 200, dt.time(9, 0), "car"),
+    ]
+    trip_ = group_trips(legs)[0]
+    assert (trip_.left_home_at, trip_.transport_kind) == (dt.time(9, 0), "car")
+
+
+def test_group_trips_without_times_uses_the_first_leg_kind():
+    legs = [
+        Leg("c1", "wedding", dt.date(2026, 5, 2), 100, 200, None, "car"),
+        Leg("c1", "wedding", dt.date(2026, 5, 1), 100, 200, None, "bus"),
+    ]
+    trip_ = group_trips(legs)[0]
+    assert (trip_.left_home_at, trip_.transport_kind) == (None, "bus")
+
+
+def test_guide_window_uses_a_true_ceiling():
+    # 25% of 601 is 150.25 -> window 151.
+    assert len(guide([trip(752, 1)], 601, None).similar) == 1
+    assert len(guide([trip(753, 1)], 601, None).similar) == 0
+    assert len(guide([trip(450, 1)], 601, None).similar) == 1
+    assert len(guide([trip(449, 1)], 601, None).similar) == 0
