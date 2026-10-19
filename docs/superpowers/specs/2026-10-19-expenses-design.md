@@ -117,7 +117,7 @@ Transport costs are hard to predict. Pedro wants to build a record of trips (dis
   - at the standard fee in force for that month;
   - unless the contract has its own fee override, which then wins.
 - **Changing one wedding's fee:** "Ajustar" sets a per-contract override amount, or clears it to go back to the standard.
-- **Where the override lives (my call):** in its own table keyed by contract id. Setting it doesn't change the contract's `version`, its PDF or its contract audit entries. It has its own audit entry, with the contract id, field names and amounts only.
+- **Where the override lives (my call):** in its own table keyed by contract id. Setting it doesn't change the contract's `version`, its PDF or its contract audit entries. It has its own audit entry, holding the contract id only.
 - **Contract changes are followed automatically:**
   - when the wedding date changes, the fee moves to the new month;
   - when the photographer count drops below 2, the fee disappears;
@@ -160,7 +160,7 @@ Transport costs are hard to predict. Pedro wants to build a record of trips (dis
 - Piece 3 must be able to ask the server for every expense, manual and derived, in a month range, each with its type, amount, date and (for transport) the trip fields. Provide that read path now, used by the Despesas tab.
   - Every entry has a stable id and a source (`manual`, `fixed` or `second_photographer`), so the UI can choose between Editar, Gerenciar and Ajustar. For example `fixed:<id>:<YYYY-MM>` or `fee:<contract_id>`; the format is the builder's choice.
   - The range is capped at 24 months (my call).
-- Audit details may hold ids, months, field names and amounts. Names, addresses and description text never appear.
+- Audit details may hold ids, months and field names. Like the existing service and instalment audit entries, they never hold amounts, names, addresses or description text.
 
 ## 5. Testing
 
