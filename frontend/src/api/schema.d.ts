@@ -372,6 +372,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Expense */
+        post: operations["create_expense_api_v1_expenses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expenses/{expense_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Expense */
+        get: operations["get_expense_api_v1_expenses__expense_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Expense */
+        delete: operations["delete_expense_api_v1_expenses__expense_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Expense */
+        patch: operations["update_expense_api_v1_expenses__expense_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/expense-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Expense Events */
+        get: operations["list_expense_events_api_v1_expense_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-events": {
         parameters: {
             query?: never;
@@ -652,6 +705,71 @@ export interface components {
             /** Hours Contracted */
             hours_contracted?: number | null;
         };
+        /** ExpenseEventOut */
+        ExpenseEventOut: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Venue Name */
+            venue_name: string;
+            /** Venue Address */
+            venue_address: string | null;
+        };
+        /** ExpenseIn */
+        ExpenseIn: {
+            /**
+             * Spent On
+             * Format: date
+             */
+            spent_on: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /**
+             * Type Id
+             * Format: uuid
+             */
+            type_id: string;
+            /** Description */
+            description?: string | null;
+            trip?: components["schemas"]["TripIn"] | null;
+        };
+        /** ExpenseOut */
+        ExpenseOut: {
+            /** Id */
+            id: string;
+            /**
+             * Spent On
+             * Format: date
+             */
+            spent_on: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Type Id */
+            type_id: string;
+            /** Description */
+            description: string | null;
+            trip: components["schemas"]["TripOut"] | null;
+            /** Version */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** ExpenseTypeIn */
         ExpenseTypeIn: {
             /** Name */
@@ -902,6 +1020,47 @@ export interface components {
             city?: string | null;
             /** Date */
             date?: string | null;
+        };
+        /** TripIn */
+        TripIn: {
+            /**
+             * Contract Id
+             * Format: uuid
+             */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /**
+             * Transport Kind
+             * @enum {string}
+             */
+            transport_kind: "car" | "ride_app" | "bus" | "plane" | "other";
+            /**
+             * Left Home At
+             * Format: time
+             */
+            left_home_at: string;
+            /** Distance Tenths */
+            distance_tenths: number;
+        };
+        /** TripOut */
+        TripOut: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /** Transport Kind */
+            transport_kind: string;
+            /** Left Home At */
+            left_home_at: string;
+            /** Distance Tenths */
+            distance_tenths: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -1955,6 +2114,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_expense_api_v1_expenses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_expense_api_v1_expenses__expense_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_expense_api_v1_expenses__expense_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_expense_api_v1_expenses__expense_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                expense_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExpenseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_expense_events_api_v1_expense_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpenseEventOut"][];
                 };
             };
         };

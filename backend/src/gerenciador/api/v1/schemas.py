@@ -13,6 +13,7 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
+    PlainSerializer,
     model_validator,
 )
 
@@ -29,6 +30,7 @@ from gerenciador.services.contract_service import (
     ItemInput,
     PersonInput,
 )
+from gerenciador.services.expense_service import EventChoice, ExpenseInput, ExpenseView, TripInput
 from gerenciador.services.expense_type_service import ExpenseTypeView
 from gerenciador.services.instalment_service import InstalmentListEntry
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
@@ -73,6 +75,13 @@ OptionalTime = Annotated[dt.time | None, BeforeValidator(_blank_to_none)]
 Hours = Annotated[int, Field(strict=True, ge=1, le=24)]
 PhotographerCount = Annotated[int, Field(strict=True, ge=1, le=10)]
 Cents = Annotated[int, Field(strict=True, gt=0, le=100_000_000)]
+Description = Annotated[
+    Annotated[str, Field(max_length=200), _Printable] | None, BeforeValidator(_blank_to_none)
+]
+DistanceTenths = Annotated[int, Field(strict=True, ge=1, le=50_000)]
+EventKind = Literal["wedding", "prewedding"]
+TransportKind = Literal["car", "ride_app", "bus", "plane", "other"]
+ClockTime = Annotated[dt.time, PlainSerializer(lambda t: t.strftime("%H:%M"), return_type=str)]
 Flag = Annotated[bool, Field(strict=True)]
 UtcDatetime = Annotated[AwareDatetime, AfterValidator(_to_utc)]
 
@@ -311,6 +320,40 @@ class ExpenseTypePatch(StrictModel):
     name: ExpenseTypeName
 
 
+class TripIn(StrictModel):
+    contract_id: UUID
+    event_kind: EventKind
+    transport_kind: TransportKind
+    left_home_at: dt.time
+    distance_tenths: DistanceTenths
+
+    def to_input(self) -> TripInput:
+        return TripInput(
+            str(self.contract_id),
+            self.event_kind,
+            self.transport_kind,
+            self.left_home_at.replace(second=0, microsecond=0, tzinfo=None),
+            self.distance_tenths,
+        )
+
+
+class ExpenseIn(StrictModel):
+    spent_on: dt.date
+    amount_cents: Cents
+    type_id: UUID
+    description: Description = None
+    trip: TripIn | None = None
+
+    def to_input(self) -> ExpenseInput:
+        return ExpenseInput(
+            self.spent_on,
+            self.amount_cents,
+            str(self.type_id),
+            self.description,
+            self.trip.to_input() if self.trip else None,
+        )
+
+
 # ---- responses ------------------------------------------------------------
 
 
@@ -355,6 +398,52 @@ class ExpenseTypeOut(BaseModel):
             archived_at=view.archived_at,
             version=view.version,
         )
+
+
+class TripOut(BaseModel):
+    contract_id: str
+    event_kind: EventKind
+    transport_kind: str
+    left_home_at: ClockTime
+    distance_tenths: int
+
+
+class ExpenseOut(BaseModel):
+    id: str
+    spent_on: dt.date
+    amount_cents: int
+    type_id: str
+    description: str | None
+    trip: TripOut | None
+    version: int
+    created_at: dt.datetime
+
+    @classmethod
+    def from_view(cls, view: ExpenseView) -> Self:
+        return cls(
+            id=view.id,
+            spent_on=view.spent_on,
+            amount_cents=view.amount_cents,
+            type_id=view.type_id,
+            description=view.description,
+            trip=TripOut.model_validate(asdict(view.trip)) if view.trip else None,
+            version=view.version,
+            created_at=view.created_at,
+        )
+
+
+class ExpenseEventOut(BaseModel):
+    contract_id: str
+    event_kind: EventKind
+    date: dt.date
+    groom_name: str | None
+    bride_name: str | None
+    venue_name: str
+    venue_address: str | None
+
+    @classmethod
+    def from_view(cls, view: EventChoice) -> Self:
+        return cls.model_validate(asdict(view))
 
 
 class ClientOut(BaseModel):
