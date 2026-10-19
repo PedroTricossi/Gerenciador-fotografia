@@ -245,3 +245,31 @@ describe("tabs", () => {
     expect(screen.queryByRole("heading", { name: "Parcelas" })).not.toBeInTheDocument();
   });
 });
+
+describe("Resumo and Extrato tabs", () => {
+  const overview = () => http.get("/api/v1/overview", () => HttpResponse.json({}, { status: 500 }));
+
+  test("the Área group has four buttons", async () => {
+    server.use(overview());
+    renderApp("/negocio");
+    const group = await screen.findByRole("group", { name: "Área" });
+    expect(within(group).getAllByRole("button")).toHaveLength(4);
+    for (const name of ["Parcelas", "Despesas", "Resumo", "Extrato"]) {
+      expect(within(group).getByRole("button", { name })).toBeVisible();
+    }
+  });
+
+  test("clicking Resumo puts it in the URL", async () => {
+    server.use(overview());
+    const { user, router } = renderApp("/negocio");
+    await user.click(await screen.findByRole("button", { name: "Resumo" }));
+    expect(router.state.location.search).toBe("?aba=resumo");
+    expect(screen.getByRole("button", { name: "Resumo", pressed: true })).toBeVisible();
+  });
+
+  test("/negocio?aba=extrato opens Extrato", async () => {
+    server.use(overview());
+    renderApp("/negocio?aba=extrato");
+    expect(await screen.findByRole("button", { name: "Extrato", pressed: true })).toBeVisible();
+  });
+});

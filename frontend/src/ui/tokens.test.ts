@@ -101,3 +101,24 @@ describe("theme tokens", () => {
     expect(Math.abs(contrastRatio("#2b2118", "#fffaf0") - 15.1)).toBeLessThan(0.1);
   });
 });
+
+describe("chart palette tokens", () => {
+  const CATS = [..."01234567"].map((n) => `--color-cat-${n}`);
+  const NAMES = [...CATS, "--color-cat-other", "--color-cat-free"];
+
+  describe.each(["light", "dark"] as const)("%s", (name) => {
+    const t = themes[name];
+
+    test.each(NAMES)("%s is defined", (token) => {
+      expect(t[token]).toMatch(/^#[0-9a-f]{6}$/i);
+    });
+
+    test.each(NAMES)("%s meets 3:1 on the surface", (token) => {
+      expect(contrastRatio(t[token] ?? "", t["--color-surface"] ?? "")).toBeGreaterThanOrEqual(3);
+    });
+
+    test("no category is the danger colour", () => {
+      for (const token of CATS) expect(t[token]).not.toBe(t["--color-danger"]);
+    });
+  });
+});

@@ -34,3 +34,13 @@ export const expenseKeys = {
   fixedCosts: ["expenses", "fixed-costs"] as const,
   fee: ["expenses", "second-photographer-fee"] as const,
 };
+
+// Everything the overview shows derives from expenses and instalments, so both families'
+// mutations invalidate overviewKeys.all.
+export const overviewKeys = {
+  all: ["overview"] as const,
+  overview: (period: string, value: string, today: string) =>
+    ["overview", "summary", period, value, today] as const,
+  guide: (today: string, distanceTenths: number | null, leftHomeAt: string | null) =>
+    ["overview", "guide", today, distanceTenths, leftHomeAt] as const,
+};

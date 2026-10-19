@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "./client";
-import { contractKeys, instalmentKeys } from "./keys";
+import { contractKeys, instalmentKeys, overviewKeys } from "./keys";
 
 export { instalmentKeys };
 
@@ -30,6 +30,7 @@ function useRefreshAfter() {
     Promise.all([
       client.invalidateQueries({ queryKey: instalmentKeys.all }),
       client.invalidateQueries({ queryKey: contractKeys.one(target.contractId) }),
+      client.invalidateQueries({ queryKey: overviewKeys.all }),
     ]);
 }
 

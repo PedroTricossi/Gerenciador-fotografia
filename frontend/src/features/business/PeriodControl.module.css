@@ -1,0 +1,18 @@
+.control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.heading {
+  margin: 0;
+  min-width: 9rem;
+  text-align: center;
+}

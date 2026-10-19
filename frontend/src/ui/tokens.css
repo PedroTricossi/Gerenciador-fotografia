@@ -30,6 +30,16 @@
   --color-band: #e8dcc0;
   --color-menu-bg: #1d1a16;
   --color-menu-text: #f3e6c4;
+  --color-cat-0: #2a78d6;
+  --color-cat-1: #d4561a;
+  --color-cat-2: #0f8a6a;
+  --color-cat-3: #a67c00;
+  --color-cat-4: #c23d7e;
+  --color-cat-5: #4a8a1e;
+  --color-cat-6: #6250d6;
+  --color-cat-7: #0b7a9e;
+  --color-cat-other: #6b5e4a;
+  --color-cat-free: #a08f6e;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -78,6 +88,16 @@
     --color-band: #3a3329;
     --color-menu-bg: #12100d;
     --color-menu-text: #f3e6c4;
+    --color-cat-0: #3987e5;
+    --color-cat-1: #d95926;
+    --color-cat-2: #1fa07a;
+    --color-cat-3: #c98500;
+    --color-cat-4: #d55181;
+    --color-cat-5: #6aa030;
+    --color-cat-6: #9085e9;
+    --color-cat-7: #1a85a3;
+    --color-cat-other: #a8987a;
+    --color-cat-free: #7d7059;
   }
 }
 
@@ -99,4 +119,14 @@
   --color-band: #3a3329;
   --color-menu-bg: #12100d;
   --color-menu-text: #f3e6c4;
+  --color-cat-0: #3987e5;
+  --color-cat-1: #d95926;
+  --color-cat-2: #1fa07a;
+  --color-cat-3: #c98500;
+  --color-cat-4: #d55181;
+  --color-cat-5: #6aa030;
+  --color-cat-6: #9085e9;
+  --color-cat-7: #1a85a3;
+  --color-cat-other: #a8987a;
+  --color-cat-free: #7d7059;
 }
