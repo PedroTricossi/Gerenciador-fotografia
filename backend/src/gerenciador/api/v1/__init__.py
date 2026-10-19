@@ -8,9 +8,11 @@ from gerenciador.api.v1 import (
     contracts,
     expense_types,
     expenses,
+    fixed_costs,
     health,
     instalments,
     prewedding,
+    second_photographer,
     services,
 )
 
@@ -25,4 +27,6 @@ api_router.include_router(clients.router)
 api_router.include_router(services.router)
 api_router.include_router(expense_types.router)
 api_router.include_router(expenses.router)
+api_router.include_router(fixed_costs.router)
+api_router.include_router(second_photographer.router)
 api_router.include_router(audit.router)

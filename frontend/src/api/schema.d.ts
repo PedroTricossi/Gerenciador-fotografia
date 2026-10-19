@@ -425,6 +425,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fixed-costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Fixed Costs */
+        get: operations["list_fixed_costs_api_v1_fixed_costs_get"];
+        put?: never;
+        /** Create Fixed Cost */
+        post: operations["create_fixed_cost_api_v1_fixed_costs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Fixed Cost */
+        delete: operations["delete_fixed_cost_api_v1_fixed_costs__cost_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Fixed Cost */
+        patch: operations["rename_fixed_cost_api_v1_fixed_costs__cost_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Fixed Cost Price */
+        post: operations["set_fixed_cost_price_api_v1_fixed_costs__cost_id__prices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop Fixed Cost */
+        post: operations["stop_fixed_cost_api_v1_fixed_costs__cost_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixed-costs/{cost_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Fixed Cost */
+        post: operations["resume_fixed_cost_api_v1_fixed_costs__cost_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/second-photographer-fee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Second Photographer Fee */
+        get: operations["get_second_photographer_fee_api_v1_second_photographer_fee_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/second-photographer-fee/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Second Photographer Fee */
+        post: operations["set_second_photographer_fee_api_v1_second_photographer_fee_prices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contracts/{contract_id}/second-photographer-fee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Override */
+        put: operations["set_override_api_v1_contracts__contract_id__second_photographer_fee_put"];
+        post?: never;
+        /** Clear Override */
+        delete: operations["clear_override_api_v1_contracts__contract_id__second_photographer_fee_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-events": {
         parameters: {
             query?: never;
@@ -793,6 +932,48 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** FixedCostIn */
+        FixedCostIn: {
+            /** Name */
+            name: string;
+            /**
+             * Type Id
+             * Format: uuid
+             */
+            type_id: string;
+            /** Day Of Month */
+            day_of_month: number;
+            /** Start Month */
+            start_month: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** FixedCostOut */
+        FixedCostOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Type Id */
+            type_id: string;
+            /** Type Name */
+            type_name: string;
+            /** Day Of Month */
+            day_of_month: number;
+            /** Start Month */
+            start_month: string;
+            /** End Month */
+            end_month: string | null;
+            /** Prices */
+            prices: components["schemas"]["PriceOut"][];
+            /** Version */
+            version: number;
+        };
+        /** FixedCostRename */
+        FixedCostRename: {
+            /** Name */
+            name: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -863,6 +1044,18 @@ export interface components {
              * Format: date
              */
             paid_on: string;
+        };
+        /** OverrideIn */
+        OverrideIn: {
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** OverrideOut */
+        OverrideOut: {
+            /** Contract Id */
+            contract_id: string;
+            /** Amount Cents */
+            amount_cents: number;
         };
         /** PageOut[AuditEventOut] */
         PageOut_AuditEventOut_: {
@@ -952,6 +1145,25 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** PriceIn */
+        PriceIn: {
+            /** From Month */
+            from_month: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** PriceOut */
+        PriceOut: {
+            /** From Month */
+            from_month: string;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** PricesOut */
+        PricesOut: {
+            /** Prices */
+            prices: components["schemas"]["PriceOut"][];
+        };
         /** ServiceIn */
         ServiceIn: {
             /** Name */
@@ -1020,6 +1232,11 @@ export interface components {
             city?: string | null;
             /** Date */
             date?: string | null;
+        };
+        /** StopIn */
+        StopIn: {
+            /** End Month */
+            end_month: string;
         };
         /** TripIn */
         TripIn: {
@@ -2266,6 +2483,345 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExpenseEventOut"][];
+                };
+            };
+        };
+    };
+    list_fixed_costs_api_v1_fixed_costs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"][];
+                };
+            };
+        };
+    };
+    create_fixed_cost_api_v1_fixed_costs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixedCostIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_fixed_cost_api_v1_fixed_costs__cost_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_fixed_cost_api_v1_fixed_costs__cost_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixedCostRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_fixed_cost_price_api_v1_fixed_costs__cost_id__prices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_fixed_cost_api_v1_fixed_costs__cost_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StopIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_fixed_cost_api_v1_fixed_costs__cost_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cost_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixedCostOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_second_photographer_fee_api_v1_second_photographer_fee_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricesOut"];
+                };
+            };
+        };
+    };
+    set_second_photographer_fee_api_v1_second_photographer_fee_prices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_override_api_v1_contracts__contract_id__second_photographer_fee_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverrideIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_override_api_v1_contracts__contract_id__second_photographer_fee_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contract_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -32,6 +32,7 @@ from gerenciador.services.contract_service import (
 )
 from gerenciador.services.expense_service import EventChoice, ExpenseInput, ExpenseView, TripInput
 from gerenciador.services.expense_type_service import ExpenseTypeView
+from gerenciador.services.fixed_cost_service import FixedCostView, PriceView
 from gerenciador.services.instalment_service import InstalmentListEntry
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
 
@@ -74,6 +75,7 @@ OptionalAddress = Annotated[Address | None, BeforeValidator(_blank_to_none)]
 OptionalTime = Annotated[dt.time | None, BeforeValidator(_blank_to_none)]
 Hours = Annotated[int, Field(strict=True, ge=1, le=24)]
 PhotographerCount = Annotated[int, Field(strict=True, ge=1, le=10)]
+Month = Annotated[str, Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 Cents = Annotated[int, Field(strict=True, gt=0, le=100_000_000)]
 Description = Annotated[
     Annotated[str, Field(max_length=200), _Printable] | None, BeforeValidator(_blank_to_none)
@@ -354,6 +356,31 @@ class ExpenseIn(StrictModel):
         )
 
 
+class FixedCostIn(StrictModel):
+    name: ExpenseTypeName
+    type_id: UUID
+    day_of_month: Annotated[int, Field(strict=True, ge=1, le=31)]
+    start_month: Month
+    amount_cents: Cents
+
+
+class FixedCostRename(StrictModel):
+    name: ExpenseTypeName
+
+
+class PriceIn(StrictModel):
+    from_month: Month
+    amount_cents: Cents
+
+
+class StopIn(StrictModel):
+    end_month: Month
+
+
+class OverrideIn(StrictModel):
+    amount_cents: Cents
+
+
 # ---- responses ------------------------------------------------------------
 
 
@@ -430,6 +457,40 @@ class ExpenseOut(BaseModel):
             version=view.version,
             created_at=view.created_at,
         )
+
+
+class PriceOut(BaseModel):
+    from_month: str
+    amount_cents: int
+
+
+class PricesOut(BaseModel):
+    prices: list[PriceOut]
+
+    @classmethod
+    def from_views(cls, views: list[PriceView]) -> Self:
+        return cls(prices=[PriceOut.model_validate(asdict(view)) for view in views])
+
+
+class FixedCostOut(BaseModel):
+    id: str
+    name: str
+    type_id: str
+    type_name: str
+    day_of_month: int
+    start_month: str
+    end_month: str | None
+    prices: list[PriceOut]
+    version: int
+
+    @classmethod
+    def from_view(cls, view: FixedCostView) -> Self:
+        return cls.model_validate(asdict(view))
+
+
+class OverrideOut(BaseModel):
+    contract_id: str
+    amount_cents: int
 
 
 class ExpenseEventOut(BaseModel):

@@ -15,8 +15,10 @@ from gerenciador.services.contract_document import ContractDocumentService
 from gerenciador.services.contract_service import ContractService
 from gerenciador.services.expense_service import ExpenseService
 from gerenciador.services.expense_type_service import ExpenseTypeService
+from gerenciador.services.fixed_cost_service import FixedCostService
 from gerenciador.services.instalment_service import InstalmentService
 from gerenciador.services.prewedding_service import PreweddingService
+from gerenciador.services.second_photographer_service import SecondPhotographerService
 
 
 def get_current_actor() -> str:
@@ -60,6 +62,15 @@ def get_expense_service(session: DbSession) -> ExpenseService:
     return ExpenseService(session, ExpenseTypeService(session, audit), audit)
 
 
+def get_fixed_cost_service(session: DbSession) -> FixedCostService:
+    audit = AuditService(session)
+    return FixedCostService(session, ExpenseTypeService(session, audit), audit)
+
+
+def get_second_photographer_service(session: DbSession) -> SecondPhotographerService:
+    return SecondPhotographerService(session, AuditService(session))
+
+
 def get_client_service(request: Request, session: DbSession) -> ClientService:
     return ClientService(session, request.app.state.cipher, AuditService(session))
 
@@ -99,6 +110,8 @@ Audit = Annotated[AuditService, Depends(get_audit_service)]
 Catalog = Annotated[CatalogService, Depends(get_catalog_service)]
 ExpenseTypes = Annotated[ExpenseTypeService, Depends(get_expense_type_service)]
 Expenses = Annotated[ExpenseService, Depends(get_expense_service)]
+FixedCosts = Annotated[FixedCostService, Depends(get_fixed_cost_service)]
+SecondPhotographer = Annotated[SecondPhotographerService, Depends(get_second_photographer_service)]
 Clients = Annotated[ClientService, Depends(get_client_service)]
 Contracts = Annotated[ContractService, Depends(get_contract_service)]
 Preweddings = Annotated[PreweddingService, Depends(get_prewedding_service)]
