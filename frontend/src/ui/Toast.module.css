@@ -18,8 +18,50 @@
   box-shadow: var(--shadow-hard);
   max-width: min(24rem, calc(100vw - 2 * var(--space-6)));
   overflow-wrap: anywhere;
+  --ink: var(--color-text);
+  color: var(--ink);
+  animation: switch-on 350ms steps(5, end) backwards;
 }
 .error {
   border-color: var(--color-danger);
-  color: var(--color-danger);
+  --ink: var(--color-danger);
+}
+/* Opens like an old monitor: a thin line first, then the full box. Closes back. */
+.closing {
+  animation: switch-off 300ms steps(4, end) forwards;
+  pointer-events: none;
+}
+@keyframes switch-on {
+  0% {
+    transform: scale(0, 0.04);
+  }
+  40% {
+    transform: scale(1, 0.04);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+@keyframes switch-off {
+  0% {
+    transform: scale(1, 1);
+  }
+  60% {
+    transform: scale(1, 0.04);
+  }
+  100% {
+    transform: scale(0, 0.04);
+  }
+}
+/* While the message types, its own text is see-through and an overlay draws the
+   letters typed so far, wrapping the same way. */
+.message[data-typed] {
+  position: relative;
+  color: transparent;
+}
+.message[data-typed]::after {
+  content: attr(data-typed) / "";
+  position: absolute;
+  inset: 0;
+  color: var(--ink);
 }

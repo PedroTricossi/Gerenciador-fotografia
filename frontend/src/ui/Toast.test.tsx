@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ToastProvider, useToast } from "./Toast";
 
@@ -97,6 +97,56 @@ describe("a toast with an action", () => {
     expect(screen.getByText("Contrato excluído")).toBeInTheDocument();
     act(() => action.blur());
     act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.queryByText("Contrato excluído")).not.toBeInTheDocument();
+  });
+});
+
+describe("toast motion", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("jest", { advanceTimersByTime: vi.advanceTimersByTime });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  async function open() {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(
+      <ToastProvider>
+        <Trigger />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "disparar" }));
+    return user;
+  }
+
+  test("the message types on screen once the box is open, its text whole all along", async () => {
+    await open();
+    const message = screen.getByText("Contrato excluído");
+    expect(message).toHaveAttribute("data-typed", "");
+    act(() => vi.advanceTimersByTime(350 + 45 * 3));
+    expect(message).toHaveAttribute("data-typed", "Con");
+    expect(screen.getByRole("status")).toHaveTextContent("Contrato excluído");
+    act(() => vi.advanceTimersByTime(600));
+    expect(message).not.toHaveAttribute("data-typed");
+  });
+
+  test("a closing toast stays until its switch-off animation ends", async () => {
+    const real = window.getComputedStyle;
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
+      const style = real(element);
+      return element.classList.contains("closing")
+        ? ({ ...style, animationName: "switch-off" } as CSSStyleDeclaration)
+        : style;
+    });
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "Fechar aviso" }));
+    const toast = screen.getByText("Contrato excluído").parentElement!;
+    expect(toast).toHaveClass("closing");
+    fireEvent.animationEnd(toast);
     expect(screen.queryByText("Contrato excluído")).not.toBeInTheDocument();
   });
 });
