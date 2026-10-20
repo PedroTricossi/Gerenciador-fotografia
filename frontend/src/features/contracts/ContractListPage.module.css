@@ -3,21 +3,38 @@
   justify-content: flex-end;
   margin-bottom: var(--space-3);
 }
+.tableBox {
+  container-type: inline-size;
+}
 .noPreweddingSlot {
   --prewedding-slot: 0px;
 }
 .actions {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-columns:
-    max-content max-content minmax(var(--prewedding-slot, 9.5rem), max-content)
-    max-content;
-  justify-content: end;
-  gap: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+/* One line while the table has room; below this width (narrow screens, or large text, since
+   rem grows with it) the actions may wrap instead of pushing the table sideways. */
+@container (min-width: 56rem) {
+  .actions {
+    flex-wrap: nowrap;
+  }
 }
 /* Doubled class: outranks `.table td button` (white-space: normal) in the shared Table. */
 .actions.actions button {
   white-space: nowrap;
+  padding-inline: var(--space-2);
+}
+/* A fixed-width slot, wide enough for the longer label, so the pré-wedding button and
+   everything before it line up on every row. Rows wrap only when there is no room. */
+.slot {
+  flex: 0 0 var(--prewedding-slot, 11.25rem);
+  display: flex;
+}
+.actions.actions .slot button {
+  flex: 1;
 }
 .more {
   display: flex;

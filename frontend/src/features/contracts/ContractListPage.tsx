@@ -30,6 +30,10 @@ import { coupleLabel } from "./names";
 import { PreweddingDialog } from "./PreweddingDialog";
 import { preweddingButtonLabel } from "./preweddingForm";
 
+function hasPreweddingAction(contract: ContractOut) {
+  return contract.has_prewedding || contract.prewedding !== null;
+}
+
 export function ContractListPage() {
   const navigate = useNavigate();
   const notify = useToast();
@@ -44,9 +48,7 @@ export function ContractListPage() {
 
   const rows = contracts.data?.pages.flatMap((result) => result.items) ?? [];
   // The pré-wedding slot only takes room when some row actually has a button in it.
-  const anyPrewedding = rows.some(
-    (row) => !row.deleted_at && (row.has_prewedding || row.prewedding !== null),
-  );
+  const anyPrewedding = rows.some((row) => !row.deleted_at && hasPreweddingAction(row));
   const preweddingTarget = rows.find((row) => row.id === preweddingFor) ?? null;
 
   const failureHandler = (messages: { 404: string; 409: string }) => (error: unknown) => {
@@ -124,12 +126,14 @@ export function ContractListPage() {
             >
               Baixar PDF
             </Button>
-            {contract.has_prewedding || contract.prewedding !== null ? (
-              <Button onClick={() => setPreweddingFor(contract.id)}>
-                {preweddingButtonLabel(contract.prewedding)}
-              </Button>
+            {hasPreweddingAction(contract) ? (
+              <span className={styles.slot}>
+                <Button onClick={() => setPreweddingFor(contract.id)}>
+                  {preweddingButtonLabel(contract.prewedding)}
+                </Button>
+              </span>
             ) : (
-              <span aria-hidden="true" />
+              <span className={styles.slot} aria-hidden="true" />
             )}
             <Button variant="danger" onClick={() => setPendingDelete(contract)}>
               Excluir
@@ -152,7 +156,7 @@ export function ContractListPage() {
         </Banner>
       )}
       {contracts.isSuccess && (
-        <div className={anyPrewedding ? undefined : styles.noPreweddingSlot}>
+        <div className={`${styles.tableBox} ${anyPrewedding ? "" : styles.noPreweddingSlot}`}>
           <Table
             label="Contratos"
             columns={columns}
