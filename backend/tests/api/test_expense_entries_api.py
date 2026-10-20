@@ -267,6 +267,28 @@ def test_a_range_in_the_middle_shows_only_those_instalments(api: TestClient) -> 
     assert [r["instalment_number"] for r in rows] == [3, 4]
 
 
+def test_the_longest_plan_reaches_back_23_months_and_no_further(api: TestClient) -> None:
+    # 24x is the longest plan: its last instalment lands 23 months after the purchase month,
+    # so a range starting in 2026-09 must still read purchases from 2024-10 on.
+    first_day = _manual(api, "Café", "2024-10-01", amount_cents=240000, instalment_count=24)
+    last_day = _manual(api, "Café", "2024-10-31", amount_cents=240000, instalment_count=24)
+    _manual(api, "Café", "2024-09-30", amount_cents=240000, instalment_count=24)
+
+    rows = _manual_entries(api, "2026-09", "2026-09")
+
+    assert sorted((r["id"], r["date"]) for r in rows) == sorted(
+        [
+            (f"manual:{first_day['id']}:24", "2026-09-01"),
+            (f"manual:{last_day['id']}:24", "2026-09-30"),
+        ]
+    )
+    assert {(r["instalment_number"], r["instalment_count"]) for r in rows} == {(24, 24)}
+    # The plan bought a month earlier ended in August.
+    august = _manual_entries(api, "2026-08", "2026-08")
+    assert len(august) == 3
+    assert {r["instalment_number"] for r in august} == {23, 24}
+
+
 def test_reducing_the_count_removes_later_rows(api: TestClient) -> None:
     created = _manual(api, "Café", "2026-03-10", amount_cents=100000, instalment_count=10)
     response = api.patch(
