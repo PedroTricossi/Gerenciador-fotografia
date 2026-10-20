@@ -18,10 +18,14 @@
   .actions {
     flex-wrap: nowrap;
   }
+  /* Doubled class: outranks `.table td button` (white-space: normal) in the shared Table.
+     Below this width a label may still break between words, so the slot's longest label
+     doesn't set the column's narrowest width. */
+  .actions.actions button {
+    white-space: nowrap;
+  }
 }
-/* Doubled class: outranks `.table td button` (white-space: normal) in the shared Table. */
 .actions.actions button {
-  white-space: nowrap;
   padding-inline: var(--space-1);
 }
 /* The pré-wedding slot stacks the row's button over an invisible copy of the longest label,
