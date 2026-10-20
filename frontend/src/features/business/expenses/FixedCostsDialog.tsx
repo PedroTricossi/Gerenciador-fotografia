@@ -43,7 +43,7 @@ export function FixedCostsDialog({ onClose }: Props) {
               ))}
             </ul>
           )}
-          <NewCostForm types={types.data} write={write} />
+          <NewCostForm types={types.data} write={write} onCreated={onClose} />
         </>
       )}
       <DialogActions>
@@ -60,9 +60,11 @@ type Errors = Partial<Record<"name" | "day" | "start" | "amount", string>>;
 function NewCostForm({
   types,
   write,
+  onCreated,
 }: {
   types: ExpenseTypeOut[];
   write: ReturnType<typeof useWrite>;
+  onCreated: () => void;
 }) {
   const notify = useToast();
   const create = useCreateFixedCost();
@@ -117,10 +119,7 @@ function NewCostForm({
       .then((ok) => {
         if (!ok) return;
         notify("Despesa fixa criada");
-        setName("");
-        setDay("");
-        setAmount("");
-        setErrors({});
+        onCreated();
       });
   };
 
