@@ -10,6 +10,21 @@
   color: var(--color-text);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    transform 80ms steps(2, end),
+    box-shadow 80ms steps(2, end);
+}
+/* Hover lifts the button off its shadow; pressing sinks it flat like a key. */
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard);
+  }
+}
+.button:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+  transition: none;
 }
 .button:disabled {
   opacity: var(--opacity-disabled);
