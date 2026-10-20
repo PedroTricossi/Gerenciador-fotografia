@@ -86,6 +86,7 @@ const STORED_CAFE = {
   type_id: CAFE,
   description: "Café (edição)",
   trip: null,
+  instalment_count: 1,
   version: 3,
   created_at: "2026-10-14T10:00:00Z",
 };
@@ -202,6 +203,7 @@ test("creates an expense with its trip and closes", async () => {
       left_home_at: "13:30",
       distance_tenths: 320,
     },
+    instalment_count: 1,
   });
 });
 
@@ -253,6 +255,7 @@ test("Editar opens filled from the stored expense and PATCHes with If-Match", as
     type_id: CAFE,
     description: "Café (edição)",
     trip: null,
+    instalment_count: 1,
   });
 });
 

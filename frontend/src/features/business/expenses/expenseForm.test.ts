@@ -29,6 +29,7 @@ test("a plain expense has no trip and the amount in cents", () => {
     type_id: "t-cafe",
     description: null,
     trip: null,
+    instalment_count: 1,
   });
 });
 
@@ -54,6 +55,7 @@ test("a transport expense with an event carries the whole trip", () => {
       left_home_at: "13:30",
       distance_tenths: 320,
     },
+    instalment_count: 1,
   });
 });
 
@@ -76,6 +78,7 @@ test("fromExpense fills every field from a stored expense", () => {
       left_home_at: "13:30:00",
       distance_tenths: 325,
     },
+    instalment_count: 1,
     version: 2,
     created_at: "2026-10-11T10:00:00Z",
   };

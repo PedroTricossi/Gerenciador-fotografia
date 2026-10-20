@@ -19,6 +19,7 @@ from pydantic import (
 
 from gerenciador.db.models import AuditEvent
 from gerenciador.domain.cpf import format_cpf, mask_cpf, normalize_cpf
+from gerenciador.domain.expenses import MAX_EXPENSE_INSTALMENTS
 from gerenciador.services.agenda_service import AgendaEntry
 from gerenciador.services.catalog_service import ServiceChanges, ServiceInput, ServiceView
 from gerenciador.services.client_service import ClientExport, ClientView
@@ -349,6 +350,7 @@ class ExpenseIn(StrictModel):
     type_id: UUID
     description: Description = None
     trip: TripIn | None = None
+    instalment_count: Annotated[int, Field(strict=True, ge=1, le=MAX_EXPENSE_INSTALMENTS)] = 1
 
     def to_input(self) -> ExpenseInput:
         return ExpenseInput(
@@ -357,6 +359,7 @@ class ExpenseIn(StrictModel):
             str(self.type_id),
             self.description,
             self.trip.to_input() if self.trip else None,
+            self.instalment_count,
         )
 
 
@@ -446,6 +449,7 @@ class ExpenseOut(BaseModel):
     type_id: str
     description: str | None
     trip: TripOut | None
+    instalment_count: int
     version: int
     created_at: dt.datetime
 
@@ -458,6 +462,7 @@ class ExpenseOut(BaseModel):
             type_id=view.type_id,
             description=view.description,
             trip=TripOut.model_validate(asdict(view.trip)) if view.trip else None,
+            instalment_count=view.instalment_count,
             version=view.version,
             created_at=view.created_at,
         )

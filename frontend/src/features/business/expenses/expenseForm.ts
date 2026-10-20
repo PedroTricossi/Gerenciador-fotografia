@@ -108,6 +108,7 @@ export function toRequest(values: ExpenseFormValues, types: readonly ExpenseType
           distance_tenths: parseKm(values.distance) ?? Number.NaN,
         }
       : null,
+    instalment_count: 1,
   };
 }
 
