@@ -4,6 +4,7 @@ import { formatKm, parseKm } from "../../../domain/expenses";
 import { splitEqually } from "../../../domain/instalments";
 import { formatBrl, formatBrlAmount, parseBrl } from "../../../domain/money";
 
+// Mirrors MAX_EXPENSE_INSTALMENTS in backend/src/gerenciador/domain/expenses.py; keep them equal.
 export const MAX_EXPENSE_INSTALMENTS = 24;
 
 export type ExpenseFormValues = {

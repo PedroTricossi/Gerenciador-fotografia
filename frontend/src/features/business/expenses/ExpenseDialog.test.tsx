@@ -476,6 +476,20 @@ test("ticking Parcelado asks for the count, relabels Valor and previews the spli
   );
 });
 
+test("the preview's live region is there, empty, before the first preview", async () => {
+  serve();
+  const { user, dialog } = await openNew();
+  expect(dialog.querySelector("#instalment-preview")).toBeNull();
+  await user.click(within(dialog).getByLabelText("Parcelado"));
+  const live = dialog.querySelector("#instalment-preview");
+  expect(live).toHaveAttribute("aria-live", "polite");
+  expect(live).toBeEmptyDOMElement();
+  await user.type(within(dialog).getByLabelText("Valor total"), "1.000,00");
+  await user.type(within(dialog).getByLabelText("Nº de parcelas"), "4");
+  expect(dialog.querySelector("#instalment-preview")).toBe(live);
+  expect(live).toHaveTextContent("4x de R$ 250,00");
+});
+
 test("saving a parcelado expense sends the count", async () => {
   serve();
   let sent: { instalment_count?: number } = {};

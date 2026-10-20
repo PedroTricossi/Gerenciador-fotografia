@@ -252,7 +252,9 @@ function ExpenseForm({ expense, types, events, onClose, onBusy }: FormProps) {
             )}
           </Field>
         )}
-        {preview && (
+        {/* Mounted with the section, empty until the plan is valid, so screen readers hear the
+            first preview too (a live region added already filled is often not announced). */}
+        {values.split && (
           <Hint id="instalment-preview" live>
             {preview}
           </Hint>

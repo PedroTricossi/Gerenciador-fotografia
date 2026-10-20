@@ -33,3 +33,7 @@
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
+/* An empty live hint waits for its text without taking room. */
+.hint:empty {
+  margin: 0;
+}
