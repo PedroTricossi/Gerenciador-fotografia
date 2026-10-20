@@ -43,6 +43,10 @@ export function ContractListPage() {
   const pdf = useDownloadPdf();
 
   const rows = contracts.data?.pages.flatMap((result) => result.items) ?? [];
+  // The pré-wedding slot only takes room when some row actually has a button in it.
+  const anyPrewedding = rows.some(
+    (row) => !row.deleted_at && (row.has_prewedding || row.prewedding !== null),
+  );
   const preweddingTarget = rows.find((row) => row.id === preweddingFor) ?? null;
 
   const failureHandler = (messages: { 404: string; 409: string }) => (error: unknown) => {
@@ -113,11 +117,6 @@ export function ContractListPage() {
           </Button>
         ) : (
           <span className={styles.actions}>
-            {(contract.has_prewedding || contract.prewedding !== null) && (
-              <Button onClick={() => setPreweddingFor(contract.id)}>
-                {preweddingButtonLabel(contract.prewedding)}
-              </Button>
-            )}
             <Button onClick={() => navigate(`/contratos/${contract.id}`)}>Editar</Button>
             <Button
               onClick={() => pdf.mutate(contract.id, { onError: onPdfError })}
@@ -125,6 +124,13 @@ export function ContractListPage() {
             >
               Baixar PDF
             </Button>
+            {contract.has_prewedding || contract.prewedding !== null ? (
+              <Button onClick={() => setPreweddingFor(contract.id)}>
+                {preweddingButtonLabel(contract.prewedding)}
+              </Button>
+            ) : (
+              <span aria-hidden="true" />
+            )}
             <Button variant="danger" onClick={() => setPendingDelete(contract)}>
               Excluir
             </Button>
@@ -146,14 +152,16 @@ export function ContractListPage() {
         </Banner>
       )}
       {contracts.isSuccess && (
-        <Table
-          label="Contratos"
-          columns={columns}
-          rows={rows}
-          rowKey={(contract) => contract.id}
-          rowMuted={(contract) => contract.deleted_at !== null}
-          empty={<EmptyState action={newContract}>Nenhum contrato ainda</EmptyState>}
-        />
+        <div className={anyPrewedding ? undefined : styles.noPreweddingSlot}>
+          <Table
+            label="Contratos"
+            columns={columns}
+            rows={rows}
+            rowKey={(contract) => contract.id}
+            rowMuted={(contract) => contract.deleted_at !== null}
+            empty={<EmptyState action={newContract}>Nenhum contrato ainda</EmptyState>}
+          />
+        </div>
       )}
       {contracts.hasNextPage && (
         <div className={styles.more}>

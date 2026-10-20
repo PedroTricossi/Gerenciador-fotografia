@@ -3,6 +3,7 @@ import {
   createLongNamedContract,
   createSplitContract,
   expect,
+  fillContract,
   freshCouple,
   test,
   uniqueSuffix,
@@ -191,8 +192,9 @@ async function expectTableWordsWhole(page: Page, where: string) {
   expect(multiline.out, `${where}: a date or amount broken over several lines`).toEqual([]);
 }
 
-async function expectWrapCellsAndButtonsFit(page: Page, where: string) {
-  const result = await page.evaluate(() => {
+/** `scrolls`: the table may be wider than its box and scroll sideways (one-line row actions at 20px). */
+async function expectWrapCellsAndButtonsFit(page: Page, where: string, scrolls = false) {
+  const result = await page.evaluate((scrolls) => {
     const problems: string[] = [];
     const region = document
       .querySelector("main [role='region'][tabindex='0']")!
@@ -225,19 +227,19 @@ async function expectWrapCellsAndButtonsFit(page: Page, where: string) {
     const minWidth = table.getBoundingClientRect().width;
     table.style.width = "";
     const SAFETY = 32;
-    if (minWidth > wrapBox.clientWidth - SAFETY)
+    if (!scrolls && minWidth > wrapBox.clientWidth - SAFETY)
       problems.push(
         `table needs ${minWidth}px at its narrowest, box has ${wrapBox.clientWidth}px (want ${SAFETY}px spare)`,
       );
     for (const button of document.querySelectorAll("main table button")) {
       const rect = button.getBoundingClientRect();
-      if (rect.left < region.left - 0.5 || rect.right > region.right + 0.5)
+      if (!scrolls && (rect.left < region.left - 0.5 || rect.right > region.right + 0.5))
         problems.push(
           `button "${(button.textContent ?? "").trim()}" ${rect.left}-${rect.right} outside table ${region.left}-${region.right}`,
         );
     }
     return { problems, wrapCells };
-  });
+  }, scrolls);
   expect(result.wrapCells, `${where}: free-text cells found`).toBeGreaterThan(0);
   expect(result.problems, `${where}: split words or buttons outside the table`).toEqual([]);
 }
@@ -258,10 +260,47 @@ for (const rootFont of [false, true]) {
       await expect(page.getByRole("table")).toBeVisible();
       await page.waitForLoadState("networkidle");
       await expectTableWordsWhole(page, `${rootFont ? "20px " : ""}${path}`);
-      await expectWrapCellsAndButtonsFit(page, `${rootFont ? "20px " : ""}${path}`);
+      await expectWrapCellsAndButtonsFit(
+        page,
+        `${rootFont ? "20px " : ""}${path}`,
+        rootFont && path === "/contratos",
+      );
     }
   });
 }
+
+test("contract actions sit on one line at 1024px and wider", async ({ page }) => {
+  const couples = [freshCouple(), freshCouple()];
+  for (const couple of couples) {
+    await page.goto("/contratos/novo");
+    await fillContract(page, couple);
+    await page.getByRole("button", { name: "Adicionar item" }).click();
+    await page.getByLabel("Serviço do item 3").selectOption({ label: "Ensaio de pré-wedding" });
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Salvar" }).click();
+    await download;
+    await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
+  }
+  for (const width of [1024, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/contratos");
+    const rows = couples.map((couple) => page.getByRole("row", { name: new RegExp(couple.label) }));
+    const firstRow = rows[0]!;
+    await expect(firstRow.getByRole("button", { name: "Agendar pré-wedding" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const ys = [];
+    for (const button of await firstRow.getByRole("button").all()) {
+      ys.push((await button.boundingBox())!.y);
+    }
+    expect(ys.length, `${width}px: four actions`).toBe(4);
+    expect(new Set(ys).size, `${width}px: one line, got y ${ys}`).toBe(1);
+    const xs = [];
+    for (const row of rows) {
+      xs.push((await row.getByRole("button", { name: "Agendar pré-wedding" }).boundingBox())!.x);
+    }
+    expect(xs[0], `${width}px: pré-wedding column lines up`).toBeCloseTo(xs[1]!, 0);
+  }
+});
 
 for (const width of WIDTHS) {
   test(`nothing overflows at ${width}px`, async ({ page }) => {
