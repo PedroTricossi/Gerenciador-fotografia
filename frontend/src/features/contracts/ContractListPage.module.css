@@ -6,9 +6,6 @@
 .tableBox {
   container-type: inline-size;
 }
-.noPreweddingSlot {
-  --prewedding-slot: 0px;
-}
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -25,15 +22,22 @@
 /* Doubled class: outranks `.table td button` (white-space: normal) in the shared Table. */
 .actions.actions button {
   white-space: nowrap;
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-1);
 }
-/* A fixed-width slot, wide enough for the longer label, so the pré-wedding button and
-   everything before it line up on every row. Rows wrap only when there is no room. */
+/* The pré-wedding slot stacks the row's button over an invisible copy of the longest label,
+   so it is exactly as wide as that label on every row (any font size) and everything before
+   it lines up, with no reservation beyond what the label needs. */
 .slot {
-  flex: 0 0 var(--prewedding-slot, 11.25rem);
+  display: grid;
+}
+.slot > * {
+  grid-area: 1 / 1;
+}
+.ghost {
+  visibility: hidden;
   display: flex;
 }
-.actions.actions .slot button {
+.ghost > button {
   flex: 1;
 }
 .more {

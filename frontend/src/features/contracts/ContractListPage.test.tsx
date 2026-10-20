@@ -258,6 +258,20 @@ test("actions keep one order, with the pré-wedding slot kept on every row", asy
   expect(actions?.children).toHaveLength(4);
 });
 
+test("no pré-wedding slot is rendered when no row has a pré-wedding", async () => {
+  server.use(
+    http.get("/api/v1/contracts", () => HttpResponse.json(page([makeContract(), second]))),
+  );
+  renderApp("/contratos");
+  for (const name of [/Bruno & Ana/, /Caio & Duda/]) {
+    const actions = within(await screen.findByRole("row", { name })).getByRole("button", {
+      name: "Excluir",
+    }).parentElement;
+    expect(actions?.children).toHaveLength(3);
+    expect(actions).not.toHaveTextContent("pré-wedding");
+  }
+});
+
 test("Desfazer still reports a refused restore after leaving the page", async () => {
   let deleted = false;
   server.use(

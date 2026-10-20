@@ -47,7 +47,7 @@ export function ContractListPage() {
   const pdf = useDownloadPdf();
 
   const rows = contracts.data?.pages.flatMap((result) => result.items) ?? [];
-  // The pré-wedding slot only takes room when some row actually has a button in it.
+  // The pré-wedding slot is only rendered when some row actually has a button in it.
   const anyPrewedding = rows.some((row) => !row.deleted_at && hasPreweddingAction(row));
   const preweddingTarget = rows.find((row) => row.id === preweddingFor) ?? null;
 
@@ -126,14 +126,21 @@ export function ContractListPage() {
             >
               Baixar PDF
             </Button>
-            {hasPreweddingAction(contract) ? (
+            {anyPrewedding && (
               <span className={styles.slot}>
-                <Button onClick={() => setPreweddingFor(contract.id)}>
-                  {preweddingButtonLabel(contract.prewedding)}
-                </Button>
+                {/* "Agendar pré-wedding" is the longest label the slot can hold ("Pré-wedding
+                    dd/mm" is shorter), so this invisible copy sets the slot's width. */}
+                <span className={styles.ghost} aria-hidden="true">
+                  <Button disabled tabIndex={-1}>
+                    {preweddingButtonLabel(null)}
+                  </Button>
+                </span>
+                {hasPreweddingAction(contract) && (
+                  <Button onClick={() => setPreweddingFor(contract.id)}>
+                    {preweddingButtonLabel(contract.prewedding)}
+                  </Button>
+                )}
               </span>
-            ) : (
-              <span className={styles.slot} aria-hidden="true" />
             )}
             <Button variant="danger" onClick={() => setPendingDelete(contract)}>
               Excluir
@@ -156,7 +163,7 @@ export function ContractListPage() {
         </Banner>
       )}
       {contracts.isSuccess && (
-        <div className={`${styles.tableBox} ${anyPrewedding ? "" : styles.noPreweddingSlot}`}>
+        <div className={styles.tableBox}>
           <Table
             label="Contratos"
             columns={columns}
