@@ -3,6 +3,30 @@
   margin: 0 auto;
   padding: var(--space-6) var(--space-6) var(--space-8);
 }
+/* A new page prints top to bottom, one block after the other, like terminal output. */
+.page > * {
+  animation: print 1ms backwards;
+}
+.page > :nth-child(2) {
+  animation-delay: 70ms;
+}
+.page > :nth-child(3) {
+  animation-delay: 140ms;
+}
+.page > :nth-child(4) {
+  animation-delay: 210ms;
+}
+.page > :nth-child(5) {
+  animation-delay: 280ms;
+}
+.page > :nth-child(n + 6) {
+  animation-delay: 350ms;
+}
+@keyframes print {
+  from {
+    opacity: 0;
+  }
+}
 .header {
   display: flex;
   flex-wrap: wrap;
@@ -26,6 +50,28 @@
 .title::after {
   content: "_" / "";
   color: var(--color-text-muted);
+  animation: blink 1.06s steps(1, end) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+/* While the title types, its own text is see-through and an overlay draws the
+   letters typed so far with the cursor right after them. */
+.typing::after {
+  visibility: hidden;
+}
+.typing > span {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+}
+.typing > span::after {
+  content: attr(data-typed) "_" / "";
+  position: absolute;
+  inset: 0;
+  color: var(--color-text);
 }
 .actions {
   display: flex;
