@@ -36,7 +36,9 @@ def test_standard_fee_starts_empty_then_adds_and_replaces(api: TestClient) -> No
     events = _events(api, "second_photographer_fee.set")
     assert all(e["entity_type"] == "second_photographer_fee" for e in events)
     assert next(e["details"] for e in events) == {"from_month": "2026-06"}
-    assert "55000" not in str(events)
+    for event in events:
+        assert set(event["details"]) <= {"from_month"}
+        assert 55000 not in event["details"].values()
 
 
 def test_bad_month_is_refused(api: TestClient) -> None:

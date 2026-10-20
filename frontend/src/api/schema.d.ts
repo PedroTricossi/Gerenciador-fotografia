@@ -581,6 +581,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_api_v1_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transport-guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Transport Guide */
+        get: operations["transport_guide_api_v1_transport_guide_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-events": {
         parameters: {
             query?: never;
@@ -1053,6 +1087,35 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** GuideTripOut */
+        GuideTripOut: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Event Kind
+             * @enum {string}
+             */
+            event_kind: "wedding" | "prewedding";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Cost Cents */
+            cost_cents: number;
+            /** Distance Tenths */
+            distance_tenths: number;
+            /** Left Home At */
+            left_home_at: string | null;
+            /** Transport Kind */
+            transport_kind: string | null;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Contract Deleted */
+            contract_deleted: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1136,6 +1199,39 @@ export interface components {
             /** Amount Cents */
             amount_cents: number;
         };
+        /** OverviewOut */
+        OverviewOut: {
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /** Not Started */
+            not_started: boolean;
+            /** In Cents */
+            in_cents: number;
+            /** Out Cents */
+            out_cents: number;
+            /** By Type */
+            by_type: components["schemas"]["TypeShareOut"][];
+            /** Missing Fee Count */
+            missing_fee_count: number;
+            /** Free Today Cents */
+            free_today_cents: number;
+            /** Opening Cents */
+            opening_cents: number;
+            /** Statement */
+            statement: (components["schemas"]["StatementInOut"] | components["schemas"]["StatementOutOut"])[];
+            /** Upcoming */
+            upcoming: components["schemas"]["UpcomingMonthOut"][];
+            /** Late Cents */
+            late_cents: number;
+        };
         /** PageOut[AuditEventOut] */
         PageOut_AuditEventOut_: {
             /** Items */
@@ -1179,6 +1275,13 @@ export interface components {
             items?: components["schemas"]["ItemIn"][] | null;
             /** Pix Discount Cents */
             pix_discount_cents?: number | null;
+        };
+        /** PerKmByKindOut */
+        PerKmByKindOut: {
+            /** Transport Kind */
+            transport_kind: string;
+            /** Cents Per Km */
+            cents_per_km: number;
         };
         /** PersonIn */
         PersonIn: {
@@ -1312,10 +1415,72 @@ export interface components {
             /** Date */
             date?: string | null;
         };
+        /** StatementInOut */
+        StatementInOut: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "in";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Amount Cents */
+            amount_cents: number;
+            /** Contract Id */
+            contract_id: string;
+            /** Number */
+            number: number;
+            /** Count */
+            count: number;
+            /** Groom Name */
+            groom_name: string | null;
+            /** Bride Name */
+            bride_name: string | null;
+            /** Contract Deleted */
+            contract_deleted: boolean;
+        };
+        /** StatementOutOut */
+        StatementOutOut: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "out";
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Amount Cents */
+            amount_cents: number;
+            entry: components["schemas"]["ExpenseEntryOut"];
+        };
         /** StopIn */
         StopIn: {
             /** End Month */
             end_month: string;
+        };
+        /** TransportGuideOut */
+        TransportGuideOut: {
+            /** Trips Total */
+            trips_total: number;
+            /** Similar */
+            similar: components["schemas"]["GuideTripOut"][];
+            /** Typical Cents */
+            typical_cents: number | null;
+            /** Min Cents */
+            min_cents: number | null;
+            /** Max Cents */
+            max_cents: number | null;
+            /** Per Km By Kind */
+            per_km_by_kind: components["schemas"]["PerKmByKindOut"][];
+            /** Day Cents Per Km */
+            day_cents_per_km: number | null;
+            /** Night Cents Per Km */
+            night_cents_per_km: number | null;
         };
         /** TripIn */
         TripIn: {
@@ -1357,6 +1522,30 @@ export interface components {
             left_home_at: string;
             /** Distance Tenths */
             distance_tenths: number;
+        };
+        /** TypeShareOut */
+        TypeShareOut: {
+            /** Type Id */
+            type_id: string;
+            /** Type Name */
+            type_name: string;
+            /** Palette Slot */
+            palette_slot: number | null;
+            /** Amount Cents */
+            amount_cents: number;
+        };
+        /** UpcomingMonthOut */
+        UpcomingMonthOut: {
+            /** Month */
+            month: string;
+            /** Rest Of Month */
+            rest_of_month: boolean;
+            /** In Cents */
+            in_cents: number;
+            /** Out Cents */
+            out_cents: number;
+            /** Projected Free Cents */
+            projected_free_cents: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -2925,6 +3114,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_api_v1_overview_get: {
+        parameters: {
+            query: {
+                period: "month" | "year";
+                value: string;
+                today: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transport_guide_api_v1_transport_guide_get: {
+        parameters: {
+            query: {
+                today: string;
+                distance_tenths?: number | null;
+                left_home_at?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransportGuideOut"];
+                };
             };
             /** @description Validation Error */
             422: {

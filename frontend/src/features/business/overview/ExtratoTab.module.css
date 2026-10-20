@@ -1,0 +1,20 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+.total {
+  margin: 0;
+  text-align: end;
+  font-weight: 700;
+}
+.month {
+  text-align: start;
+  text-transform: capitalize;
+  font-weight: var(--font-weight-strong);
+}

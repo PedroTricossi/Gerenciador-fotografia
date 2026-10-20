@@ -15,3 +15,4 @@ export { Checkbox } from "./Checkbox";
 export { FormSection } from "./FormSection";
 export { EmptyState, Hint, Loading, TextLink } from "./Text";
 export { SegmentedControl } from "./SegmentedControl";
+export { PALETTE_SIZE, paletteVar } from "./palette";

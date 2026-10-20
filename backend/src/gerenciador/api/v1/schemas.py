@@ -35,7 +35,9 @@ from gerenciador.services.expense_service import EventChoice, ExpenseInput, Expe
 from gerenciador.services.expense_type_service import ExpenseTypeView
 from gerenciador.services.fixed_cost_service import FixedCostView, PriceView
 from gerenciador.services.instalment_service import InstalmentListEntry
+from gerenciador.services.overview_service import OverviewView, StatementIn
 from gerenciador.services.prewedding_service import PreweddingInput, PreweddingView
+from gerenciador.services.transport_guide_service import GuideView
 
 
 def _blank_to_none(value: Any) -> Any:
@@ -779,3 +781,126 @@ class AuditEventOut(BaseModel):
     @classmethod
     def from_event(cls, event: AuditEvent) -> Self:
         return cls.model_validate(event)
+
+
+class TypeShareOut(BaseModel):
+    type_id: str
+    type_name: str
+    palette_slot: int | None
+    amount_cents: int
+
+
+class StatementInOut(BaseModel):
+    kind: Literal["in"] = "in"
+    date: dt.date
+    amount_cents: int
+    contract_id: str
+    number: int
+    count: int
+    groom_name: str | None
+    bride_name: str | None
+    contract_deleted: bool
+
+
+class StatementOutOut(BaseModel):
+    kind: Literal["out"] = "out"
+    date: dt.date
+    amount_cents: int
+    entry: ExpenseEntryOut
+
+
+StatementRowOut = Annotated[StatementInOut | StatementOutOut, Field(discriminator="kind")]
+
+
+class UpcomingMonthOut(BaseModel):
+    month: str
+    rest_of_month: bool
+    in_cents: int
+    out_cents: int
+    projected_free_cents: int
+
+
+class OverviewOut(BaseModel):
+    period_start: dt.date
+    period_end: dt.date
+    not_started: bool
+    in_cents: int
+    out_cents: int
+    by_type: list[TypeShareOut]
+    missing_fee_count: int
+    free_today_cents: int
+    opening_cents: int
+    statement: list[StatementRowOut]
+    upcoming: list[UpcomingMonthOut]
+    late_cents: int
+
+    @classmethod
+    def from_view(cls, view: OverviewView) -> Self:
+        rows: list[StatementInOut | StatementOutOut] = [
+            StatementInOut.model_validate(asdict(row))
+            if isinstance(row, StatementIn)
+            else StatementOutOut(
+                date=row.date,
+                amount_cents=row.amount_cents,
+                entry=ExpenseEntryOut.model_validate(asdict(row.entry)),
+            )
+            for row in view.statement
+        ]
+        return cls(
+            **{k: v for k, v in asdict(view).items() if k not in ("statement",)},
+            statement=rows,
+        )
+
+
+class GuideTripOut(BaseModel):
+    contract_id: str
+    event_kind: EventKind
+    date: dt.date
+    cost_cents: int
+    distance_tenths: int
+    left_home_at: ClockTime | None
+    transport_kind: str | None
+    groom_name: str | None
+    bride_name: str | None
+    contract_deleted: bool
+
+
+class PerKmByKindOut(BaseModel):
+    transport_kind: str
+    cents_per_km: int
+
+
+class TransportGuideOut(BaseModel):
+    trips_total: int
+    similar: list[GuideTripOut]
+    typical_cents: int | None
+    min_cents: int | None
+    max_cents: int | None
+    per_km_by_kind: list[PerKmByKindOut]
+    day_cents_per_km: int | None
+    night_cents_per_km: int | None
+
+    @classmethod
+    def from_view(cls, view: GuideView) -> Self:
+        result = view.result
+        return cls(
+            trips_total=view.trips_total,
+            similar=[
+                GuideTripOut(
+                    **asdict(row.trip),
+                    groom_name=row.groom_name,
+                    bride_name=row.bride_name,
+                    contract_deleted=row.contract_deleted,
+                )
+                for row in view.similar
+            ],
+            typical_cents=result.typical_cents,
+            min_cents=result.min_cents,
+            max_cents=result.max_cents,
+            per_km_by_kind=[
+                PerKmByKindOut(transport_kind=kind, cents_per_km=cents)
+                for kind, cents in sorted(result.per_km_by_kind.items())
+            ],
+            day_cents_per_km=result.day_per_km,
+            night_cents_per_km=result.night_per_km,
+        )

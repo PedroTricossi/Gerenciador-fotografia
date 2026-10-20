@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Schemas, api, unwrap } from "./client";
-import { expenseKeys } from "./keys";
+import { expenseKeys, overviewKeys } from "./keys";
 
 export { expenseKeys };
 
@@ -62,7 +62,11 @@ export function useSecondPhotographerFee() {
 // refreshes the whole family.
 function useRefresh() {
   const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: expenseKeys.all });
+  return () =>
+    Promise.all([
+      client.invalidateQueries({ queryKey: expenseKeys.all }),
+      client.invalidateQueries({ queryKey: overviewKeys.all }),
+    ]);
 }
 
 export function useCreateExpenseType() {

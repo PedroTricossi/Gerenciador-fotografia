@@ -92,6 +92,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         ["/servicos", "/servicos"],
         ["/negocio", "/negocio"],
         ["/negocio despesas", "/negocio?aba=despesas"],
+        ["/negocio resumo", "/negocio?aba=resumo"],
+        ["/negocio extrato", "/negocio?aba=extrato"],
       ];
       for (const [name, path] of screens) {
         test(`${name} has no accessibility violations`, async ({ page }) => {

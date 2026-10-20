@@ -1,0 +1,80 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  gap: var(--space-3);
+}
+.card,
+.box {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-box);
+  background: var(--color-surface);
+  padding: var(--space-3);
+}
+.cardLabel {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
+  text-transform: uppercase;
+}
+.big {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+.negative {
+  color: var(--color-danger);
+}
+.note {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+.warning {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-danger);
+  border-radius: var(--radius-control);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-weight: var(--font-weight-strong);
+}
+.bar {
+  display: flex;
+  gap: 2px;
+  height: 1.5rem;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.slice {
+  display: block;
+  min-width: 2px;
+}
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.legendItem {
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.strong {
+  font-weight: 700;
+}
+.swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-inline-end: var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  vertical-align: middle;
+}

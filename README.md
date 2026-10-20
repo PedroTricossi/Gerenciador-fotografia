@@ -90,6 +90,18 @@ force that month; **Ajustar** changes it for one wedding without touching the
 standard. **Tipos de despesa** manages the categories. Future rows are marked
 **prevista**.
 
+### Resumo, Extrato e Guia de transporte
+
+The **Resumo** tab on the Negócio page shows, for a month or a year, what came
+in (instalments marked paid), what went out (expenses, fixed costs and the
+second photographer's fee), what is left, and where the money went, plus
+**Livre hoje** (everything received minus everything spent so far) and a
+**Próximos meses** table of what is still to receive and pay. The **Extrato**
+tab lists the same movements day by day with the running balance (**Livre**).
+At the bottom of Resumo, the **Guia de transporte** estimates what a trip will
+cost: type the distance (and optionally when you leave home) and it lists
+similar past trips, with the typical cost drawn from them.
+
 ### Pré-wedding
 
 A contract that includes a pre-wedding service can carry its pre-wedding

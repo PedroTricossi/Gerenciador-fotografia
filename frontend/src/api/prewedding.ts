@@ -1,16 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type PreweddingIn, api, unwrap } from "./client";
-import { contractKeys } from "./keys";
+import { contractKeys, expenseKeys, overviewKeys } from "./keys";
 
 const path = (contractId: string) => ({ path: { contract_id: contractId } });
 
-// The list and the contract page both show the pre-wedding.
+// The list, the contract page, Resumo and Despesas (the pre-wedding's transport) show it.
 function useRefresh() {
   const client = useQueryClient();
   return (contractId: string) =>
     Promise.all([
       client.invalidateQueries({ queryKey: contractKeys.all }),
       client.invalidateQueries({ queryKey: contractKeys.one(contractId) }),
+      client.invalidateQueries({ queryKey: overviewKeys.all }),
+      client.invalidateQueries({ queryKey: expenseKeys.all }),
     ]);
 }
 

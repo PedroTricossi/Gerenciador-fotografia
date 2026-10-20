@@ -12,9 +12,11 @@ from gerenciador.api.v1 import (
     fixed_costs,
     health,
     instalments,
+    overview,
     prewedding,
     second_photographer,
     services,
+    transport_guide,
 )
 
 # Every route resolves the actor, so adding login means replacing one dependency.
@@ -31,4 +33,6 @@ api_router.include_router(expenses.router)
 api_router.include_router(expense_entries.router)
 api_router.include_router(fixed_costs.router)
 api_router.include_router(second_photographer.router)
+api_router.include_router(overview.router)
+api_router.include_router(transport_guide.router)
 api_router.include_router(audit.router)
