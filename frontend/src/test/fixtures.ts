@@ -181,6 +181,8 @@ export function makeExpenseEntry(overrides: Partial<ExpenseEntryOut> = {}): Expe
     left_home_at: null,
     distance_tenths: null,
     override: false,
+    instalment_number: null,
+    instalment_count: null,
     ...overrides,
   };
 }

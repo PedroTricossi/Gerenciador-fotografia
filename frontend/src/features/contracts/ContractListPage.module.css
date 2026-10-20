@@ -3,11 +3,46 @@
   justify-content: flex-end;
   margin-bottom: var(--space-3);
 }
+.tableBox {
+  container-type: inline-size;
+}
 .actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-2);
+  gap: var(--space-1);
+}
+/* One line while the table has room; below this width (narrow screens, or large text, since
+   rem grows with it) the actions may wrap instead of pushing the table sideways. */
+@container (min-width: 56rem) {
+  .actions {
+    flex-wrap: nowrap;
+  }
+  /* Doubled class: outranks `.table td button` (white-space: normal) in the shared Table.
+     Below this width a label may still break between words, so the slot's longest label
+     doesn't set the column's narrowest width. */
+  .actions.actions button {
+    white-space: nowrap;
+  }
+}
+.actions.actions button {
+  padding-inline: var(--space-1);
+}
+/* The pré-wedding slot stacks the row's button over an invisible copy of the longest label,
+   so it is exactly as wide as that label on every row (any font size) and everything before
+   it lines up, with no reservation beyond what the label needs. */
+.slot {
+  display: grid;
+}
+.slot > * {
+  grid-area: 1 / 1;
+}
+.ghost {
+  visibility: hidden;
+  display: flex;
+}
+.ghost > button {
+  flex: 1;
 }
 .more {
   display: flex;

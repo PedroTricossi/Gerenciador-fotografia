@@ -4,6 +4,7 @@ import pytest
 
 from gerenciador.domain.expenses import (
     MAX_RANGE_MONTHS,
+    expense_instalments,
     fee_amount,
     fixed_cost_occurrences,
     months_in,
@@ -82,3 +83,26 @@ def test_fee_amount_prefers_the_override_then_the_standard() -> None:
     assert fee_amount(standard, None, "2026-05") is None
     assert fee_amount(standard, None, "2026-06") == 50000
     assert fee_amount(standard, 70000, "2026-05") == 70000
+
+
+def test_one_instalment_is_the_whole_amount_on_the_date():
+    assert expense_instalments(dt.date(2026, 10, 10), 2500, 1) == [(1, dt.date(2026, 10, 10), 2500)]
+
+
+def test_split_puts_leftover_on_the_last():
+    assert expense_instalments(dt.date(2026, 1, 15), 100000, 3) == [
+        (1, dt.date(2026, 1, 15), 33333),
+        (2, dt.date(2026, 2, 15), 33333),
+        (3, dt.date(2026, 3, 15), 33334),
+    ]
+
+
+def test_day_31_clamps_per_month_without_drifting():
+    dates = [d for _, d, _ in expense_instalments(dt.date(2026, 1, 31), 300, 3)]
+    assert dates == [dt.date(2026, 1, 31), dt.date(2026, 2, 28), dt.date(2026, 3, 31)]
+
+
+def test_twenty_four_instalments_cross_two_years():
+    result = expense_instalments(dt.date(2026, 12, 5), 2400, 24)
+    assert len(result) == 24 and result[-1][1] == dt.date(2028, 11, 5)
+    assert sum(amount for _, _, amount in result) == 2400

@@ -316,3 +316,25 @@ def test_palette_slots_follow_creation_order(
     assert shares[archived] == (expected[archived] if expected[archived] < 8 else None)
     assert None in shares.values()
     assert any(slot is not None for slot in shares.values())
+
+
+def test_month_totals_sum_to_the_purchase_total(api: TestClient) -> None:
+    response = api.post(
+        EXPENSES,
+        json={
+            "spent_on": "2026-01-15",
+            "amount_cents": 100000,
+            "type_id": _type_id(api, "Café"),
+            "description": "x",
+            "trip": None,
+            "instalment_count": 7,
+        },
+    )
+    assert response.status_code == 201, response.text
+
+    months = [f"2026-{m:02d}" for m in range(1, 8)]
+    outs = [_overview(api, "month", m, today="2027-01-01")["out_cents"] for m in months]
+
+    assert sum(outs) == 100000
+    assert outs[:-1] == [14285] * 6
+    assert outs[-1] == 14290

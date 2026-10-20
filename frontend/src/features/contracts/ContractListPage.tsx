@@ -30,6 +30,10 @@ import { coupleLabel } from "./names";
 import { PreweddingDialog } from "./PreweddingDialog";
 import { preweddingButtonLabel } from "./preweddingForm";
 
+function hasPreweddingAction(contract: ContractOut) {
+  return contract.has_prewedding || contract.prewedding !== null;
+}
+
 export function ContractListPage() {
   const navigate = useNavigate();
   const notify = useToast();
@@ -43,6 +47,8 @@ export function ContractListPage() {
   const pdf = useDownloadPdf();
 
   const rows = contracts.data?.pages.flatMap((result) => result.items) ?? [];
+  // The pré-wedding slot is only rendered when some row actually has a button in it.
+  const anyPrewedding = rows.some((row) => !row.deleted_at && hasPreweddingAction(row));
   const preweddingTarget = rows.find((row) => row.id === preweddingFor) ?? null;
 
   const failureHandler = (messages: { 404: string; 409: string }) => (error: unknown) => {
@@ -113,11 +119,6 @@ export function ContractListPage() {
           </Button>
         ) : (
           <span className={styles.actions}>
-            {(contract.has_prewedding || contract.prewedding !== null) && (
-              <Button onClick={() => setPreweddingFor(contract.id)}>
-                {preweddingButtonLabel(contract.prewedding)}
-              </Button>
-            )}
             <Button onClick={() => navigate(`/contratos/${contract.id}`)}>Editar</Button>
             <Button
               onClick={() => pdf.mutate(contract.id, { onError: onPdfError })}
@@ -125,6 +126,22 @@ export function ContractListPage() {
             >
               Baixar PDF
             </Button>
+            {anyPrewedding && (
+              <span className={styles.slot}>
+                {/* "Agendar pré-wedding" is the longest label the slot can hold ("Pré-wedding
+                    dd/mm" is shorter), so this invisible copy sets the slot's width. */}
+                <span className={styles.ghost} aria-hidden="true">
+                  <Button disabled tabIndex={-1}>
+                    {preweddingButtonLabel(null)}
+                  </Button>
+                </span>
+                {hasPreweddingAction(contract) && (
+                  <Button onClick={() => setPreweddingFor(contract.id)}>
+                    {preweddingButtonLabel(contract.prewedding)}
+                  </Button>
+                )}
+              </span>
+            )}
             <Button variant="danger" onClick={() => setPendingDelete(contract)}>
               Excluir
             </Button>
@@ -146,14 +163,16 @@ export function ContractListPage() {
         </Banner>
       )}
       {contracts.isSuccess && (
-        <Table
-          label="Contratos"
-          columns={columns}
-          rows={rows}
-          rowKey={(contract) => contract.id}
-          rowMuted={(contract) => contract.deleted_at !== null}
-          empty={<EmptyState action={newContract}>Nenhum contrato ainda</EmptyState>}
-        />
+        <div className={styles.tableBox}>
+          <Table
+            label="Contratos"
+            columns={columns}
+            rows={rows}
+            rowKey={(contract) => contract.id}
+            rowMuted={(contract) => contract.deleted_at !== null}
+            empty={<EmptyState action={newContract}>Nenhum contrato ainda</EmptyState>}
+          />
+        </div>
       )}
       {contracts.hasNextPage && (
         <div className={styles.more}>

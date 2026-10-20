@@ -189,6 +189,9 @@ class Expense(Base):
             "event_kind IN ('wedding','prewedding')", name="ck_expenses_event_kind_known"
         ),
         CheckConstraint("distance_tenths BETWEEN 1 AND 50000", name="ck_expenses_distance_range"),
+        CheckConstraint(
+            "instalment_count BETWEEN 1 AND 24", name="ck_expenses_instalment_count_range"
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -205,6 +208,7 @@ class Expense(Base):
     transport_kind: Mapped[str | None] = mapped_column(String(20))
     left_home_at: Mapped[dt.time | None]
     distance_tenths: Mapped[int | None] = mapped_column(Integer)
+    instalment_count: Mapped[int] = mapped_column(Integer, server_default="1")
     version: Mapped[int]
     created_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
     updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)

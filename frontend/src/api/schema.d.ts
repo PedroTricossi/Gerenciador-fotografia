@@ -956,6 +956,10 @@ export interface components {
             distance_tenths: number | null;
             /** Override */
             override: boolean;
+            /** Instalment Number */
+            instalment_number: number | null;
+            /** Instalment Count */
+            instalment_count: number | null;
         };
         /** ExpenseEventOut */
         ExpenseEventOut: {
@@ -997,6 +1001,11 @@ export interface components {
             /** Description */
             description?: string | null;
             trip?: components["schemas"]["TripIn"] | null;
+            /**
+             * Instalment Count
+             * @default 1
+             */
+            instalment_count: number;
         };
         /** ExpenseOut */
         ExpenseOut: {
@@ -1014,6 +1023,8 @@ export interface components {
             /** Description */
             description: string | null;
             trip: components["schemas"]["TripOut"] | null;
+            /** Instalment Count */
+            instalment_count: number;
             /** Version */
             version: number;
             /**

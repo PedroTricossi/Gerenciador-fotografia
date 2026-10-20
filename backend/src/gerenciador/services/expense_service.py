@@ -38,6 +38,7 @@ class ExpenseInput:
     type_id: str
     description: str | None
     trip: TripInput | None
+    instalment_count: int = 1
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ class ExpenseView:
     type_id: str
     description: str | None
     trip: TripInput | None
+    instalment_count: int
     version: int
     created_at: dt.datetime
 
@@ -89,9 +91,17 @@ def _view(expense: Expense) -> ExpenseView:
         type_id=expense.type_id,
         description=expense.description,
         trip=_trip(expense),
+        instalment_count=expense.instalment_count,
         version=expense.version,
         created_at=expense.created_at,
     )
+
+
+def _check_total(data: ExpenseInput) -> None:
+    if data.amount_cents < data.instalment_count:
+        raise ContractRuleError(
+            "amount_cents", "o valor total deve ser de pelo menos 1 centavo por parcela"
+        )
 
 
 def _apply_trip(expense: Expense, trip: TripInput | None) -> None:
@@ -110,6 +120,7 @@ class ExpenseService:
         self._audit = audit
 
     def create(self, ctx: RequestContext, data: ExpenseInput) -> ExpenseView:
+        _check_total(data)
         expense_type = self._types.require_active(data.type_id)
         is_transport = expense_type.key == TRANSPORT_KEY
         if data.trip is not None:
@@ -123,6 +134,7 @@ class ExpenseService:
             amount_cents=data.amount_cents,
             type_id=data.type_id,
             description=data.description,
+            instalment_count=data.instalment_count,
             version=1,
             created_at=now,
             updated_at=now,
@@ -135,7 +147,7 @@ class ExpenseService:
             "expense.created",
             entity_type=_ENTITY,
             entity_id=expense.id,
-            details={"version": 1},
+            details={"version": 1, "instalment_count": data.instalment_count},
         )
         self._session.commit()
         return _view(expense)
@@ -149,6 +161,7 @@ class ExpenseService:
         expense = self._require(expense_id)
         if expense.version != expected_version:
             raise StaleVersionError(_ENTITY)
+        _check_total(data)
         # The type it already has stays acceptable even after it was archived.
         if data.type_id == expense.type_id:
             expense_type = expense.type
@@ -167,6 +180,7 @@ class ExpenseService:
                 ("type_id", data.type_id != expense.type_id),
                 ("description", data.description != expense.description),
                 ("trip", trip != stored),
+                ("instalment_count", data.instalment_count != expense.instalment_count),
             )
             if differs
         ]
@@ -176,6 +190,7 @@ class ExpenseService:
             expense.type_id = data.type_id
             expense.type = expense_type
             expense.description = data.description
+            expense.instalment_count = data.instalment_count
             _apply_trip(expense, trip)
             expense.version += 1
             expense.updated_at = utcnow()

@@ -61,6 +61,26 @@ test("creates a fixed cost with the expected body", async () => {
       amount_cents: 12400,
     }),
   );
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Despesas fixas" })).toBeNull());
+  expect(await screen.findByText("Despesa fixa criada")).toBeInTheDocument();
+});
+
+test("a refused create keeps the dialog open with the field error", async () => {
+  server.use(
+    http.post("/api/v1/fixed-costs", () =>
+      problem(422, "invalid", { errors: [{ field: "amount_cents", message: "valor inválido" }] }),
+    ),
+  );
+  const { user, dialog } = await openDialog();
+  await user.type(within(dialog).getByLabelText("Nome"), "Adobe 2");
+  await user.type(within(dialog).getByLabelText("Dia"), "3");
+  await user.type(within(dialog).getByLabelText("Valor"), "124,00");
+  await user.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+  await waitFor(() =>
+    expect(within(dialog).getByLabelText("Valor")).toHaveAccessibleDescription(/valor inválido/),
+  );
+  expect(screen.getByRole("dialog", { name: "Despesas fixas" })).toBeInTheDocument();
+  expect(screen.queryByText("Despesa fixa criada")).toBeNull();
 });
 
 test("a day outside 1 to 31 is a field error and sends nothing", async () => {

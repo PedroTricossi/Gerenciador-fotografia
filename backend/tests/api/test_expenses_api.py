@@ -71,7 +71,7 @@ def _fields(response: Any) -> list[str]:
     return [error["field"] for error in response.json()["errors"]]
 
 
-def test_create_without_trip_audits_only_the_version(api: TestClient) -> None:
+def test_create_without_trip_audits_only_version_and_count(api: TestClient) -> None:
     response = api.post(URL, json=_body(api))
     assert response.status_code == 201
     body = response.json()
@@ -81,7 +81,7 @@ def test_create_without_trip_audits_only_the_version(api: TestClient) -> None:
     assert response.headers["ETag"] == '"1"'
     assert response.headers["Location"] == f"{URL}/{body['id']}"
     events = [e for e in api.get(AUDIT).json()["items"] if e["action"] == "expense.created"]
-    assert events[0]["details"] == {"version": 1}
+    assert events[0]["details"] == {"version": 1, "instalment_count": 1}
     assert api.get(f"{URL}/{body['id']}").json() == body
 
 
@@ -330,3 +330,62 @@ def test_audit_holds_no_description_amount_or_distance(
     text = json.dumps(events, ensure_ascii=False)
     for value in (secret, "987654", "876543", "43211", "4321.1"):
         assert value not in text
+
+
+def test_create_with_instalments_returns_the_total_and_count(api: TestClient) -> None:
+    response = api.post(
+        URL, json=_body(api, "Equipamento", amount_cents=100000, instalment_count=3)
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["amount_cents"] == 100000
+    assert body["instalment_count"] == 3
+    assert api.get(f"{URL}/{body['id']}").json() == body
+
+
+def test_count_defaults_to_one(api: TestClient) -> None:
+    assert _create(api, _body(api))["instalment_count"] == 1
+
+
+@pytest.mark.parametrize("count", [0, 25])
+def test_count_outside_1_to_24_is_refused(api: TestClient, count: int) -> None:
+    response = api.post(URL, json=_body(api, instalment_count=count))
+    assert response.status_code == 422
+    assert _fields(response) == ["instalment_count"]
+
+
+def test_total_below_count_is_refused(api: TestClient) -> None:
+    response = api.post(URL, json=_body(api, amount_cents=5, instalment_count=10))
+    assert response.status_code == 422
+    assert _fields(response) == ["amount_cents"]
+
+
+def test_patch_without_count_resets_to_one(api: TestClient) -> None:
+    created = _create(api, _body(api, amount_cents=9000, instalment_count=3))
+    response = _patch(api, created, _body(api, amount_cents=9000))
+    assert response.status_code == 200
+    assert response.json()["instalment_count"] == 1
+    assert response.json()["version"] == 2
+
+
+def test_patch_changes_the_count_and_audits_it(api: TestClient) -> None:
+    created = _create(api, _body(api, amount_cents=9000, instalment_count=3))
+    response = _patch(api, created, _body(api, amount_cents=9000, instalment_count=10))
+    assert response.status_code == 200
+    assert response.json()["instalment_count"] == 10
+    events = [e for e in api.get(AUDIT).json()["items"] if e["action"] == "expense.updated"]
+    assert "instalment_count" in events[0]["details"]["fields"]
+
+
+def test_patch_total_below_count_is_refused(api: TestClient) -> None:
+    created = _create(api, _body(api))
+    response = _patch(api, created, _body(api, amount_cents=5, instalment_count=10))
+    assert response.status_code == 422
+    assert _fields(response) == ["amount_cents"]
+
+
+def test_delete_removes_an_instalment_expense(api: TestClient) -> None:
+    created = _create(api, _body(api, amount_cents=9000, instalment_count=3))
+    url = f"{URL}/{created['id']}"
+    assert api.delete(url, headers={"If-Match": '"1"'}).status_code == 204
+    assert api.get(url).status_code == 404

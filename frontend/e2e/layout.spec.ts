@@ -3,6 +3,7 @@ import {
   createLongNamedContract,
   createSplitContract,
   expect,
+  fillContract,
   freshCouple,
   test,
   uniqueSuffix,
@@ -262,6 +263,71 @@ for (const rootFont of [false, true]) {
     }
   });
 }
+
+test("contract actions sit on one line and line up at 1280px and wider, and stay inside the table at 1024px", async ({
+  page,
+}) => {
+  // Row 0: pré-wedding not scheduled; row 1: scheduled; row 2: no pré-wedding at all.
+  const couples = [freshCouple(), freshCouple(), freshCouple()];
+  for (const [index, couple] of couples.entries()) {
+    await page.goto("/contratos/novo");
+    await fillContract(page, couple);
+    if (index < 2) {
+      await page.getByRole("button", { name: "Adicionar item" }).click();
+      await page.getByLabel("Serviço do item 3").selectOption({ label: "Ensaio de pré-wedding" });
+    }
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Salvar" }).click();
+    await download;
+    await expect(page).toHaveURL(/\/contratos\/[0-9a-f-]{36}$/);
+  }
+  await page.goto("/contratos");
+  await page
+    .getByRole("row", { name: new RegExp(couples[1]!.label) })
+    .getByRole("button", { name: "Agendar pré-wedding" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Pré-wedding" });
+  await dialog.getByLabel("Data").fill("2027-01-20");
+  await dialog.getByLabel("Local").fill("Parque Barigui");
+  await dialog.getByLabel("Horário").fill("16:00");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Pré-wedding agendado")).toBeVisible();
+
+  for (const width of [1024, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/contratos");
+    const rows = couples.map((couple) => page.getByRole("row", { name: new RegExp(couple.label) }));
+    await expect(rows[0]!.getByRole("button", { name: "Agendar pré-wedding" })).toBeVisible();
+    await expect(rows[1]!.getByRole("button", { name: "Pré-wedding 20/01" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const region = (await page.locator("main [role='region'][tabindex='0']").boundingBox())!;
+    const xs: Record<string, number[]> = { Editar: [], "Baixar PDF": [], Excluir: [], slot: [] };
+    for (const [index, row] of rows.entries()) {
+      const where = `${width}px row ${index}`;
+      const boxes = [];
+      for (const button of await row.getByRole("button").all()) {
+        boxes.push({ name: await button.textContent(), box: (await button.boundingBox())! });
+      }
+      expect(boxes.length, `${where}: actions`).toBe(index < 2 ? 4 : 3);
+      // At 1024px the content box is 692px: four buttons plus the other columns cannot fit on
+      // one line, so the actions wrap there (inside the table) instead of scrolling it.
+      if (width >= 1280)
+        expect(new Set(boxes.map((b) => b.box.y)).size, `${where}: one line`).toBe(1);
+      for (const { name, box } of boxes) {
+        expect(box.x, `${where}: ${name} inside the table`).toBeGreaterThanOrEqual(region.x - 0.5);
+        expect(box.x + box.width, `${where}: ${name} inside the table`).toBeLessThanOrEqual(
+          region.x + region.width + 0.5,
+        );
+        if (name === "Editar" || name === "Baixar PDF" || name === "Excluir") xs[name]!.push(box.x);
+        else xs.slot!.push(box.x);
+      }
+    }
+    for (const [name, list] of width >= 1280 ? Object.entries(xs) : []) {
+      for (const x of list)
+        expect(x, `${width}px: ${name} lines up across rows`).toBeCloseTo(list[0]!, 0);
+    }
+  }
+});
 
 for (const width of WIDTHS) {
   test(`nothing overflows at ${width}px`, async ({ page }) => {

@@ -231,6 +231,47 @@ test("a 404 on Baixar PDF says the contract is gone and refetches the list", asy
   await waitFor(() => expect(lists).toBe(2));
 });
 
+test("actions keep one order, with the pré-wedding slot kept on every row", async () => {
+  const withPrewedding = makeContract({
+    has_prewedding: true,
+    prewedding: {
+      date: "2027-05-12",
+      venue_name: "Parque",
+      venue_address: "",
+      start_time: "16:00",
+      version: 1,
+    },
+  });
+  server.use(
+    http.get("/api/v1/contracts", () => HttpResponse.json(page([withPrewedding, second]))),
+  );
+  renderApp("/contratos");
+  const first = await screen.findByRole("row", { name: /Bruno & Ana/ });
+  const names = (r: HTMLElement) =>
+    within(r)
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+  expect(names(first)).toEqual(["Editar", "Baixar PDF", "Pré-wedding 12/05", "Excluir"]);
+  const other = row(/Caio & Duda/);
+  expect(names(other)).toEqual(["Editar", "Baixar PDF", "Excluir"]);
+  const actions = within(other).getByRole("button", { name: "Excluir" }).parentElement;
+  expect(actions?.children).toHaveLength(4);
+});
+
+test("no pré-wedding slot is rendered when no row has a pré-wedding", async () => {
+  server.use(
+    http.get("/api/v1/contracts", () => HttpResponse.json(page([makeContract(), second]))),
+  );
+  renderApp("/contratos");
+  for (const name of [/Bruno & Ana/, /Caio & Duda/]) {
+    const actions = within(await screen.findByRole("row", { name })).getByRole("button", {
+      name: "Excluir",
+    }).parentElement;
+    expect(actions?.children).toHaveLength(3);
+    expect(actions).not.toHaveTextContent("pré-wedding");
+  }
+});
+
 test("Desfazer still reports a refused restore after leaving the page", async () => {
   let deleted = false;
   server.use(

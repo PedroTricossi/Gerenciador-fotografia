@@ -1,5 +1,13 @@
 import type { ExpenseEventOut, ExpenseTypeOut } from "../../../api/client";
-import { fromExpense, toRequest, type ExpenseFormValues } from "./expenseForm";
+import {
+  emptyExpenseValues,
+  fieldFor,
+  fromExpense,
+  instalmentPreview,
+  toRequest,
+  validateExpense,
+  type ExpenseFormValues,
+} from "./expenseForm";
 
 const type = (key: string | null, id: string): ExpenseTypeOut => ({
   id,
@@ -20,6 +28,8 @@ const base: ExpenseFormValues = {
   transportKind: "",
   leftHomeAt: "",
   distance: "",
+  split: false,
+  instalmentCount: "",
 };
 
 test("a plain expense has no trip and the amount in cents", () => {
@@ -29,6 +39,7 @@ test("a plain expense has no trip and the amount in cents", () => {
     type_id: "t-cafe",
     description: null,
     trip: null,
+    instalment_count: 1,
   });
 });
 
@@ -54,6 +65,7 @@ test("a transport expense with an event carries the whole trip", () => {
       left_home_at: "13:30",
       distance_tenths: 320,
     },
+    instalment_count: 1,
   });
 });
 
@@ -76,6 +88,7 @@ test("fromExpense fills every field from a stored expense", () => {
       left_home_at: "13:30:00",
       distance_tenths: 325,
     },
+    instalment_count: 1,
     version: 2,
     created_at: "2026-10-11T10:00:00Z",
   };
@@ -88,6 +101,70 @@ test("fromExpense fills every field from a stored expense", () => {
     transportKind: "car",
     leftHomeAt: "13:30",
     distance: "32,5",
+    split: false,
+    instalmentCount: "",
   });
   expect(fromExpense({ ...expense, trip: null }).eventKey).toBe("");
+});
+
+test("an empty form is not split", () => {
+  const empty = emptyExpenseValues("2026-10-11");
+  expect(empty.split).toBe(false);
+  expect(empty.instalmentCount).toBe("");
+});
+
+test("fromExpense turns on Parcelado only for more than one instalment", () => {
+  const expense = {
+    id: "e1",
+    spent_on: "2026-10-11",
+    amount_cents: 100000,
+    type_id: "t-cafe",
+    description: null,
+    trip: null,
+    instalment_count: 3,
+    version: 1,
+    created_at: "2026-10-11T10:00:00Z",
+  };
+  const split = fromExpense(expense);
+  expect([split.split, split.instalmentCount]).toEqual([true, "3"]);
+  const single = fromExpense({ ...expense, instalment_count: 1 });
+  expect([single.split, single.instalmentCount]).toEqual([false, ""]);
+});
+
+test("a split expense needs a count from 2 to 24", () => {
+  const split = { ...base, split: true };
+  expect(validateExpense({ ...split, instalmentCount: "" }, TYPES).instalmentCount).toBe(
+    "campo obrigatório",
+  );
+  for (const count of ["1", "25", "2,5"]) {
+    expect(validateExpense({ ...split, instalmentCount: count }, TYPES).instalmentCount).toBe(
+      "Use de 2 a 24 parcelas.",
+    );
+  }
+  expect(
+    validateExpense({ ...split, instalmentCount: "24" }, TYPES).instalmentCount,
+  ).toBeUndefined();
+  expect(
+    validateExpense({ ...base, instalmentCount: "99" }, TYPES).instalmentCount,
+  ).toBeUndefined();
+});
+
+test("the request carries the count only when split", () => {
+  expect(toRequest({ ...base, split: true, instalmentCount: "3" }, TYPES).instalment_count).toBe(3);
+  expect(toRequest({ ...base, split: false, instalmentCount: "3" }, TYPES).instalment_count).toBe(
+    1,
+  );
+});
+
+test("a server instalment_count error lands on the count field", () => {
+  expect(fieldFor("instalment_count")).toBe("instalmentCount");
+});
+
+test("the preview shows each instalment and the last one when it differs", () => {
+  expect(instalmentPreview("1.000,00", "3")).toBe("3x de R$ 333,33 (última R$ 333,34)");
+  expect(instalmentPreview("1.200,00", "10")).toBe("10x de R$ 120,00");
+  expect(instalmentPreview("", "3")).toBeNull();
+  expect(instalmentPreview("1.000,00", "1")).toBeNull();
+  expect(instalmentPreview("1.000,00", "")).toBeNull();
+  expect(instalmentPreview("0,05", "10")).toBeNull();
 });

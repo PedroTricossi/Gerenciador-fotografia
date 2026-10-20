@@ -4,9 +4,10 @@ import calendar
 import datetime as dt
 from collections.abc import Sequence
 
-from gerenciador.domain.instalments import Month, add_months
+from gerenciador.domain.instalments import Month, add_months, month_of, split_equally
 
 MAX_RANGE_MONTHS = 24
+MAX_EXPENSE_INSTALMENTS = 24
 PriceHistory = Sequence[tuple[Month, int]]  # (from_month, amount_cents), in any order
 
 
@@ -55,3 +56,15 @@ def fixed_cost_occurrences(
 def fee_amount(standard: PriceHistory, override: int | None, month: Month) -> int | None:
     """The override if there is one, otherwise the standard fee in force that month."""
     return override if override is not None else price_in_force(standard, month)
+
+
+def expense_instalments(
+    spent_on: dt.date, total_cents: int, count: int
+) -> list[tuple[int, dt.date, int]]:
+    """(number, date, amount) per monthly instalment, anchored on the spend day each month."""
+    first = month_of(spent_on)
+    amounts = split_equally(total_cents, count)
+    return [
+        (i + 1, occurrence_date(add_months(first, i), spent_on.day), amount)
+        for i, amount in enumerate(amounts)
+    ]

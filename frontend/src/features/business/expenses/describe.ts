@@ -10,6 +10,14 @@ export const DANGLING: Record<string, string> = {
 const EVENT_WORD = { wedding: "casamento", prewedding: "pré-wedding" } as const;
 
 export function describe(entry: ExpenseEntryOut): string {
+  const base = baseLabel(entry);
+  const { instalment_number: number, instalment_count: count } = entry;
+  return number !== null && count !== null && count > 1
+    ? `${base} · parcela ${number}/${count}`
+    : base;
+}
+
+function baseLabel(entry: ExpenseEntryOut): string {
   if (entry.transport_kind && entry.link_state) {
     const place =
       entry.link_state === "ok"

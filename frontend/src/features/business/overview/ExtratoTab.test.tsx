@@ -183,3 +183,13 @@ test("an out row without an amount says sem valor, not zero", async () => {
   const row = (await screen.findByText("Caixa de som")).closest("tr");
   expect(row).toHaveTextContent("— sem valor");
 });
+
+test("an instalment expense is labelled parcela k/N", async () => {
+  serve({
+    statement: [
+      out("2026-10-03", 5000, { description: "Lente", instalment_number: 2, instalment_count: 5 }),
+    ],
+  });
+  renderApp("/negocio?aba=extrato");
+  expect(await screen.findByText("Lente · parcela 2/5")).toBeInTheDocument();
+});

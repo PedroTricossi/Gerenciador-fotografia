@@ -22,6 +22,7 @@ import { splitFieldErrors } from "../../../domain/problems";
 import {
   Banner,
   Button,
+  Checkbox,
   ConfirmDialog,
   Dialog,
   DialogActions,
@@ -41,6 +42,7 @@ import {
   eventKey,
   fieldFor,
   fromExpense,
+  instalmentPreview,
   isTransport,
   toRequest,
   validateExpense,
@@ -65,10 +67,14 @@ type Props = {
 };
 
 export function ExpenseDialog({ expenseId, onClose }: Props) {
-  const title = expenseId ? "Editar despesa" : "Nova despesa";
   const types = useExpenseTypes({ includeArchived: true });
   const events = useExpenseEvents();
   const expense = useExpense(expenseId);
+  const title = !expenseId
+    ? "Nova despesa"
+    : (expense.data?.instalment_count ?? 1) > 1
+      ? "Editar despesa parcelada"
+      : "Editar despesa";
   const queries = expenseId ? [types, events, expense] : [types, events];
   const failed = queries.some((query) => query.isError);
   // A cached copy can be older than the stored expense, and saving it would send its version
@@ -129,6 +135,8 @@ function ExpenseForm({ expense, types, events, onClose, onBusy }: FormProps) {
   const set = (patch: Partial<ExpenseFormValues>) =>
     setValues((current) => ({ ...current, ...patch }));
 
+  const preview = values.split ? instalmentPreview(values.amount, values.instalmentCount) : null;
+  const storedCount = expense?.instalment_count ?? 1;
   const typeOptions = types.filter((type) => !type.archived_at || type.id === expense?.type_id);
   const transport = isTransport(values.typeId, types);
   const hadTrip = expense?.trip != null;
@@ -218,7 +226,7 @@ function ExpenseForm({ expense, types, events, onClose, onBusy }: FormProps) {
             />
           )}
         </Field>
-        <Field label="Valor" error={errors.amount}>
+        <Field label={values.split ? "Valor total" : "Valor"} error={errors.amount}>
           {(control) => (
             <TextInput
               {...control}
@@ -230,6 +238,27 @@ function ExpenseForm({ expense, types, events, onClose, onBusy }: FormProps) {
             />
           )}
         </Field>
+        <Checkbox label="Parcelado" checked={values.split} onChange={(split) => set({ split })} />
+        {values.split && (
+          <Field label="Nº de parcelas" error={errors.instalmentCount} size="short">
+            {(control) => (
+              <TextInput
+                {...control}
+                value={values.instalmentCount}
+                inputMode="numeric"
+                autoComplete="off"
+                onChange={(event) => set({ instalmentCount: event.target.value })}
+              />
+            )}
+          </Field>
+        )}
+        {/* Mounted with the section, empty until the plan is valid, so screen readers hear the
+            first preview too (a live region added already filled is often not announced). */}
+        {values.split && (
+          <Hint id="instalment-preview" live>
+            {preview}
+          </Hint>
+        )}
         <Field label="Tipo" error={errors.typeId}>
           {(control) => (
             <Select
@@ -354,6 +383,7 @@ function ExpenseForm({ expense, types, events, onClose, onBusy }: FormProps) {
         onCancel={() => setConfirming(false)}
       >
         <p>Esta ação não pode ser desfeita.</p>
+        {storedCount > 1 && <p>Todas as {storedCount} parcelas serão excluídas.</p>}
       </ConfirmDialog>
     </>
   );
