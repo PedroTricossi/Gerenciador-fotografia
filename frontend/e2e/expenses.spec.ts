@@ -73,7 +73,7 @@ test("the standard fee and a fixed cost land in the month, tagged and totalled",
   await fixed.getByLabel("Valor", { exact: true }).fill("124,00");
   await fixed.getByRole("button", { name: "Adicionar" }).click();
   await expect(page.getByText("Despesa fixa criada")).toBeVisible();
-  await fixed.getByRole("button", { name: "Fechar" }).click();
+  await expect(fixed).toBeHidden();
 
   const fee = feeRow(page, couple);
   await expect(fee).toContainText("automática");
@@ -119,4 +119,36 @@ test("adjusting one wedding's fee leaves the standard alone", async ({ page }) =
   await expect(
     page.getByRole("region", { name: "Configurações" }).getByText(/2º fotógrafo \(padrão\)/),
   ).toContainText("R$ 500,00");
+});
+
+test("a 3x expense shows one instalment in each of three months", async ({ page }) => {
+  const description = `Lente ${uniqueSuffix()}`;
+  const now = new Date();
+  const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  await openExpenses(page);
+
+  await page.getByRole("button", { name: "+ Nova despesa" }).click();
+  const dialog = page.getByRole("dialog", { name: "Nova despesa" });
+  await dialog.getByLabel("Data").fill(firstOfMonth);
+  await dialog.getByLabel("Tipo").selectOption({ label: "Equipamento" });
+  await dialog.getByLabel("Descrição (opcional)").fill(description);
+  await dialog.getByRole("checkbox", { name: "Parcelado" }).check();
+  await dialog.getByLabel("Valor total").fill("900,00");
+  await dialog.getByLabel("Nº de parcelas").fill("3");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Despesa salva")).toBeVisible();
+
+  const instalment = (number: number) =>
+    page.getByRole("row").filter({ hasText: `${description} · parcela ${number}/3` });
+
+  await expect(instalment(1)).toContainText("R$ 300,00");
+  await expect(instalment(1)).not.toContainText("prevista");
+
+  await page.getByRole("button", { name: "Próximo mês" }).click();
+  await expect(instalment(2)).toContainText("R$ 300,00");
+  await expect(instalment(2)).toContainText("prevista");
+
+  await page.getByRole("button", { name: "Próximo mês" }).click();
+  await expect(instalment(3)).toContainText("R$ 300,00");
+  await expect(instalment(3)).toContainText("prevista");
 });
