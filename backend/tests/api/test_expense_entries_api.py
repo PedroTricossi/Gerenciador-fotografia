@@ -231,3 +231,71 @@ def test_range_checks(api: TestClient) -> None:
     ):
         assert api.get(URL, params=params).status_code == 422
     assert api.get(URL, params={"from": "2026-01", "to": "2027-12"}).status_code == 200
+
+
+def _manual_entries(api: TestClient, start: str, end: str) -> list[dict[str, Any]]:
+    return [e for e in _entries(api, start, end)["entries"] if e["source"] == "manual"]
+
+
+def test_instalments_land_one_per_month(api: TestClient) -> None:
+    created = _manual(api, "Café", "2026-01-15", amount_cents=100000, instalment_count=3)
+
+    rows = _manual_entries(api, "2026-01", "2026-03")
+
+    assert [r["amount_cents"] for r in rows] == [33333, 33333, 33334]
+    assert [r["instalment_number"] for r in rows] == [1, 2, 3]
+    assert {r["instalment_count"] for r in rows} == {3}
+    assert [r["id"] for r in rows] == [f"manual:{created['id']}:{n}" for n in (1, 2, 3)]
+    assert [r["date"] for r in rows] == ["2026-01-15", "2026-02-15", "2026-03-15"]
+
+
+def test_a_purchase_before_the_range_shows_its_later_instalments(api: TestClient) -> None:
+    _manual(api, "Café", "2026-03-10", amount_cents=100000, instalment_count=10)
+
+    rows = _manual_entries(api, "2026-09", "2026-09")
+
+    assert len(rows) == 1
+    assert rows[0]["instalment_number"] == 7
+    assert rows[0]["date"] == "2026-09-10"
+
+
+def test_a_range_in_the_middle_shows_only_those_instalments(api: TestClient) -> None:
+    _manual(api, "Café", "2026-03-10", amount_cents=100000, instalment_count=10)
+
+    rows = _manual_entries(api, "2026-05", "2026-06")
+
+    assert [r["instalment_number"] for r in rows] == [3, 4]
+
+
+def test_reducing_the_count_removes_later_rows(api: TestClient) -> None:
+    created = _manual(api, "Café", "2026-03-10", amount_cents=100000, instalment_count=10)
+    response = api.patch(
+        f"{EXPENSES}/{created['id']}",
+        json={
+            "spent_on": "2026-03-10",
+            "amount_cents": 100000,
+            "type_id": created["type_id"],
+            "description": "x",
+            "trip": None,
+            "instalment_count": 1,
+        },
+        headers={"If-Match": f'"{created["version"]}"'},
+    )
+    assert response.status_code == 200, response.text
+
+    assert _manual_entries(api, "2026-04", "2026-04") == []
+    (march,) = _manual_entries(api, "2026-03", "2026-03")
+    assert march["id"] == f"manual:{created['id']}"
+    assert march["instalment_number"] is None
+    assert march["instalment_count"] is None
+
+
+def test_single_payment_entries_are_unchanged(api: TestClient) -> None:
+    created = _manual(api, "Café", "2026-03-10")
+
+    (row,) = _manual_entries(api, "2026-03", "2026-03")
+
+    assert row["id"] == f"manual:{created['id']}"
+    assert row["instalment_number"] is None
+    assert row["instalment_count"] is None
+    assert row["amount_cents"] == 2500

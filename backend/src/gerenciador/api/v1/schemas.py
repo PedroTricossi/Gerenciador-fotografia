@@ -540,6 +540,8 @@ class ExpenseEntryOut(BaseModel):
     left_home_at: ClockTime | None
     distance_tenths: int | None
     override: bool
+    instalment_number: int | None
+    instalment_count: int | None
 
 
 class ExpenseEntriesOut(BaseModel):

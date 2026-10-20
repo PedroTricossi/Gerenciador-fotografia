@@ -956,6 +956,10 @@ export interface components {
             distance_tenths: number | null;
             /** Override */
             override: boolean;
+            /** Instalment Number */
+            instalment_number: number | null;
+            /** Instalment Count */
+            instalment_count: number | null;
         };
         /** ExpenseEventOut */
         ExpenseEventOut: {

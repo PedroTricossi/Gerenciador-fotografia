@@ -17,6 +17,8 @@ from gerenciador.db.models import (
 )
 from gerenciador.domain.contract import ContractRuleError
 from gerenciador.domain.expenses import (
+    MAX_EXPENSE_INSTALMENTS,
+    expense_instalments,
     fee_amount,
     fixed_cost_occurrences,
     months_in,
@@ -58,6 +60,8 @@ class ExpenseEntry:
     left_home_at: dt.time | None = None
     distance_tenths: int | None = None
     override: bool = False
+    instalment_number: int | None = None
+    instalment_count: int | None = None
 
 
 def _sort_key(item: tuple[ExpenseEntry, dt.datetime]) -> tuple[dt.date, int, dt.datetime, str]:
@@ -116,7 +120,14 @@ class ExpenseEntryService:
     def _manual(self, start: dt.date, end: dt.date) -> list[tuple[ExpenseEntry, dt.datetime]]:
         expenses = list(
             self._session.scalars(
-                select(Expense).where(Expense.spent_on >= start, Expense.spent_on <= end)
+                select(Expense).where(
+                    Expense.spent_on <= end,
+                    # An instalment plan reaches up to 23 months past the purchase.
+                    Expense.spent_on
+                    >= occurrence_date(
+                        add_months(month_of(start), -(MAX_EXPENSE_INSTALMENTS - 1)), 1
+                    ),
+                )
             ).unique()
         )
         linked = {e.contract_id for e in expenses if e.contract_id is not None}
@@ -128,26 +139,34 @@ class ExpenseEntryService:
         }
         result: list[tuple[ExpenseEntry, dt.datetime]] = []
         for expense in expenses:
-            entry = ExpenseEntry(
-                id=f"manual:{expense.id}",
-                source="manual",
-                date=expense.spent_on,
-                amount_cents=expense.amount_cents,
-                missing_amount=False,
-                type_id=expense.type_id,
-                type_name=expense.type.name,
-                type_key=expense.type.key,
-                description=expense.description,
-                expense_id=expense.id,
-                version=expense.version,
-                contract_id=expense.contract_id,
-                event_kind=expense.event_kind,
-                transport_kind=expense.transport_kind,
-                left_home_at=expense.left_home_at,
-                distance_tenths=expense.distance_tenths,
-            )
-            entry = replace(entry, **self._link(expense, contracts))
-            result.append((entry, expense.created_at))
+            count = expense.instalment_count
+            for number, date, amount in expense_instalments(
+                expense.spent_on, expense.amount_cents, count
+            ):
+                if not start <= date <= end:
+                    continue
+                entry = ExpenseEntry(
+                    id=f"manual:{expense.id}:{number}" if count > 1 else f"manual:{expense.id}",
+                    source="manual",
+                    date=date,
+                    amount_cents=amount,
+                    missing_amount=False,
+                    type_id=expense.type_id,
+                    type_name=expense.type.name,
+                    type_key=expense.type.key,
+                    description=expense.description,
+                    expense_id=expense.id,
+                    version=expense.version,
+                    contract_id=expense.contract_id,
+                    event_kind=expense.event_kind,
+                    transport_kind=expense.transport_kind,
+                    left_home_at=expense.left_home_at,
+                    distance_tenths=expense.distance_tenths,
+                    instalment_number=number if count > 1 else None,
+                    instalment_count=count if count > 1 else None,
+                )
+                entry = replace(entry, **self._link(expense, contracts))
+                result.append((entry, expense.created_at))
         return result
 
     @staticmethod
