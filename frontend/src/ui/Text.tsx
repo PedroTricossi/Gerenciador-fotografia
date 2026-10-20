@@ -23,9 +23,18 @@ export function TextLink(props: LinkProps) {
   return <Link {...props} className={styles.link} />;
 }
 
-export function Hint({ id, children }: { id: string; children: ReactNode }) {
+export function Hint({
+  id,
+  live,
+  children,
+}: {
+  id: string;
+  /** Announce changes to screen readers as they happen. */
+  live?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <p id={id} className={styles.hint}>
+    <p id={id} className={styles.hint} aria-live={live ? "polite" : undefined}>
       {children}
     </p>
   );

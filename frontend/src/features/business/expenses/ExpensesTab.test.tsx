@@ -352,3 +352,34 @@ test("Gerenciar on a fixed row opens the Despesas fixas dialog", async () => {
   await user.click(await screen.findByRole("button", { name: "Gerenciar Adobe" }));
   expect(await screen.findByRole("dialog", { name: "Despesas fixas" })).toBeInTheDocument();
 });
+
+test("an instalment row is labelled parcela k/N and Editar opens its expense", async () => {
+  serve([
+    makeExpenseEntry({
+      id: "manual:x:2",
+      description: "Lente",
+      instalment_number: 2,
+      instalment_count: 5,
+      expense_id: "6f1c0a52-8888-4000-8000-0000000000aa",
+    }),
+  ]);
+  server.use(
+    http.get("/api/v1/expenses/6f1c0a52-8888-4000-8000-0000000000aa", () =>
+      HttpResponse.json({
+        id: "6f1c0a52-8888-4000-8000-0000000000aa",
+        spent_on: "2026-09-14",
+        amount_cents: 50000,
+        type_id: "6f1c0a52-9999-4000-8000-000000000009",
+        description: "Lente",
+        trip: null,
+        instalment_count: 5,
+        version: 1,
+        created_at: "2026-09-14T10:00:00Z",
+      }),
+    ),
+  );
+  const { user } = renderApp("/negocio?aba=despesas");
+  expect(await screen.findByText("Lente · parcela 2/5")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Editar Lente · parcela 2/5" }));
+  expect(await screen.findByRole("dialog", { name: "Editar despesa parcelada" })).toBeVisible();
+});

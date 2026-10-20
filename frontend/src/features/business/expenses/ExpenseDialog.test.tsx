@@ -461,3 +461,68 @@ test("Escape does not close the dialog while a save is in flight", async () => {
   release();
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });
+
+test("ticking Parcelado asks for the count, relabels Valor and previews the split", async () => {
+  serve();
+  const { user, dialog } = await openNew();
+  expect(within(dialog).queryByLabelText("Nº de parcelas")).toBeNull();
+  await user.click(within(dialog).getByLabelText("Parcelado"));
+  expect(within(dialog).getByLabelText("Valor total")).toBeInTheDocument();
+  await user.type(within(dialog).getByLabelText("Valor total"), "1.000,00");
+  await user.type(within(dialog).getByLabelText("Nº de parcelas"), "3");
+  expect(within(dialog).getByText("3x de R$ 333,33 (última R$ 333,34)")).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+});
+
+test("saving a parcelado expense sends the count", async () => {
+  serve();
+  let sent: { instalment_count?: number } = {};
+  server.use(
+    http.post("/api/v1/expenses", async ({ request }) => {
+      sent = (await request.json()) as typeof sent;
+      return HttpResponse.json(STORED_CAFE, { status: 201 });
+    }),
+  );
+  const { user, dialog } = await openNew();
+  await user.type(within(dialog).getByLabelText("Valor"), "1.000,00");
+  await user.selectOptions(within(dialog).getByLabelText("Tipo"), "Café");
+  await user.click(within(dialog).getByLabelText("Parcelado"));
+  await user.type(within(dialog).getByLabelText("Nº de parcelas"), "3");
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(sent.instalment_count).toBe(3);
+});
+
+test("an instalment expense opens as parcelado and warns that deleting removes all", async () => {
+  serve([CAFE_ENTRY], { ...STORED_CAFE, instalment_count: 10 });
+  const { user } = renderApp("/negocio?aba=despesas");
+  await user.click(await screen.findByRole("button", { name: /^Editar/ }));
+  const dialog = await screen.findByRole("dialog", { name: "Editar despesa parcelada" });
+  expect(await within(dialog).findByLabelText("Parcelado")).toBeChecked();
+  expect(within(dialog).getByLabelText("Nº de parcelas")).toHaveValue("10");
+  await user.click(within(dialog).getByRole("button", { name: "Excluir" }));
+  const confirm = await screen.findByRole("dialog", { name: "Excluir esta despesa?" });
+  expect(within(confirm).getByText("Todas as 10 parcelas serão excluídas.")).toBeInTheDocument();
+});
+
+test("a 422 on instalment_count shows on the count field", async () => {
+  serve();
+  server.use(
+    http.post("/api/v1/expenses", () =>
+      problem(422, "invalid", {
+        errors: [{ field: "instalment_count", message: "parcelas demais" }],
+      }),
+    ),
+  );
+  const { user, dialog } = await openNew();
+  await user.type(within(dialog).getByLabelText("Valor"), "86");
+  await user.selectOptions(within(dialog).getByLabelText("Tipo"), "Café");
+  await user.click(within(dialog).getByLabelText("Parcelado"));
+  await user.type(within(dialog).getByLabelText("Nº de parcelas"), "3");
+  await user.click(within(dialog).getByRole("button", { name: "Salvar" }));
+  expect(await within(dialog).findByLabelText("Nº de parcelas")).toHaveAccessibleDescription(
+    "parcelas demais",
+  );
+});
