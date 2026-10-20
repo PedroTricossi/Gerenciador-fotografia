@@ -1,7 +1,10 @@
 import type { ExpenseIn, ExpenseOut, ExpenseTypeOut } from "../../../api/client";
 import { REQUIRED, amountError, textError } from "../../../domain/fieldRules";
 import { formatKm, parseKm } from "../../../domain/expenses";
-import { formatBrlAmount, parseBrl } from "../../../domain/money";
+import { splitEqually } from "../../../domain/instalments";
+import { formatBrl, formatBrlAmount, parseBrl } from "../../../domain/money";
+
+export const MAX_EXPENSE_INSTALMENTS = 24;
 
 export type ExpenseFormValues = {
   spentOn: string;
@@ -13,6 +16,9 @@ export type ExpenseFormValues = {
   transportKind: string;
   leftHomeAt: string;
   distance: string;
+  /** "Parcelado": the amount is the purchase total, paid in `instalmentCount` parts. */
+  split: boolean;
+  instalmentCount: string;
 };
 
 export type ExpenseField =
@@ -23,7 +29,8 @@ export type ExpenseField =
   | "event"
   | "transportKind"
   | "leftHomeAt"
-  | "distance";
+  | "distance"
+  | "instalmentCount";
 export type ExpenseErrors = Partial<Record<ExpenseField, string>>;
 
 type TripKind = "wedding" | "prewedding";
@@ -38,6 +45,8 @@ export function emptyExpenseValues(today: string): ExpenseFormValues {
     transportKind: "",
     leftHomeAt: "",
     distance: "",
+    split: false,
+    instalmentCount: "",
   };
 }
 
@@ -61,6 +70,8 @@ export function fromExpense(expense: ExpenseOut): ExpenseFormValues {
     transportKind: trip?.transport_kind ?? "",
     leftHomeAt: trip?.left_home_at.slice(0, 5) ?? "",
     distance: trip ? formatKm(trip.distance_tenths).replace(" km", "") : "",
+    split: expense.instalment_count > 1,
+    instalmentCount: expense.instalment_count > 1 ? String(expense.instalment_count) : "",
   };
 }
 
@@ -71,6 +82,26 @@ export function isTransport(typeId: string, types: readonly ExpenseTypeOut[]): b
 /** Only a transport expense with an event carries a trip. */
 export function hasTrip(values: ExpenseFormValues, types: readonly ExpenseTypeOut[]): boolean {
   return isTransport(values.typeId, types) && values.eventKey !== "";
+}
+
+/** The count as a whole number from 2 to 24, else null. */
+function parseInstalmentCount(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const count = Number(trimmed);
+  return count >= 2 && count <= MAX_EXPENSE_INSTALMENTS ? count : null;
+}
+
+/** "3x de R$ 333,33 (última R$ 333,34)"; null until the amount and count are valid. */
+export function instalmentPreview(amount: string, count: string): string | null {
+  const total = parseBrl(amount);
+  const parts = parseInstalmentCount(count);
+  if (total === null || parts === null || total < parts) return null;
+  const amounts = splitEqually(total, parts);
+  const first = amounts[0]!;
+  const last = amounts[parts - 1]!;
+  const each = `${parts}x de ${formatBrl(first)}`;
+  return last === first ? each : `${each} (última ${formatBrl(last)})`;
 }
 
 export function validateExpense(
@@ -84,6 +115,11 @@ export function validateExpense(
   if (values.typeId === "") errors.typeId = REQUIRED;
   const description = textError(values.description, 200, false);
   if (description) errors.description = description;
+  if (values.split) {
+    if (values.instalmentCount.trim() === "") errors.instalmentCount = REQUIRED;
+    else if (parseInstalmentCount(values.instalmentCount) === null)
+      errors.instalmentCount = `Use de 2 a ${MAX_EXPENSE_INSTALMENTS} parcelas.`;
+  }
   if (hasTrip(values, types)) {
     if (values.transportKind === "") errors.transportKind = REQUIRED;
     if (values.leftHomeAt === "") errors.leftHomeAt = REQUIRED;
@@ -108,7 +144,9 @@ export function toRequest(values: ExpenseFormValues, types: readonly ExpenseType
           distance_tenths: parseKm(values.distance) ?? Number.NaN,
         }
       : null,
-    instalment_count: 1,
+    instalment_count: values.split
+      ? (parseInstalmentCount(values.instalmentCount) ?? Number.NaN)
+      : 1,
   };
 }
 
@@ -123,6 +161,8 @@ export function fieldFor(path: string): ExpenseField | null {
       return "typeId";
     case "description":
       return "description";
+    case "instalment_count":
+      return "instalmentCount";
     case "trip.contract_id":
     case "trip.event_kind":
       return "event";
