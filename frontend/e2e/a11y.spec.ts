@@ -18,6 +18,16 @@ function localIso(date: Date): string {
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 async function audit(page: Page) {
+  // Blocks print in after a short delay; a block caught mid-fade reads as low-contrast text.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        // A block that unmounts mid-fade cancels its animation; that is fine too.
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   expect(violations).toEqual([]);
 }
