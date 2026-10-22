@@ -23,3 +23,8 @@ test("an already aborted jsdom AbortSignal yields an aborted request", () => {
   controller.abort();
   expect(new Request(URL_, { signal: controller.signal }).signal.aborted).toBe(true);
 });
+
+test("a request no handler covers fails instead of reaching the network", async () => {
+  const error = await fetch("http://localhost/sem-handler").catch((e: unknown) => e);
+  expect(String((error as Error).cause)).toContain("[MSW] Cannot bypass a request");
+});

@@ -26,7 +26,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: ["./src/test/localStorage.ts", "./src/test/setup.ts"],
+    setupFiles: [
+      "./src/test/animationEvent.ts",
+      "./src/test/localStorage.ts",
+      "./src/test/setup.ts",
+    ],
     include: ["src/**/*.test.{ts,tsx}"],
     css: { modules: { classNameStrategy: "non-scoped" } },
     coverage: {
