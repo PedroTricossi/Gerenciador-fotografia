@@ -1,14 +1,32 @@
 version: 2
+# Supply chain: a new release waits a week before Dependabot proposes it, so a hijacked
+# version has time to be caught and pulled. Security updates skip the wait.
+# Routine bumps arrive grouped; majors stay one PR each so they can be checked alone.
 updates:
   - package-ecosystem: uv
     directory: /backend
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      backend-minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      frontend-minor-and-patch:
+        update-types: [minor, patch]

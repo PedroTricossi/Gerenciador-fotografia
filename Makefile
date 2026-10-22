@@ -12,7 +12,7 @@ NPM := cd frontend && npm
 install: install-backend install-frontend
 
 install-backend:
-	$(UV) sync
+	$(UV) sync --locked
 
 install-frontend:
 	$(NPM) ci
