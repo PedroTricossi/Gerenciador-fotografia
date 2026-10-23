@@ -3,15 +3,15 @@ name = "gerenciador"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.0",
     "cryptography>=50.0.2",
-    "fastapi>=0.143.0",
+    "fastapi>=0.143.1",
     "jinja2>=3.1.6",
     "markdown-it-py>=4.2.0",
     "num2words>=0.5.14",
-    "pydantic-settings>=2.15.0",
+    "pydantic-settings>=2.16.0",
     "sqlalchemy>=2.1.4",
     "uvicorn[standard]>=0.54.0",
     "weasyprint>=70.0",
@@ -24,15 +24,23 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "httpx2>=2.13.1",
-    "hypothesis>=6.169.0",
+    "hypothesis>=6.169.2",
     "mypy>=2.4.0",
     "pip-audit>=2.10.1",
     "pre-commit>=4.7.0",
-    "pypdf>=6.20.1",
+    "pypdf>=6.21.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.17.0",
 ]
+
+[tool.uv]
+# Supply chain: leave fresh releases a week to be caught and pulled before they reach us.
+# uv.lock pins every file by hash, and `uv sync --locked` refuses a lock that drifted.
+exclude-newer = "7 days"
+# Security fixes skip the wait, capped at the fixed release itself. Drop each entry once
+# its date is more than a week old.
+exclude-newer-package = { certifi = "2026-10-20T02:25:00Z", pillow = "2026-10-16T22:19:00Z", pypdf = "2026-10-17T10:30:00Z", virtualenv = "2026-10-17T16:10:00Z" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -40,7 +48,7 @@ addopts = "--strict-markers --import-mode=importlib"
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
@@ -50,7 +58,7 @@ select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
 
 [tool.mypy]
 strict = true
-python_version = "3.13"
+python_version = "3.14"
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]

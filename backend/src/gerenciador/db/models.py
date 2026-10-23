@@ -98,14 +98,14 @@ class Contract(Base):
 
     groom: Mapped[Client] = relationship(foreign_keys=[groom_id], lazy="joined")
     bride: Mapped[Client] = relationship(foreign_keys=[bride_id], lazy="joined")
-    items: Mapped[list["ContractItem"]] = relationship(
+    items: Mapped[list[ContractItem]] = relationship(
         order_by="ContractItem.position", cascade="all, delete-orphan", lazy="selectin"
     )
     # One-to-one: setting this to None deletes the row.
-    prewedding: Mapped["PreweddingEvent | None"] = relationship(
+    prewedding: Mapped[PreweddingEvent | None] = relationship(
         cascade="all, delete-orphan", lazy="selectin"
     )
-    instalments: Mapped[list["Instalment"]] = relationship(
+    instalments: Mapped[list[Instalment]] = relationship(
         order_by="Instalment.number", cascade="all, delete-orphan", lazy="selectin"
     )
 
@@ -235,7 +235,7 @@ class FixedCost(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(UTCDateTime)
 
     type: Mapped[ExpenseType] = relationship(lazy="joined")
-    prices: Mapped[list["FixedCostPrice"]] = relationship(
+    prices: Mapped[list[FixedCostPrice]] = relationship(
         order_by="FixedCostPrice.from_month",
         cascade="all, delete-orphan",
         lazy="selectin",
