@@ -41,11 +41,10 @@ export const test = base.extend<{ consoleErrors: string[]; services: void }>({
 });
 export { expect };
 
-// Made-up CPFs: base 000000 plus a three-digit counter, with valid check digits.
-let counter = Math.floor(Math.random() * 800) + 1;
+// Made-up CPFs: nine random digits plus valid check digits. A counter repeated CPFs
+// whenever a failure restarted the worker, and a repeated CPF reuses an existing client.
 export function freshCpf(): string {
-  counter += 1;
-  return completeCpf(`000000${String(counter).padStart(3, "0")}`);
+  return completeCpf(Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join(""));
 }
 
 export function uniqueSuffix(): string {
